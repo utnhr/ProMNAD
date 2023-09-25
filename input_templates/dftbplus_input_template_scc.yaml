@@ -1,0 +1,23 @@
+Geometry:
+  is_named_dict: False
+  GenFormat:
+    is_named_dict: True
+    values:
+      (noname): '<<< "geo.gen"'
+
+Hamiltonian:
+  is_named_dict: False
+  DFTB:
+    is_named_dict: True
+    values:
+      is_named_dict: False
+      SCC: 'Yes'
+      SCCTolerance: 1e-10
+      SlaterKosterFiles:
+        is_named_dict: False
+        Type2FileNames:
+          is_named_dict: True
+          values:
+            Prefix: '"./"'
+            Separator: '"-"'
+            Suffix: '".skf"'

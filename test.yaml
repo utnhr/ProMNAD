@@ -1,0 +1,5 @@
+title: test run
+geom_file: sample.xyz
+mode: test
+hamil_file: sample_hamil.dat
+overlap_file: sample_overlap.dat
