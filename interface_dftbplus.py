@@ -5,10 +5,9 @@ import os
 import glob
 import subprocess
 import numpy as np
-
 import yaml
-
 import utils
+import ctypes
 
 class dftbplus_manager:
     
@@ -243,3 +242,10 @@ class dftbplus_manager:
             n_AO, overlap = get_dftbplus_matrix_text(cls.working_directory, 'oversqr.dat')
     
             return n_AO, e_hamil, overlap
+
+    @classmethod
+    def dftbplus_init(cls, env, elems, angmom_table, geom):
+        
+        import dftbplus
+
+        LIB_PATH = env
