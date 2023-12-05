@@ -21,22 +21,30 @@ class electronic_structure:
         cls.qc_program      = qc_program
 
 
-    def __init__(self):
+    def __init__(e_coeffs, position, velocity, t):
         
-        self.H               = None
-        self.S               = None
-        self.mo_energies     = None
-        self.mo_coeffs       = None
-        self.n_occ           = None
-        self.gs_energy       = None
-        self.active_orbitals = None
-        self.atominfo        = None
-
-        self.t_molecular_orbitals = float('inf')
-        self.t_estate_energies    = float('inf')
-        self.t_matrices           = float('inf')
-        self.t_force              = float('inf')
-        self.t_tdnac              = float('inf')
+        self.e_coeffs            = e_coeffs # np.array (n_estate)
+        self.old_e_coeffs        = None
+        self.estate_energies     = None
+        self.old_estate_energies = None
+        self.position            = position
+        self.velocity            = velocity
+        self.H                   = None
+        self.S                   = None
+        self.mo_energies         = None
+        self.mo_coeffs           = None
+        self.n_occ               = None
+        self.gs_energy           = None
+        self.active_orbitals     = None
+        self.atominfo            = None
+        
+        self.t_e_coeffs           = t
+        self.t_molecular_orbitals = int('inf')
+        self.t_estate_energies    = int('inf')
+        self.t_matrices           = int('inf')
+        self.t_force              = int('inf')
+        self.t_tdnac              = int('inf')
+        self.t_state_coeffs       = int('inf')
         self.initial_MO_done      = False
 
         return
@@ -62,7 +70,11 @@ class electronic_structure:
     def get_t(self):
         return self.t
 
-    
+
+    def get_n_estate(self):
+        return len(self.e_coeffs)
+
+
     def get_n_occ(self):
         return self.n_occ
 
@@ -164,7 +176,8 @@ class electronic_structure:
         
                     state_energies.append(row)
             
-            self.estate_energoes = np.array(state_energies)
+            self.old_estate_energies = deepcopy(self.estate_energies())
+            self.estate_energies     = np.array(state_energies)
 
             self.t_estate_energies = self.time
             

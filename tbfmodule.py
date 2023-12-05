@@ -12,6 +12,8 @@ import utils
 from interface_dftbplus import dftbplus_manager
 import electronmodule
 
+from dynamics import propagate_tbf
+
 class tbf:
     """Class of TBFs."""
     
@@ -21,7 +23,7 @@ class tbf:
     # TBF group info
     total_tbf_count = 0
     live_tbf_count  = 0
-    live_tbfs       = []
+    tbfs            = []
 
 
     @classmethod
@@ -42,11 +44,11 @@ class tbf:
         return
 
     
-    @classmethod
-    def propagate_all(cls):
-        """Time-propagate full wavefunction."""
-        ## placeholder
-        return
+    #@classmethod
+    #def propagate_all(cls):
+    #    """Time-propagate full wavefunction."""
+    #    ## placeholder
+    #    return
 
 
     @classmethod
@@ -98,7 +100,7 @@ class tbf:
         else:
             s_gw = gaussian_overlap
     #}}}
-        return s_gw * np.dot( tbf1.get_e_coeffs(), tbf2.get_e_coeffs() )
+        return s_gw * np.dot( tbf1.e_part.get_e_coeffs(), tbf2.e_part.get_e_coeffs() )
 
     
     @classmethod
@@ -184,8 +186,7 @@ class tbf:
         self.init_position = position          # np.array (n_dof)
         self.mass          = mass              # np.array (n_dof)
         self.width         = width             # np.array (n_dof)
-        self.e_coeffs      = e_coeffs          # np.array (n_estate)
-        self.init_t        = t                 # float
+        self.init_t        = t                 # integer, index of step
         self.gs_energy     = initial_gs_energy # float
 
         if momentum is not None:
@@ -198,36 +199,47 @@ class tbf:
         else:
             self.phase = np.zeros(n_dof)
 
-        self.position = deepcopy(self.init_position)
-        self.momentum = deepcopy(self.init_momentum)
-        self.t        = self.init_t
+        self.position     = deepcopy(self.init_position)
+        self.old_position = deepcopy(self.position)
+        self.t_position   = t
 
-        self.e_dot    = np.zeros(n_estate) # dc/dt
+        self.momentum     = deepcopy(self.init_momentum)
+        self.old_momentum = deepcopy(self.momentum)
+        self.t_momentum   = t
 
-        self.tbf_id   = tbf.total_tbf_count + 1
+        self.t = self.init_t
+
+        self.e_dot = np.zeros(n_estate) # dc/dt
+
+        self.tbf_id = tbf.total_tbf_count + 1
         
-        self.e_part = electronmodule.electronic_state()
+        self.e_part = electronmodule.electronic_state(e_coeffs)
         self.e_part.update_position_velocity_time(
             self.get_position(), self.get_velocity(), self.get_t()
         )
 
-        tbf.live_tbfs.append(self)
+        self.is_alive = True
+
+        tbf.tbfs.append(self)
         tbf.total_tbf_count += 1
         tbf.live_tbf_count  += 1
     #}}}
         return
 
+
     def destroy(self):
     #{{{
-        for i_live_tbf, live_tbf in enumerate(tbf.live_tbfs):
-            
-            if live_tbf.tbf_id == self.tbf_id:
+        #for i_live_tbf, live_tbf in enumerate(tbf.live_tbfs):
+        #    
+        #    if live_tbf.tbf_id == self.tbf_id:
 
-                my_tbf_index = i_live_tbf
-                
-                break
+        #        my_tbf_index = i_live_tbf
+        #        
+        #        break
 
-        tbf.live_tbfs.pop(my_tbf_index)
+        #tbf.live_tbfs.pop(my_tbf_index)
+        
+        self.is_alive = False
         tbf.live_tbf_count -= 1
 
         print("TBF %d destroyed.\n" % self.tbf_id)
@@ -253,6 +265,10 @@ class tbf:
 
     def get_e_coeffs(self):
         return deepcopy(self.e_coeffs)
+
+
+    def get_tdnac(self):
+        return deepcopy(self.e_part.get_tdnac())
 
 
     def get_position(self):
@@ -310,15 +326,16 @@ class tbf:
         return val
 
 
-    def propagate_indivisual_tbf(self):
+    #def propagate_indivisual_tbf(self):
 
-        ## placeholder
+    #    ## placeholder
+    #    propagate_tbf(self)
 
-        self.e_part.update_position_velocity_time(
-            self.get_position(), self.get_velocity(), self.get_t()
-        )
-        
-        return
+    #    self.e_part.update_position_velocity_time(
+    #        self.get_position(), self.get_velocity(), self.get_t()
+    #    )
+    #    
+    #    return
 
     
     def spawn(self):
