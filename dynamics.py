@@ -30,7 +30,6 @@ def propagate_tbfs():
 
             S_ij = get_wf_overlap(guy_i, guy_j, gaussian_overlap = g_ij)
             H_ij = get_tbf_hamiltonian_element_BAT(guy_i, guy_j, gaussian_overlap = g_ij)
-            T_ij = get_gaussian_NAcoupling_term(guy_i, guy_j, gaussian_overlap = g_ij)
 
             S[i,j] = S_ij
             S[j,i] = S_ij
@@ -67,5 +66,7 @@ def propagate_tbfs():
         force = guy.e_part.get_force()
     
     # construct remaining terms in TBF equation of motion   
+
+    # < \psi_m | d/dt | \psi_n >
 
     

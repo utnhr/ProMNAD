@@ -143,7 +143,7 @@ class tbf:
     @classmethod
     def get_gaussian_NAcoupling_term(cls, tbf1, tbf2, gaussian_overlap):
         """Calculate nonadiabatic coupling matrix element between two Gaussian wave packets."""
-        return (1j * 0.5 / H_DIRAC) * ( tbf1.get_tdnac() + tbf2.get_tdnac() )
+        return (1j * 0.5 / H_DIRAC) * gaussian_overlap.prod() * ( tbf1.get_tdnac() + tbf2.get_tdnac() )
 
 
     @classmethod
@@ -174,6 +174,32 @@ class tbf:
             vals[j_estate][i_estate] = val
     #}}}
         return sum(vals)
+
+
+    @classmethod
+    def get_gaussian_derivative_coupling(cls, tbf1, tbf2, gaussian_overlap):
+        """Calculate <\xi_m|d/dt|\xi_n>, where \xi_m(n) is a GWP"""
+
+        #placeholder
+
+        return val
+
+    
+    @classmethod
+    def get_tbf_derivative_coupling(cls, tbf1, tbf2, gaussian_overlap):
+        """Calculate <\psi_m|d/dt|\psi_n>, where \psi_m(n) is a TBF"""
+    #{{{
+        gwp_derivative = cls.get_gaussian_derivative_coupling(
+            tbf1, tbf2, gaussian_overlap
+        )
+        
+        e_coeffs_1 = tbf1.get_e_coeffs()
+        e_coeffs_2 = tbf2.get_e_coeffs()
+
+        e_coeffs_tderiv_2 = tbf2.get_e_coeffs_tderiv
+
+    #}}}
+        return val
 
 
     def __init__(
