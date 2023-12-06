@@ -10,7 +10,7 @@ from copy import deepcopy
 from constants import H_DIRAC
 import utils
 
-class electronic_structure:
+class Electronic_state:
     
 
     @classmethod
@@ -37,6 +37,9 @@ class electronic_structure:
         self.gs_energy           = None
         self.active_orbitals     = None
         self.atominfo            = None
+
+        self.e_coeffs_tderiv     = np.zeros_like(e_coeffs)
+        self.old_e_coeffs_tderiv = np.zeros_like(e_coeffs)
         
         self.t_e_coeffs           = t
         self.t_molecular_orbitals = int('inf')
@@ -50,12 +53,16 @@ class electronic_structure:
         return
 
 
-    def update_position_velocity_time(self, position, velocity, t):
-        
-        self.position = position
-        self.velocity = velocity
-        self.t        = t
+    def set_new_position(self, position):
+        self.position = deepcopy(position)
+        return
 
+    def set_new_momentum(self, momentum):
+        self.position = deepcopy(momentum)
+        return
+
+    def set_new_time(self, t):
+        self.t = t
         return
 
 
@@ -186,14 +193,36 @@ class electronic_structure:
         return deepcopy(self.estate_energies)
 
 
-    def get_tdnac(self):
+    def get_tdnac(self): ## placeholder
         
-        return None ## placeholder
+        n_estate = self.get_n_estate()
+        tdnac = np.zeros( (n_estate, n_estate), dtype='float64' )
+        
+        return tdnac
+
     
-    
-    def get_force(self):
+    def get_e_coeffs(self):
+        return deepcopy(self.e_coeffs)
+
+
+    def get_old_e_coeffs(self):
+        return deepcopy(self.old_e_coeffs)
+
+
+    def get_e_coeffs_tderiv(self):
+        return deepcopy(self.e_coeffs_tderiv)
+
+
+    def get_old_e_coeffs_tderiv(self):
+        return deepcopy(self.old_e_coeffs_tderiv)
+
+
+    def get_force(self): # placeholder
         """Get nuclear force originating from electronic states."""
-        return None # placeholder
+
+        force = np.zeros_like(self.position)
+
+        return force
     
 
     def update_matrices(self):
@@ -213,5 +242,21 @@ class electronic_structure:
             self.t_matrices = self.get_t()
 
             utils.printer.write_out('Updating hamiltonian and overlap matrices: Done.')
+
+        return
+
+
+    def set_new_e_coeffs(self, e_coeffs):
+        
+        self.old_e_coeffs = self.e_coeffs
+        self.e_coeffs = e_coeffs
+
+        return
+
+
+    def set_new_e_coeffs_tderiv(self, e_coeffs_tderiv):
+        
+        self.old_e_coeffs_tderiv = self.e_coeffs_tderiv
+        self.e_coeffs_tderiv = e_coeffs_tderiv
 
         return

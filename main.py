@@ -21,6 +21,7 @@ if __name__ == '__main__':
     if settings['mode'] == 'test':
 
         elems, geom   = inout.get_geom('sample_geom.xyz', return_1d = True)
+
         n_AO, hamil   = inout.get_matrix_from_text('sample_hamil.dat')
         n_AO, overlap = inout.get_matrix_from_text('sample_overlap.dat')
 
@@ -33,9 +34,9 @@ if __name__ == '__main__':
 
         print(elems)
 
-        test1 = tbfmodule.tbf(position = geom, n_dof = len(geom))
-        test2 = tbfmodule.tbf(position = geom, n_dof = len(geom))
-        test3 = tbfmodule.tbf(position = geom, n_dof = len(geom))
+        test1 = tbfmodule.tbf(position = geom, n_dof = 3 * len(geom))
+        test2 = tbfmodule.tbf(position = geom, n_dof = 3 * len(geom))
+        test3 = tbfmodule.tbf(position = geom, n_dof = 3 * len(geom))
 
         print(tbfmodule.tbf.live_tbfs)
         print(tbfmodule.tbf.live_tbf_count)

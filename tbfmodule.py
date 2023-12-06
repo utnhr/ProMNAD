@@ -10,40 +10,28 @@ from copy import deepcopy
 from constants import H_DIRAC
 import utils
 from interface_dftbplus import dftbplus_manager
-import electronmodule
+from electronmodule import Electronic_state
+from worldsmodule import World
 
 from dynamics import propagate_tbf
 
-class tbf:
+class Tbf:
     """Class of TBFs."""
-    
-    # default calculation settings
-    qc_program      = 'dftb+'
-    
-    # TBF group info
-    total_tbf_count = 0
-    live_tbf_count  = 0
-    tbfs            = []
 
+    worlds = []
 
+    
     @classmethod
-    def init_calculation_settings(cls, qc_program=None, n_occ=None, active_orbitals=None, dt=None):
-    #{{{
-        if qc_program is not None:
-            cls.qc_program = qc_program
+    def init_new_world(cls, settings):
 
-        if n_occ is not None:
-            cls.n_occ = n_occ
+        new_world = World()
+        cls.worlds.append(new_world)
 
-        if active_orbitals is not None:
-            cls.active_orbitals = active_orbitals
+        new_world.settings = settings
 
-        if dt is not None:
-            cls.dt = dt
-    #}}}
         return
 
-    
+
     #@classmethod
     #def propagate_all(cls):
     #    """Time-propagate full wavefunction."""
@@ -54,7 +42,7 @@ class tbf:
     @classmethod
     def get_gaussian_overlap(cls, tbf1, tbf2):
         """Calculate overlap matrix element (for each degree of freedom) between two gaussian wave packets."""
-    #{{{
+
         #if tbf1.get_n_dof() != tbf2.get_n_dof():
         #    utils.stop_with_error('Number of electronic states must be the same for all TBFs')
         #n_dof = tbf1.get_n_dof()
@@ -83,30 +71,57 @@ class tbf:
             val *= exp( -0.5*width[i_dof]*delta_pos[i_dof]**2 )
             val *= exp( -delta_mom[i_dof]**2/(8*width[i_dof]*H_DIRAC**2) )
             val *= exp( (1j/H_DIRAC)*(momentum[i_dof])**2 )
-            val *= exp( (1j/H_DIRAC)*(mom1[i_dof]*pos1[i_dof] - mom2[i_dof]*pos2[i_dof] + mid_pos[i_dof]*delta_mom[i_dof]) )
+            val *= exp( (1j/H_DIRAC)*(mom1[i_dof]*pos1[i_dof] - \
+                                      mom2[i_dof]*pos2[i_dof] + \
+                                      mid_pos[i_dof]*delta_mom[i_dof])
+                      )
             val *= exp( (1j/H_DIRAC)*delta_phase[i_dof] )
 
             vals.append(val)
-    #}}}
+
         return np.array(vals)
+
+    
+    @classmethod
+    def get_gaussian_dR(cls, tbf1, tbf2, gaussian_overlap):
+        """Calculate <x_m|d/dR|x_n>"""
+
+        s_gw  = gaussian_overlap
+        Pbar  = 0.5 * ( tbf1.get_momentum() + tbf2.get_momentum() )
+        DelR  = tbf2.get_position() - tbf1.get_position()
+        width = tbf1.get_width()
+
+        return s_gw.prod() * ( (1.0j / H_DIRAC) * Pbar + width * DelR )
 
 
     @classmethod
-    def get_wf_overlap(cls, tbf1, tbf2, gaussian_overlap=None):
+    def get_gaussian_dP(cls, tbf1, tbf2, gaussian_overlap):
+        """Calculate <x_m|d/dP|x_n>"""
+
+        s_gw  = gaussian_overlap
+        DelP  = tbf2.get_momentum() - tbf1.get_momentum()
+        DelR  = tbf2.get_position() - tbf1.get_position()
+        width = tbf1.get_width()
+
+        return s_gw.prod() * (
+            ( -1.0 / (4.0 * width * H_DIRAC**2) ) * DelP - \
+            ( 1.0j / (2.0 * H_DIRAC) ) * DelR
+        )
+
+
+    @classmethod
+    def get_wf_overlap(cls, tbf1, tbf2, gaussian_overlap):
         """Calculate overlap matrix between two TBFs."""
-    #{{{
-        if gaussian_overlap is None:
-            s_gw = cls.get_gaussian_overlap(tbf1, tbf2)
-        else:
-            s_gw = gaussian_overlap
-    #}}}
-        return s_gw * np.dot( tbf1.e_part.get_e_coeffs(), tbf2.e_part.get_e_coeffs() )
+        s_gw = gaussian_overlap
+        return s_gw.prod() * np.dot(
+            tbf1.e_part.get_e_coeffs(), tbf2.e_part.get_e_coeffs()
+        )
 
     
     @classmethod
     def get_gaussian_kinE_term(cls, tbf1, tbf2, gaussian_overlap, each_degree=False):
         """Calculate kinetic energy matrix element between two Gaussian wave packets. Integrate over all degrees of freedom."""
-    #{{{
+
         #if gaussian_overlap = None:
         #    s_gw = cls.get_gaussian_overlap(tbf1, tbf2)
         #else:
@@ -119,9 +134,10 @@ class tbf:
         mass  = tbf1.get_mass
 
         kin = - 0.5 * H_DIRAC**2 * (
-            (1j/H_DIRAC) * 2.0 * width * del_R * mid_P - width + width**2 * del_R**2 - mid_P**2 / H_DIRAC**2
+            (1j/H_DIRAC) * 2.0 * width * del_R * mid_P - \
+            width + width**2 * del_R**2 - mid_P**2 / H_DIRAC**2
         ) * s_gw / mass 
-    #}}}
+
         if each_degree:
             return kin
         else:
@@ -131,25 +147,29 @@ class tbf:
     @classmethod
     def get_gaussian_potential_term(cls, tbf1, tbf2, gaussian_overlap):
         """Calculate potential matrix element between two Gaussian wave packets. Electronic state energies must be calculated in advance."""
-    #{{{
+
         n_estate = tbf1.get_n_estate()
 
         estate_energies_1 = tbf1.get_estate_energies()
         estate_energies_2 = tbf2.get_estate_energies()
-    #}}}
-        return 0.5 * gaussian_overlap.prod() * (estate_energies_1 + estate_energies_2) # array, length = number of electronic states
+
+        return 0.5 * gaussian_overlap.prod() * (
+            estate_energies_1 + estate_energies_2
+        ) # array, length = number of electronic states
 
 
     @classmethod
     def get_gaussian_NAcoupling_term(cls, tbf1, tbf2, gaussian_overlap):
         """Calculate nonadiabatic coupling matrix element between two Gaussian wave packets."""
-        return (1j * 0.5 / H_DIRAC) * gaussian_overlap.prod() * ( tbf1.get_tdnac() + tbf2.get_tdnac() )
+        return (1j * 0.5 / H_DIRAC) * gaussian_overlap.prod() * (
+            tbf1.e_part.get_tdnac() + tbf2.e_part.get_tdnac()
+        )
 
 
     @classmethod
     def get_tbf_hamiltonian_element_BAT(cls, tbf1, tbf2, gaussian_overlap=None):
         """Calculate hamiltonian matrix elements between TBFs based on bra-ket avaraged Taylor expansion (BAT)."""
-    #{{{
+
         if gaussian_overlap = None:
 
             gaussian_overlap = cls.get_gaussian_overlap(tbf1, tbf2)
@@ -172,7 +192,7 @@ class tbf:
 
             vals[i_estate][j_estate] = val
             vals[j_estate][i_estate] = val
-    #}}}
+
         return sum(vals)
 
 
@@ -180,32 +200,41 @@ class tbf:
     def get_gaussian_derivative_coupling(cls, tbf1, tbf2, gaussian_overlap):
         """Calculate <\xi_m|d/dt|\xi_n>, where \xi_m(n) is a GWP"""
 
-        #placeholder
+        momentum = tbf2.get_momentum()
+        velocity = tbf2.get_velocity()
+        dgdt     = 0.5 * np.dot(momentum, velocity) # dgamma/dt; time-dependence of phase
 
-        return val
+        term1 = np.dot(velocity, cls.get_gaussian_dR(tbf1, tbf2, gaussian_overlap)
+        term2 = np.dot(momentum, cls.get_gaussian_dP(tbf1, tbf2, gaussian_overlap)
+        term3 = (1.0j/H_DIRAC) * dgdt * gaussian_overlap.prod()
+
+        return term1 + term2 + term3
 
     
     @classmethod
     def get_tbf_derivative_coupling(cls, tbf1, tbf2, gaussian_overlap):
         """Calculate <\psi_m|d/dt|\psi_n>, where \psi_m(n) is a TBF"""
-    #{{{
+
         gwp_derivative = cls.get_gaussian_derivative_coupling(
             tbf1, tbf2, gaussian_overlap
         )
         
-        e_coeffs_1 = tbf1.get_e_coeffs()
-        e_coeffs_2 = tbf2.get_e_coeffs()
+        e_coeffs_1        = tbf1.e_part.get_e_coeffs()
+        e_coeffs_2        = tbf2.e_part.get_e_coeffs()
 
-        e_coeffs_tderiv_2 = tbf2.get_e_coeffs_tderiv
+        e_coeffs_tderiv_2 = tbf2.e_part.get_e_coeffs_tderiv()
 
-    #}}}
-        return val
+        term1 = gwp_derivative * np.dot( np.conjugate(e_coeffs_1), e_coeffs_2)
+        term2 = gaussian_overlap * np.dot( np.conjugate(e_coeffs_1), e_coeffs_tderiv_2 )
+
+        return term1 + term2
 
 
     def __init__(
-        self, atominfo, position, n_dof, n_estate, initial_gs_energy, momentum=None, mass=None, width=None, phase=None, e_coeffs=None, t=0,
+        self, atominfo, position, n_dof, n_estate, initial_gs_energy, world_id,
+        momentum=None, mass=None, width=None, phase=None, e_coeffs=None, t=0,
     ):
-    #{{{
+
         self.atominfo      = atominfo          # dictionary { 'elems': array, 'angmom_table': array (optional, for DFTB+) }
         self.n_dof         = n_dof             # integer
         self.n_estate      = n_estate          # integer
@@ -214,16 +243,17 @@ class tbf:
         self.width         = width             # np.array (n_dof)
         self.init_t        = t                 # integer, index of step
         self.gs_energy     = initial_gs_energy # float
+        self.world_id      = world_id          # int (start 0)
 
         if momentum is not None:
             self.init_momentum = momentum # np.array (n_dof)
         else:
-            self.init_momentum = np.zeros(n_dof)
+            self.init_momentum = np.zeros(n_dof, dtype='float64')
 
         if phase is not None:
             self.phase = phase # np.array (n_dof)
         else:
-            self.phase = np.zeros(n_dof)
+            self.phase = np.zeros(n_dof, dtype='float64')
 
         self.position     = deepcopy(self.init_position)
         self.old_position = deepcopy(self.position)
@@ -237,39 +267,29 @@ class tbf:
 
         self.e_dot = np.zeros(n_estate) # dc/dt
 
-        self.tbf_id = tbf.total_tbf_count + 1
+        self.tbf_id = world.total_tbf_count + 1
         
-        self.e_part = electronmodule.electronic_state(e_coeffs)
-        self.e_part.update_position_velocity_time(
+        self.e_part = Electronic_state(e_coeffs)
+        self.e_part.set_new_position_velocity_time(
             self.get_position(), self.get_velocity(), self.get_t()
         )
 
         self.is_alive = True
 
-        tbf.tbfs.append(self)
-        tbf.total_tbf_count += 1
-        tbf.live_tbf_count  += 1
-    #}}}
+        self.world = Tbf.worlds[self.world_id]
+
+        self.world.add_tbf(self)
+
         return
 
 
     def destroy(self):
-    #{{{
-        #for i_live_tbf, live_tbf in enumerate(tbf.live_tbfs):
-        #    
-        #    if live_tbf.tbf_id == self.tbf_id:
 
-        #        my_tbf_index = i_live_tbf
-        #        
-        #        break
-
-        #tbf.live_tbfs.pop(my_tbf_index)
-        
         self.is_alive = False
-        tbf.live_tbf_count -= 1
+        self.world.destroy_tbf(self)
 
-        print("TBF %d destroyed.\n" % self.tbf_id)
-    #}}}
+        print( "World %d: TBF %d destroyed.\n" % (self.world_id, self.tbf_id) )
+
         return
 
 
@@ -289,32 +309,44 @@ class tbf:
         return deepcopy(self.width)
 
 
-    def get_e_coeffs(self):
-        return deepcopy(self.e_coeffs)
+    #def get_e_coeffs(self):
+    #    return deepcopy(self.e_coeffs)
 
 
-    def get_tdnac(self):
-        return deepcopy(self.e_part.get_tdnac())
+    #def get_tdnac(self):
+    #    return deepcopy(self.e_part.get_tdnac())
 
 
     def get_position(self):
         return deepcopy(self.position)
+
+    
+    def get_old_position(self):
+        return deepcopy(self.old_position)
 
 
     def get_momentum(self):
         return deepcopy(self.momentum)
 
 
-    def get_t(self):
-        return self.t
+    def get_old_momentum(self):
+        return deepcopy(self.old_momentum)
 
 
     def get_velocity(self):
         return deepcopy(self.momentum / self.mass)
 
 
+    def get_old_velocity(self):
+        return deepcopy(self.old_momentum / self.mass)
+
+
     def get_phase(self):
         return deepcopy(self.phase)
+
+
+    def get_t(self):
+        return self.t
 
 
     def get_n_estate(self):
@@ -328,10 +360,10 @@ class tbf:
     def get_atominfo(self):
         return deepcopy(self.atominfo)
 
-
+    
     def get_nuc_wf_val(self, coord):
         """Get the value of nuclear wavefunction (gaussian wave packet) at a given nuclear coordinate."""
-    #{{{
+
         n_dof    = self.get_n_dof()
         position = self.get_position()
         momentum = self.get_momentum()
@@ -348,7 +380,7 @@ class tbf:
             val *= exp( -width[i_dof] * delta_r[i_dof]**2 )
             val *= exp( -(1j/H_DIRAC) * momentum[i_dof] * delta_r[i_dof] )
             val *= exp( -(1j/H_DIRAC) * phase[i_dof] ) / 2
-    #}}}    
+
         return val
 
 
@@ -368,4 +400,36 @@ class tbf:
         
         ## placeholder
         
+        return
+
+
+    def set_new_position(self, position, e_part_too=False):
+        
+        self.old_position = self.position
+        self.position     = deepcopy(position)
+
+        if electronic_state_too:
+            self.e_part.set_new_position(self.position)
+
+        return
+
+
+    def set_new_momentum(self, momentum, e_part_too=False):
+        
+        self.old_momentum = self.momentum
+        self.momentum     = deepcopy(position)
+
+        if electronic_state_too:
+            self.e_part.set_new_momentum(self.momentum)
+
+        return
+
+
+    def set_new_time(self, t, e_part_too=False):
+        
+        self.t = t
+
+        if electronic_state_too:
+            self.e_part.set_new_t(self.t)
+
         return
