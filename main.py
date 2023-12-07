@@ -34,20 +34,12 @@ if __name__ == '__main__':
 
         print(elems)
 
-        test1 = tbfmodule.tbf(position = geom, n_dof = 3 * len(geom))
-        test2 = tbfmodule.tbf(position = geom, n_dof = 3 * len(geom))
-        test3 = tbfmodule.tbf(position = geom, n_dof = 3 * len(geom))
-
-        print(tbfmodule.tbf.live_tbfs)
-        print(tbfmodule.tbf.live_tbf_count)
-        print(tbfmodule.tbf.total_tbf_count)
+        test1 = tbfmodule.tbf(position = geom, n_dof = 3 * len(geom), world_id = 0)
+        test2 = tbfmodule.tbf(position = geom, n_dof = 3 * len(geom), world_id = 0)
+        test3 = tbfmodule.tbf(position = geom, n_dof = 3 * len(geom), world_id = 0)
 
         test1.destroy()
 
-        print(tbfmodule.tbf.live_tbfs)
-        print(tbfmodule.tbf.live_tbf_count)
-        print(tbfmodule.tbf.total_tbf_count)
-        
         n_AO, H, S = dftbplus_manager.run_dftbplus_text(atominfo, geom)
 
         mo_energies, mo_coeffs = electronmodule.get_molecular_orbitals(H, S)

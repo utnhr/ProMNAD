@@ -263,6 +263,9 @@ class Tbf:
         self.old_momentum = deepcopy(self.momentum)
         self.t_momentum   = t
 
+        self.force        = np.zeros_like(self.position)
+        self.old_force    = np.zeros_like(self.position)
+
         self.t = self.init_t
 
         self.e_dot = np.zeros(n_estate) # dc/dt
@@ -425,6 +428,18 @@ class Tbf:
         return
 
 
+    def update_force(self):
+        
+        self.old_force = self.force
+        self.force     = self.e_part.get_force()
+
+        return
+
+
+    def get_force(self):
+        return deepcopy(self.force)
+
+
     def set_new_time(self, t, e_part_too=False):
         
         self.t = t
@@ -433,3 +448,65 @@ class Tbf:
             self.e_part.set_new_t(self.t)
 
         return
+
+
+    def update_electronic_part(self, dt):
+
+        # update electronic coeffs (leapfrog)
+        
+        old_e_coeffs        = self.e_part.get_old_e_coeffs()
+        e_coeffs_tderiv     = self.e_part.get_e_coeffs_tderiv()
+
+        e_coeffs = old_e_coeffs + 2.0 * e_coeffs_tderiv * dt
+
+        self.set_new_e_coeffs(e_coeffs)
+
+        # update position and velocity for electronic part
+
+        t = self.get_t()
+
+        self.e_part.update_position( self.get_position() )
+        self.e_part.update_velocity( self.get_velocity() )
+        self.e_part.update_time( self.get_time() )
+
+        # update electronic wavefunc and relevant physical quantities
+
+        self.e_part.update_matrices()
+
+        estate_energies = self.get_estate_energies()
+
+        tdnac = self.e_part.get_tdnac()
+        
+        # construct electronic Hamiltonian
+        # and update time derivative of electronic coeffs
+
+        n_estate = self.e_part.get_n_estate()
+
+        H_el = -1.0j * H_DIRAC * tdnac
+        for i_estate in range(n_estate):
+            H_el[i_estate,i_estate] += estate_energies[i_estate]
+
+        e_coeffs_tderiv = (-1.0j / H_DIRAC) * np.dot(H_el, e_coeffs)
+
+        self.set_new_e_coeffs_tderiv(e_coeffs_tderiv)
+
+        return
+
+
+    def update_position_and_velocity(self, dt):
+        
+        old_position = self.get_old_position()
+        velocity     = self.get_velocity()
+
+        position = old_position + 2.0 * velocity * dt
+
+        old_momentum = self.get_old_momentum()
+        force        = self.get_force()
+
+        momentum = old_momentum + 2.0 * force * dt
+
+        self.set_new_position(position)
+        self.set_new_momentum(momentum)
+
+        return
+
