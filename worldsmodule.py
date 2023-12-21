@@ -5,6 +5,19 @@ from tbfmodule import Tbf
 
 class World:
     
+    worlds = []
+
+
+    @classmethod
+    def init_new_world(cls, settings):
+
+        new_world = World()
+        cls.worlds.append(new_world)
+
+        new_world.settings = settings
+
+        return
+
 
     def __init__(self):
         

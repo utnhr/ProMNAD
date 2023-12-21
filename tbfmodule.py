@@ -18,38 +18,10 @@ from dynamics import propagate_tbf
 class Tbf:
     """Class of TBFs."""
 
-    worlds = []
-
-    
-    @classmethod
-    def init_new_world(cls, settings):
-
-        new_world = World()
-        cls.worlds.append(new_world)
-
-        new_world.settings = settings
-
-        return
-
-
-    #@classmethod
-    #def propagate_all(cls):
-    #    """Time-propagate full wavefunction."""
-    #    ## placeholder
-    #    return
-
 
     @classmethod
     def get_gaussian_overlap(cls, tbf1, tbf2):
         """Calculate overlap matrix element (for each degree of freedom) between two gaussian wave packets."""
-
-        #if tbf1.get_n_dof() != tbf2.get_n_dof():
-        #    utils.stop_with_error('Number of electronic states must be the same for all TBFs')
-        #n_dof = tbf1.get_n_dof()
-
-        #if not utils.is_equal_ndarray(tbf1.width, tbf2.width):
-        #    utils.stop_with_error('Gaussian width must be the same for all TBFs')
-        #width = tbf1.get_width()
 
         pos1 = tbf1.get_position()
         pos2 = tbf2.get_position()
@@ -279,7 +251,7 @@ class Tbf:
 
         self.is_alive = True
 
-        self.world = Tbf.worlds[self.world_id]
+        self.world = World.worlds[self.world_id]
 
         self.world.add_tbf(self)
 
