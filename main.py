@@ -4,50 +4,45 @@ import sys
 import os
 import numpy as np
 
-import tbfmodule
-import constants
-import utils
+from utils import stop_with_error
 import inout
 import sample
-from interface_dftbplus import dftbplus_manager
-import electronmodule
+from dynamics import do_dynamics
 
 if __name__ == '__main__':
 
     input_filename = sys.argv[1]
 
     settings = inout.read_input(input_filename)
+    
+    do_dynamics(settings)
 
-    if settings['mode'] == 'test':
+    #if settings['mode'] == 'test':
 
-        elems, geom   = inout.get_geom('sample_geom.xyz', return_1d = True)
+    #    elems, geom   = inout.get_geom('sample_geom.xyz', return_1d = True)
 
-        n_AO, hamil   = inout.get_matrix_from_text('sample_hamil.dat')
-        n_AO, overlap = inout.get_matrix_from_text('sample_overlap.dat')
+    #    n_AO, hamil   = inout.get_matrix_from_text('sample_hamil.dat')
+    #    n_AO, overlap = inout.get_matrix_from_text('sample_overlap.dat')
 
-        angmom_table = { 'C': '"p"', 'H': '"s"', 'O': '"p"' }
-        exe_path     = '/home/hiroki/dftbplus-devel/niehaus/dftbplus/bin/dftb+'
+    #    angmom_table = { 'C': '"p"', 'H': '"s"', 'O': '"p"' }
+    #    exe_path     = '/home/hiroki/dftbplus-devel/niehaus/dftbplus/bin/dftb+'
+    #    
+    #    for 
 
-        atominfo = { 'elems': elems, 'angmom_table': angmom_table }
+    #    #atomparams = { 'elems': elems, 'angmom_table': angmom_table }
 
-        dftbplus_manager.set_execution_environment(workdir = os.getcwd()+'/dftbplus_workdir', exe_path = exe_path)
+    #    dftbplus_manager.set_execution_environment(workdir = os.getcwd()+'/dftbplus_workdir', exe_path = exe_path)
 
-        print(elems)
+    #    print(elems)
 
-        test1 = tbfmodule.tbf(position = geom, n_dof = 3 * len(geom), world_id = 0)
-        test2 = tbfmodule.tbf(position = geom, n_dof = 3 * len(geom), world_id = 0)
-        test3 = tbfmodule.tbf(position = geom, n_dof = 3 * len(geom), world_id = 0)
+    #    n_AO, H, S = dftbplus_manager.run_dftbplus_text(atominfo, geom)
 
-        test1.destroy()
+    #    mo_energies, mo_coeffs = electronmodule.get_molecular_orbitals(H, S)
 
-        n_AO, H, S = dftbplus_manager.run_dftbplus_text(atominfo, geom)
+    #    print(mo_energies, mo_coeffs)
 
-        mo_energies, mo_coeffs = electronmodule.get_molecular_orbitals(H, S)
+    #    print(mo_coeffs[0,:])
 
-        print(mo_energies, mo_coeffs)
-
-        print(mo_coeffs[0,:])
-
-    else:
+    #else:
         
-        utils.stop_with_error("Mode %s not implemented." % settings['mode'])
+    #    utils.stop_with_error("Mode %s not implemented." % settings['mode'])

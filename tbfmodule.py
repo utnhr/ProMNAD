@@ -11,9 +11,7 @@ from constants import H_DIRAC
 import utils
 from interface_dftbplus import dftbplus_manager
 from electronmodule import Electronic_state
-from worldsmodule import World
-
-from dynamics import propagate_tbf
+#from worldsmodule import World
 
 class Tbf:
     """Class of TBFs."""
@@ -142,7 +140,7 @@ class Tbf:
     def get_tbf_hamiltonian_element_BAT(cls, tbf1, tbf2, gaussian_overlap=None):
         """Calculate hamiltonian matrix elements between TBFs based on bra-ket avaraged Taylor expansion (BAT)."""
 
-        if gaussian_overlap = None:
+        if gaussian_overlap is None:
 
             gaussian_overlap = cls.get_gaussian_overlap(tbf1, tbf2)
 
@@ -170,14 +168,14 @@ class Tbf:
 
     @classmethod
     def get_gaussian_derivative_coupling(cls, tbf1, tbf2, gaussian_overlap):
-        """Calculate <\xi_m|d/dt|\xi_n>, where \xi_m(n) is a GWP"""
+        """Calculate <xi_m|d/dt|xi_n>, where xi_m(n) is a GWP"""
 
         momentum = tbf2.get_momentum()
         velocity = tbf2.get_velocity()
         dgdt     = 0.5 * np.dot(momentum, velocity) # dgamma/dt; time-dependence of phase
 
-        term1 = np.dot(velocity, cls.get_gaussian_dR(tbf1, tbf2, gaussian_overlap)
-        term2 = np.dot(momentum, cls.get_gaussian_dP(tbf1, tbf2, gaussian_overlap)
+        term1 = np.dot( velocity, cls.get_gaussian_dR(tbf1, tbf2, gaussian_overlap) )
+        term2 = np.dot( momentum, cls.get_gaussian_dP(tbf1, tbf2, gaussian_overlap) )
         term3 = (1.0j/H_DIRAC) * dgdt * gaussian_overlap.prod()
 
         return term1 + term2 + term3
@@ -203,19 +201,19 @@ class Tbf:
 
 
     def __init__(
-        self, atominfo, position, n_dof, n_estate, initial_gs_energy, world_id,
-        momentum=None, mass=None, width=None, phase=None, e_coeffs=None, t=0,
-    ):
+        self, atomparams, position, n_dof, n_estate, tbf_id,
+        momentum=None, mass=None, width=None, phase=None, e_coeffs=None, initial_gs_energy=None, t=0,
+        ):
 
-        self.atominfo      = atominfo          # dictionary { 'elems': array, 'angmom_table': array (optional, for DFTB+) }
+        self.atomparams    = atomparams        # dictionary { 'elems': array, 'angmom_table': array (optional, for DFTB+) }
         self.n_dof         = n_dof             # integer
         self.n_estate      = n_estate          # integer
         self.init_position = position          # np.array (n_dof)
         self.mass          = mass              # np.array (n_dof)
         self.width         = width             # np.array (n_dof)
         self.init_t        = t                 # integer, index of step
-        self.gs_energy     = initial_gs_energy # float
-        self.world_id      = world_id          # int (start 0)
+        self.tbf_id        = tbf_id            # integer (start 0)
+        #self.world_id      = world_id          # int (start 0)
 
         if momentum is not None:
             self.init_momentum = momentum # np.array (n_dof)
@@ -226,6 +224,8 @@ class Tbf:
             self.phase = phase # np.array (n_dof)
         else:
             self.phase = np.zeros(n_dof, dtype='float64')
+
+        self.gs_energy     = initial_gs_energy # None or float
 
         self.position     = deepcopy(self.init_position)
         self.old_position = deepcopy(self.position)
@@ -242,18 +242,17 @@ class Tbf:
 
         self.e_dot = np.zeros(n_estate) # dc/dt
 
-        self.tbf_id = world.total_tbf_count + 1
+        #self.tbf_id = world.total_tbf_count + 1
         
-        self.e_part = Electronic_state(e_coeffs)
-        self.e_part.set_new_position_velocity_time(
-            self.get_position(), self.get_velocity(), self.get_t()
-        )
+        self.e_part = Electronic_state(e_coeffs, self.get_position(), self.get_velocity(), self.t)
+        #self.e_part.set_new_position_velocity_time(
+        #    self.get_position(), self.get_velocity(), self.get_t()
+        #)
 
         self.is_alive = True
 
-        self.world = World.worlds[self.world_id]
-
-        self.world.add_tbf(self)
+        #self.world = World.worlds[self.world_id]
+        #self.world.add_tbf(self)
 
         return
 
@@ -383,7 +382,7 @@ class Tbf:
         self.old_position = self.position
         self.position     = deepcopy(position)
 
-        if electronic_state_too:
+        if e_part_too:
             self.e_part.set_new_position(self.position)
 
         return
@@ -392,9 +391,9 @@ class Tbf:
     def set_new_momentum(self, momentum, e_part_too=False):
         
         self.old_momentum = self.momentum
-        self.momentum     = deepcopy(position)
+        self.momentum     = deepcopy(momentum)
 
-        if electronic_state_too:
+        if e_part_too:
             self.e_part.set_new_momentum(self.momentum)
 
         return

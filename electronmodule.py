@@ -21,7 +21,7 @@ class Electronic_state:
         cls.qc_program      = qc_program
 
 
-    def __init__(e_coeffs, position, velocity, t):
+    def __init__(self, e_coeffs, position, velocity, t):
         
         self.e_coeffs            = e_coeffs # np.array (n_estate)
         self.old_e_coeffs        = None
@@ -42,12 +42,12 @@ class Electronic_state:
         self.old_e_coeffs_tderiv = np.zeros_like(e_coeffs)
         
         self.t_e_coeffs           = t
-        self.t_molecular_orbitals = int('inf')
-        self.t_estate_energies    = int('inf')
-        self.t_matrices           = int('inf')
-        self.t_force              = int('inf')
-        self.t_tdnac              = int('inf')
-        self.t_state_coeffs       = int('inf')
+        self.t_molecular_orbitals = sys.maxsize
+        self.t_estate_energies    = sys.maxsize
+        self.t_matrices           = sys.maxsize
+        self.t_force              = sys.maxsize
+        self.t_tdnac              = sys.maxsize
+        self.t_state_coeffs       = sys.maxsize
         self.initial_MO_done      = False
 
         return
@@ -118,6 +118,7 @@ class Electronic_state:
         """Solve F * C = S * C * e ; get MO energies and coefficients."""    
         if not self.initial_MO_done:
             self.construct_initial_molecular_orbitals()
+            self.initial_MO_done = True
 
         elif not electronic_structure.is_uptodate(self.t_molecular_orbitals):
             self.update_molecular_orbitals()
@@ -127,8 +128,6 @@ class Electronic_state:
 
     def construct_initial_molecular_orbitals(self):
         """Solve F * C = S * C * e ; get MO energies and coefficients."""    
-        if not electronic_structure.is_uptodate(self.t_molecular_orbitals):
-
         H = self.get_H()
         S = self.get_S()
 

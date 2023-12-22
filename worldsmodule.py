@@ -2,40 +2,87 @@
 
 import numpy as np
 from tbfmodule import Tbf
+from constants import ATOM_MASSES_AMU, DEFAULT_GWP_WIDTH_AU
+from copy import deepcopy
+from utils import stop_with_error
 
 class World:
     
     worlds = []
 
 
-    @classmethod
-    def init_new_world(cls, settings):
-
-        new_world = World()
-        cls.worlds.append(new_world)
-
-        new_world.settings = settings
-
-        return
-
-
-    def __init__(self):
+    def __init__(self, settings):
         
-        self.settings = None
+        self.settings = deepcopy(settings)
 
         self.total_tbf_count = 0
         self.live_tbf_count  = 0
 
-        tbfs                  = []
-        tbf_coeffs            = np.array([], dtype='complex128')
-        tbf_coeffs_tderiv     = np.zeros_like(self.tbf_coeffs)
-        old_tbf_coeffs        = np.zeros_like(self.tbf_coeffs)
-        old_tbf_coeffs_tderiv = np.zeros_like(self.tbf_coeffs)
+        self.tbfs                  = []
+        self.tbf_coeffs            = np.array([], dtype='complex128')
+        self.tbf_coeffs_tderiv     = np.zeros_like(self.tbf_coeffs)
+        self.old_tbf_coeffs        = np.zeros_like(self.tbf_coeffs)
+        self.old_tbf_coeffs_tderiv = np.zeros_like(self.tbf_coeffs)
 
-        dt = 0.0
+        self.dt = 0.0
 
-        S_tbf = None
-        H_tbf = None
+        self.S_tbf = None
+        self.H_tbf = None
+
+        self.world_id = len(World.worlds)
+
+        World.worlds.append(self)
+        
+        return
+
+
+    def set_initial_position_velocity(self, atomparams, position, velocity):
+
+        if len(self.tbfs) > 0:
+
+            stop_with_error("Error: world must be empty (no existing TBF) when calling set_initial_position_velocity.")
+        
+        self.atomparams = deepcopy(atomparams)
+
+        natom = len(self.atomparams)
+        n_dof = 3 * natom
+
+        mass  = [ 0.0 for i in range(n_dof) ]
+        width = [ 0.0 for i in range(n_dof) ]
+
+        for iatom, atomparam in enumerate(atomparams):
+
+            mass_atom  = ATOM_MASSES_AMU[atomparam.elem]
+            width_atom = DEFAULT_GWP_WIDTH_AU[atomparam.elem]
+
+            mass[ 3*iatom:3*iatom+3] = [mass_atom, mass_atom, mass_atom]
+            width[3*iatom:3*iatom+3] = [width_atom, width_atom, width_atom]
+
+        mass  = np.array(mass)
+        width = np.array(width)
+
+        momentum = mass * velocity
+        
+        initial_tbf = Tbf(
+            self.atomparams, position, n_dof, self.settings['n_estate'], len(self.tbfs),
+            momentum = momentum, mass = mass, width = width,
+        )
+
+        self.add_tbf(initial_tbf, coeff = 1.0+0.0j)
+
+
+    def add_tbf(self, tbf, coeff = 0.0+0.0j, normalize = True):
+        
+        self.tbfs.append(tbf)
+        self.tbf_coeffs        = np.append(self.tbf_coeffs, coeff)
+        self.tbf_coeffs_tderiv = np.append(self.tbf_coeffs_tderiv, 0.0+0.0j)
+        self.old_tbf_coeffs    = np.append(self.old_tbf_coeffs, coeff)
+        self.old_tbf_coeffs_tderiv = np.append(self.old_tbf_coeffs_tderiv, 0.0+0.0j)
+        
+        if normalize:
+
+            self.tbf_coeffs /= np.linalg.norm(self.tbf_coeffs)
+            self.old_tbf_coeffs /= np.linalg.norm(self.old_tbf_coeffs) # OK?
         
         return
 
@@ -80,7 +127,7 @@ class World:
 
     def update_position_and_velocity(self):
         
-        for guy in self.tbfs():
+        for guy in self.tbfs:
 
             if not guy.is_alive:
                 continue
@@ -92,7 +139,7 @@ class World:
 
     def update_electronic_part(self):
 
-        for guy in self.tbfs(): # 'guy' is an individual tbf
+        for guy in self.tbfs: # 'guy' is an individual tbf
             
             if not guy.is_alive:
                 continue

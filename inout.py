@@ -14,7 +14,7 @@ def read_input(filename):
 
     return input_obj
 
-def get_geom(filename='sample_geom.xyz', return_1d=False):
+def get_geom(filename, return_geom_1d=False):
     
     with open(filename, 'r') as geom_file:
         
@@ -39,9 +39,10 @@ def get_geom(filename='sample_geom.xyz', return_1d=False):
 
     atoms_coord = np.array(atoms_coord)
 
-    if return_1d:
+    if return_geom_1d:
 
-        return elems_n_dof, atoms_coord.reshape(-1)
+        #return elems_n_dof, atoms_coord.reshape(-1)
+        return elems, atoms_coord.reshape(-1)
 
     else:
         

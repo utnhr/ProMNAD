@@ -15,33 +15,33 @@ class printer:
 
 
     @classmethod
-    def set_outfile(new_outfile):
+    def set_outfile(cls, new_outfile):
         
-        outfile = new_outfile
+        cls.outfile = new_outfile
 
 
     @classmethod
-    def set_errfile(new_errfile):
+    def set_errfile(cls, new_errfile):
         
-        errfile = new_errfile
+        cls.errfile = new_errfile
 
 
     @classmethod
-    def write_out(msg, flush=False):
+    def write_out(cls, msg, flush=False):
     
-        outfile.write(msg)
+        cls.outfile.write(msg)
 
         if flush:
-            flush(outfile)
+            flush(cls.outfile)
 
 
     @classmethod
-    def write_err(msg, flush=False):
+    def write_err(cls, msg, flush=False):
         
-        errfile.write(msg)
+        cls.errfile.write(msg)
 
         if flush:
-            flush(errfile)
+            flush(cls.errfile)
 
 
 def stop_with_error(msg):

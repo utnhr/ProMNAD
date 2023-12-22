@@ -51,3 +51,15 @@ DEFAULT_GWP_WIDTH_AU = {
     'S' : 16.7,
     'Cl':  7.4,
 }
+
+#
+
+DEFAULT_DFTB_ANGMOM = {
+    'H' : 's',
+    'C' : 'p',
+    'N' : 'p',
+    'O' : 'p',
+    'F' : 'p',
+    'S' : 'd',
+    'Cl': 'p',
+}
