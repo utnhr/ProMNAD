@@ -38,5 +38,5 @@ def init_dynamics(settings, is_restarted = False):
 
         world = World(settings)
     
-        world.set_initial_position_velocity( atomparams, position, np.zeros_like(position) )
+        world.set_initial_state( atomparams, position, np.zeros_like(position) )
 

@@ -6,5 +6,7 @@ overlap_file: sample_overlap.dat
 engine:
   type: dftb+
   libpath: 
-n_estate: 2
+include_ground_state: False
+n_estate: 2 # if include_ground_state is True, including ground state
+initial_estate: 2 # start 1
 n_step: 100

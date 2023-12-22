@@ -24,7 +24,7 @@ class Electronic_state:
     def __init__(self, e_coeffs, position, velocity, t):
         
         self.e_coeffs            = e_coeffs # np.array (n_estate)
-        self.old_e_coeffs        = None
+        self.old_e_coeffs        = deepcopy(self.e_coeffs)
         self.estate_energies     = None
         self.old_estate_energies = None
         self.position            = position
@@ -58,7 +58,7 @@ class Electronic_state:
         return
 
     def set_new_momentum(self, momentum):
-        self.position = deepcopy(momentum)
+        self.momentum = deepcopy(momentum)
         return
 
     def set_new_time(self, t):
@@ -68,7 +68,7 @@ class Electronic_state:
 
     def is_uptodate(self, time_last):
         
-        if util.is_equal_scalar(self.get_t(), time_last):
+        if utils.is_equal_scalar(self.get_t(), time_last):
             return True
         else:
             return False
@@ -226,11 +226,11 @@ class Electronic_state:
 
     def update_matrices(self):
 
-        if not electronic_structure.is_uptodate(self.t_matrices):
+        if not self.is_uptodate(self.t_matrices):
 
             utils.printer.write_out('Updating hamiltonian and overlap matrices: Started.')
 
-            if electronic_structure.qc_program == 'dftb+':
+            if Electronic_state.qc_program == 'dftb+':
 
                 n_AO, self.H, self.S = dftbplus_manager.run_dftbplus_text(self.atominfo['elems'], self.atominfo['angmom_table'], self.position)
 

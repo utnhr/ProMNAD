@@ -430,15 +430,15 @@ class Tbf:
 
         e_coeffs = old_e_coeffs + 2.0 * e_coeffs_tderiv * dt
 
-        self.set_new_e_coeffs(e_coeffs)
+        self.e_part.set_new_e_coeffs(e_coeffs)
 
         # update position and velocity for electronic part
 
         t = self.get_t()
 
-        self.e_part.update_position( self.get_position() )
-        self.e_part.update_velocity( self.get_velocity() )
-        self.e_part.update_time( self.get_time() )
+        self.e_part.set_new_position( self.get_position() )
+        self.e_part.set_new_momentum( self.get_momentum() )
+        self.e_part.set_new_time( self.get_t() )
 
         # update electronic wavefunc and relevant physical quantities
 

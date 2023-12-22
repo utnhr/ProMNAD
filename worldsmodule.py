@@ -36,7 +36,7 @@ class World:
         return
 
 
-    def set_initial_position_velocity(self, atomparams, position, velocity):
+    def set_initial_state(self, atomparams, position, velocity):
 
         if len(self.tbfs) > 0:
 
@@ -62,10 +62,14 @@ class World:
         width = np.array(width)
 
         momentum = mass * velocity
+
+        initial_e_coeffs = [ 0.0+0.0j for i in range(self.settings['n_estate']) ]
+        initial_e_coeffs[self.settings['initial_estate']-1] = 1.0+0.0j
+        initial_e_coeffs = np.array(initial_e_coeffs)
         
         initial_tbf = Tbf(
             self.atomparams, position, n_dof, self.settings['n_estate'], len(self.tbfs),
-            momentum = momentum, mass = mass, width = width,
+            momentum = momentum, mass = mass, width = width, e_coeffs = initial_e_coeffs,
         )
 
         self.add_tbf(initial_tbf, coeff = 1.0+0.0j)
