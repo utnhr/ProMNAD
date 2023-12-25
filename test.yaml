@@ -4,7 +4,7 @@ geom_file: sample_geom.xyz
 
 engine:
   type: dftb+
-  libpath: /home/hiroki/config-aimc/dftbplus_workdir
+  libpath: /home/hiroki/dftbplus-devel/hiroki/install/lib/libdftbplus.so
   workdir: /home/hiroki/config-aimc/dftbplus_workdir
 
 include_ground_state: False

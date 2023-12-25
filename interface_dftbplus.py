@@ -253,6 +253,7 @@ class dftbplus_manager:
 
         # make dftb_in.hsd
 
-        cls.worker = dftbplus.DftbPlus(libpath = libpath, hsdpath = hsdpath, logfile = logpath)
+        #cls.worker = dftbplus.DftbPlus(libpath = libpath, hsdpath = hsdpath, logfile = logpath)
+        cls.worker = dftbplus.DftbPlus(libpath = libpath, hsdpath = hsdpath)
 
 
