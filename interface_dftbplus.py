@@ -11,9 +11,7 @@ import ctypes
 
 class dftbplus_manager:
     
-    working_directory = None
-    exe_path          = None
-
+    worker = None
 
     @classmethod
     def set_execution_environment(cls, working_directory=None, exe_path=None):
@@ -243,9 +241,18 @@ class dftbplus_manager:
     
             return n_AO, e_hamil, overlap
 
+    
     @classmethod
-    def dftbplus_init(cls, env, elems, angmom_table, geom):
+    #def dftbplus_init(cls, libpath, workdir, elems, angmom_table, geom):
+    def dftbplus_init(cls, libpath, workdir):
         
         import dftbplus
 
-        LIB_PATH = env
+        hsdpath = os.path.join(workdir, 'dftb_in.hsd')
+        logpath = os.path.join(workdir, 'dftb.log')
+
+        # make dftb_in.hsd
+
+        cls.worker = dftbplus.DftbPlus(libpath = libpath, hsdpath = hsdpath, logfile = logpath)
+
+

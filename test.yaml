@@ -1,11 +1,12 @@
 title: test run
+
 geom_file: sample_geom.xyz
-mode: test
-hamil_file: sample_hamil.dat
-overlap_file: sample_overlap.dat
+
 engine:
   type: dftb+
-  libpath: 
+  libpath: /home/hiroki/config-aimc/dftbplus_workdir
+  workdir: /home/hiroki/config-aimc/dftbplus_workdir
+
 include_ground_state: False
 
 calctype: config-aimc

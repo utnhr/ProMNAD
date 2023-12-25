@@ -31,7 +31,9 @@ def init_qc_engine(settings):
     
     if settings['engine']['type'] == 'dftb+':
         
-        dftbplus_manager.dftbplus_init(settings['engine']['libpath'])
+        dftbplus_manager.dftbplus_init(
+            settings['engine']['libpath'], settings['engine']['workdir'],
+        )
 
 
     else:
