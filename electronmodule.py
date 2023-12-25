@@ -10,18 +10,17 @@ from copy import deepcopy
 from constants import H_DIRAC
 import utils
 
+from interface_dftbplus import dftbplus_manager
+
 class Electronic_state:
     
 
-    @classmethod
-    def set_common_electronic_structure_options(cls, n_occ, active_orbitals, qc_program):
-        
-        cls.n_occ           = n_occ
-        cls.active_orbitals = active_orbitals
-        cls.qc_program      = qc_program
+    def __init__(self, settings, e_coeffs, position, velocity, t):
 
-
-    def __init__(self, e_coeffs, position, velocity, t):
+        self.n_occ               = settings['n_occ']
+        self.active_occ_mos      = settings['active_occ_mos']
+        self.active_vir_mos      = settings['active_vir_mos']
+        self.qc_program          = settings['engine']['type']
         
         self.e_coeffs            = e_coeffs # np.array (n_estate)
         self.old_e_coeffs        = deepcopy(self.e_coeffs)
@@ -230,7 +229,7 @@ class Electronic_state:
 
             utils.printer.write_out('Updating hamiltonian and overlap matrices: Started.')
 
-            if Electronic_state.qc_program == 'dftb+':
+            if self.qc_program == 'dftb+':
 
                 n_AO, self.H, self.S = dftbplus_manager.run_dftbplus_text(self.atominfo['elems'], self.atominfo['angmom_table'], self.position)
 

@@ -201,7 +201,7 @@ class Tbf:
 
 
     def __init__(
-        self, atomparams, position, n_dof, n_estate, tbf_id,
+        self, settings, atomparams, position, n_dof, n_estate, tbf_id,
         momentum=None, mass=None, width=None, phase=None, e_coeffs=None, initial_gs_energy=None, t=0,
         ):
 
@@ -244,7 +244,7 @@ class Tbf:
 
         #self.tbf_id = world.total_tbf_count + 1
         
-        self.e_part = Electronic_state(e_coeffs, self.get_position(), self.get_velocity(), self.t)
+        self.e_part = Electronic_state(settings, e_coeffs, self.get_position(), self.get_velocity(), self.t)
         #self.e_part.set_new_position_velocity_time(
         #    self.get_position(), self.get_velocity(), self.get_t()
         #)

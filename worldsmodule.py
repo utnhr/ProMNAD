@@ -68,7 +68,7 @@ class World:
         initial_e_coeffs = np.array(initial_e_coeffs)
         
         initial_tbf = Tbf(
-            self.atomparams, position, n_dof, self.settings['n_estate'], len(self.tbfs),
+            self.settings, self.atomparams, position, n_dof, self.settings['n_estate'], len(self.tbfs),
             momentum = momentum, mass = mass, width = width, e_coeffs = initial_e_coeffs,
         )
 
