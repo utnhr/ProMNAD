@@ -13,16 +13,22 @@ class dftbplus_manager:
     
     worker = None
 
+    
     @classmethod
-    def set_execution_environment(cls, working_directory=None, exe_path=None):
-
-        if working_directory is not None:
+    #def dftbplus_init(cls, libpath, workdir, elems, angmom_table, geom):
+    def dftbplus_init(cls, libpath, workdir):
         
-            cls.working_directory = working_directory
+        import dftbplus
 
-        if exe_path is not None:
-            
-            cls.exe_path = exe_path
+        hsdpath = os.path.join(workdir, 'dftb_in.hsd')
+        logpath = os.path.join(workdir, 'dftb.log')
+
+        # make dftb_in.hsd
+
+        #cls.worker = dftbplus.DftbPlus(libpath = libpath, hsdpath = hsdpath, logfile = logpath)
+        cls.worker = dftbplus.DftbPlus(libpath = libpath, hsdpath = hsdpath)
+
+        cls.working_directory = workdir
 
         return
 
@@ -208,7 +214,14 @@ class dftbplus_manager:
     
     
     @classmethod
-    def run_dftbplus_text(cls, elems, angmom_table, geom, mode='construct_matrix'):
+    def run_dftbplus_text(cls, atomparams, geom, mode='read_matrix'): # TODO
+
+        if mode == 'read_matrix':
+    
+            n_AO, e_hamil = cls.get_dftbplus_matrix_text(cls.working_directory, 'hamsqr1.dat')
+            n_AO, overlap = cls.get_dftbplus_matrix_text(cls.working_directory, 'oversqr.dat')
+
+            return n_AO, e_hamil, overlap
         
         if cls.working_directory is None:
             
@@ -233,27 +246,5 @@ class dftbplus_manager:
         write_dftbplus_input(template_filename, cls.working_directory, elem_list, angmom_table)
     
         job = subprocess.run([cls.exe_path], cwd = cls.working_directory, stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL)
-    
-        if mode == 'construct_matrix':
-    
-            n_AO, e_hamil = get_dftbplus_matrix_text(cls.working_directory, 'hamsqr1.dat')
-            n_AO, overlap = get_dftbplus_matrix_text(cls.working_directory, 'oversqr.dat')
-    
-            return n_AO, e_hamil, overlap
 
     
-    @classmethod
-    #def dftbplus_init(cls, libpath, workdir, elems, angmom_table, geom):
-    def dftbplus_init(cls, libpath, workdir):
-        
-        import dftbplus
-
-        hsdpath = os.path.join(workdir, 'dftb_in.hsd')
-        logpath = os.path.join(workdir, 'dftb.log')
-
-        # make dftb_in.hsd
-
-        #cls.worker = dftbplus.DftbPlus(libpath = libpath, hsdpath = hsdpath, logfile = logpath)
-        cls.worker = dftbplus.DftbPlus(libpath = libpath, hsdpath = hsdpath)
-
-

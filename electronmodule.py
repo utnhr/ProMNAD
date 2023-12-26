@@ -4,7 +4,7 @@ import sys
 import math
 from cmath import exp, pi
 import numpy as np
-import scipy as sp
+import scipy.linalg as sp
 from copy import deepcopy
 
 from constants import H_DIRAC
@@ -15,7 +15,7 @@ from interface_dftbplus import dftbplus_manager
 class Electronic_state:
     
 
-    def __init__(self, settings, e_coeffs, position, velocity, t):
+    def __init__(self, settings, atomparams, e_coeffs, position, velocity, t):
 
         self.n_occ               = settings['n_occ']
         self.active_occ_mos      = settings['active_occ_mos']
@@ -32,10 +32,9 @@ class Electronic_state:
         self.S                   = None
         self.mo_energies         = None
         self.mo_coeffs           = None
-        self.n_occ               = None
-        self.gs_energy           = None
+        self.gs_energy           = 0.0 # placeholder
         self.active_orbitals     = None
-        self.atominfo            = None
+        self.atomparams          = deepcopy(atomparams)
 
         self.e_coeffs_tderiv     = np.zeros_like(e_coeffs)
         self.old_e_coeffs_tderiv = np.zeros_like(e_coeffs)
@@ -47,6 +46,7 @@ class Electronic_state:
         self.t_force              = sys.maxsize
         self.t_tdnac              = sys.maxsize
         self.t_state_coeffs       = sys.maxsize
+
         self.initial_MO_done      = False
 
         return
@@ -63,6 +63,10 @@ class Electronic_state:
     def set_new_time(self, t):
         self.t = t
         return
+
+    def increment_time(self):
+        self.t += 1
+        return self.t
 
 
     def is_uptodate(self, time_last):
@@ -93,13 +97,13 @@ class Electronic_state:
         return deepcopy(self.active_orbitals)
 
 
-    def get_atominfo(self):
-        return deepcopy(self.atominfo)
+    def get_atomparams(self):
+        return deepcopy(self.atomparams)
 
 
     def get_H(self):
 
-        if not electronic_structure.is_uptodate(self.t_matrices):
+        if not self.is_uptodate(self.t_matrices):
             self.update_matrices()
 
         return deepcopy(self.H)
@@ -107,7 +111,7 @@ class Electronic_state:
 
     def get_S(self):
 
-        if not electronic_structure.is_uptodate(self.t_matrices):
+        if not self.is_uptodate(self.t_matrices):
             self.update_matrices()
 
         return deepcopy(self.S)
@@ -119,7 +123,7 @@ class Electronic_state:
             self.construct_initial_molecular_orbitals()
             self.initial_MO_done = True
 
-        elif not electronic_structure.is_uptodate(self.t_molecular_orbitals):
+        elif self.is_uptodate(self.t_molecular_orbitals):
             self.update_molecular_orbitals()
 
         return deepcopy(self.mo_energies), deepcopy(self.mo_coeffs)
@@ -130,7 +134,8 @@ class Electronic_state:
         H = self.get_H()
         S = self.get_S()
 
-        self.mo_energies, self.mo_coeffs = sp.linalg.eigh(H, S, type=1)
+        self.mo_energies, self.mo_coeffs = sp.eigh(H, S, type=1)
+        #self.mo_energies, self.mo_coeffs = np.linalg.eigh(H, S)
 
         self.t_mos = self.get_t()
 
@@ -139,21 +144,21 @@ class Electronic_state:
 
     def update_molecular_orbitals(self):
         """Update MO energies and coefficients according to TD-KS equation."""
-        utils.printer.write_out('Updating MOs: Started.')
+        utils.printer.write_out('Updating MOs: Started.\n')
         ## placeholder
         
         self.t_mos = self.get_t()
 
-        utils.printer.write_out('Updating MOs: Done.')
+        utils.printer.write_out('Updating MOs: Done.\n')
 
         return
     
     
-    def get_estate_energies(self):
+    def get_estate_energies(self, return_1d = True):
         """Get energy of each 'electronic state', which is i->a excitation configuration. Approximate state energy as MO energy difference."""
-        if not electronic_structure.is_uptodate(self.t_estate_energies):
+        if not self.is_uptodate(self.t_estate_energies):
 
-            utils.printer.write_out('Updating electronic state energies: Started.')
+            utils.printer.write_out('Updating electronic state energies: Started.\n')
             
             mo_energies, mo_coeffs = self.get_molecular_orbitals()
 
@@ -181,14 +186,20 @@ class Electronic_state:
         
                     state_energies.append(row)
             
-            self.old_estate_energies = deepcopy(self.estate_energies())
+            self.old_estate_energies = deepcopy(self.estate_energies)
             self.estate_energies     = np.array(state_energies)
 
-            self.t_estate_energies = self.time
+            self.t_estate_energies = self.get_t()
             
-            utils.printer.write_out('Updating electronic state energies: Done.')
+            utils.printer.write_out('Updating electronic state energies: Done.\n')
         
-        return deepcopy(self.estate_energies)
+        if return_1d:
+
+            return np.sort( self.estate_energies.flatten() )
+
+        else:
+
+            return deepcopy(self.estate_energies)
 
 
     def get_tdnac(self): ## placeholder
@@ -227,19 +238,19 @@ class Electronic_state:
 
         if not self.is_uptodate(self.t_matrices):
 
-            utils.printer.write_out('Updating hamiltonian and overlap matrices: Started.')
+            utils.printer.write_out('Updating hamiltonian and overlap matrices: Started.\n')
 
             if self.qc_program == 'dftb+':
 
-                n_AO, self.H, self.S = dftbplus_manager.run_dftbplus_text(self.atominfo['elems'], self.atominfo['angmom_table'], self.position)
+                n_AO, self.H, self.S = dftbplus_manager.run_dftbplus_text(self.atomparams, self.position)
 
             else:
                 
-                utils.stop_with_error("Unknown quantum chemistry program %s ." % electronic_structure.qc_program)
+                utils.stop_with_error("Unknown quantum chemistry program %s .\n" % electronic_structure.qc_program)
 
             self.t_matrices = self.get_t()
 
-            utils.printer.write_out('Updating hamiltonian and overlap matrices: Done.')
+            utils.printer.write_out('Updating hamiltonian and overlap matrices: Done.\n')
 
         return
 

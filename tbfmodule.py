@@ -4,7 +4,7 @@ import sys
 import math
 from cmath import exp, pi
 import numpy as np
-import scipy as sp
+import scipy.linalg as sp
 from copy import deepcopy
 
 from constants import H_DIRAC
@@ -34,13 +34,15 @@ class Tbf:
         
         vals = []
 
+        n_dof = tbf1.get_n_dof()
+        width = tbf1.get_width()
+
         for i_dof in range(n_dof):
             
             val = 1.0
 
             val *= exp( -0.5*width[i_dof]*delta_pos[i_dof]**2 )
             val *= exp( -delta_mom[i_dof]**2/(8*width[i_dof]*H_DIRAC**2) )
-            val *= exp( (1j/H_DIRAC)*(momentum[i_dof])**2 )
             val *= exp( (1j/H_DIRAC)*(mom1[i_dof]*pos1[i_dof] - \
                                       mom2[i_dof]*pos2[i_dof] + \
                                       mid_pos[i_dof]*delta_mom[i_dof])
@@ -101,7 +103,7 @@ class Tbf:
         width = tbf1.get_width()
         del_R = tbf2.get_position() - tbf2.get_position()
         mid_P = 0.5 * ( tbf1.get_momentum() + tbf2.get_momentum() )
-        mass  = tbf1.get_mass
+        mass  = tbf1.get_mass()
 
         kin = - 0.5 * H_DIRAC**2 * (
             (1j/H_DIRAC) * 2.0 * width * del_R * mid_P - \
@@ -120,8 +122,8 @@ class Tbf:
 
         n_estate = tbf1.get_n_estate()
 
-        estate_energies_1 = tbf1.get_estate_energies()
-        estate_energies_2 = tbf2.get_estate_energies()
+        estate_energies_1 = tbf1.e_part.get_estate_energies()
+        estate_energies_2 = tbf2.e_part.get_estate_energies()
 
         return 0.5 * gaussian_overlap.prod() * (
             estate_energies_1 + estate_energies_2
@@ -146,24 +148,29 @@ class Tbf:
 
         n_estates = ( tbf1.get_n_estate(), tbf2.get_n_estate() )
 
+        e_coeffs = ( tbf1.e_part.get_e_coeffs(), tbf2.e_part.get_e_coeffs() )
+
+        kinE       = cls.get_gaussian_kinE_term(tbf1, tbf2, gaussian_overlap, each_degree = False)
+        potentials = cls.get_gaussian_potential_term(tbf1, tbf2, gaussian_overlap)
+        tdnacs     = cls.get_gaussian_NAcoupling_term(tbf1, tbf2, gaussian_overlap)
+
         vals = [ [ 0.0j for i_estate in range(n_estates[0]) ] for j_estate in range(n_estates[1]) ]
 
         for i_estate in range(n_estates[0]):
-            for j_estate in range(n_estates[0], n_estates[1]):
+            for j_estate in range(n_estates[1]):
+
+                fac = e_coeffs[0][i_estate] * e_coeffs[1][j_estate]
 
                 val = 0.0j
 
                 if i_estate == j_estate:
 
-                    val += cls.get_gaussian_kinE_term(tbf1, tbf2, gaussian_overlap)
-                    val += cls.get_gaussian_potential_term(tbf1, tbf2, gaussian_overlap)
-                
-                val += cls.get_gaussian_NAcoupling_term(tbf1, tbf2, gaussian_overlap)
+                    val += kinE
+                    val += potentials[i_estate]
 
-            vals[i_estate][j_estate] = val
-            vals[j_estate][i_estate] = val
+                val += tdnacs[i_estate, j_estate]
 
-        return sum(vals)
+        return fac * val
 
 
     @classmethod
@@ -195,7 +202,7 @@ class Tbf:
         e_coeffs_tderiv_2 = tbf2.e_part.get_e_coeffs_tderiv()
 
         term1 = gwp_derivative * np.dot( np.conjugate(e_coeffs_1), e_coeffs_2)
-        term2 = gaussian_overlap * np.dot( np.conjugate(e_coeffs_1), e_coeffs_tderiv_2 )
+        term2 = gaussian_overlap.prod() * np.dot( np.conjugate(e_coeffs_1), e_coeffs_tderiv_2 )
 
         return term1 + term2
 
@@ -244,7 +251,9 @@ class Tbf:
 
         #self.tbf_id = world.total_tbf_count + 1
         
-        self.e_part = Electronic_state(settings, e_coeffs, self.get_position(), self.get_velocity(), self.t)
+        self.e_part = Electronic_state(
+            settings, atomparams, e_coeffs, self.get_position(), self.get_velocity(), self.t
+        )
         #self.e_part.set_new_position_velocity_time(
         #    self.get_position(), self.get_velocity(), self.get_t()
         #)
@@ -415,7 +424,7 @@ class Tbf:
         
         self.t = t
 
-        if electronic_state_too:
+        if e_part_too:
             self.e_part.set_new_t(self.t)
 
         return
@@ -444,7 +453,7 @@ class Tbf:
 
         self.e_part.update_matrices()
 
-        estate_energies = self.get_estate_energies()
+        estate_energies = self.e_part.get_estate_energies()
 
         tdnac = self.e_part.get_tdnac()
         
@@ -459,7 +468,9 @@ class Tbf:
 
         e_coeffs_tderiv = (-1.0j / H_DIRAC) * np.dot(H_el, e_coeffs)
 
-        self.set_new_e_coeffs_tderiv(e_coeffs_tderiv)
+        self.e_part.set_new_e_coeffs_tderiv(e_coeffs_tderiv)
+
+        self.set_new_time( self.get_t() + 1 )
 
         return
 

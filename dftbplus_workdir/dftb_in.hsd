@@ -13,7 +13,7 @@ Hamiltonian = DFTB {
 SCC = Yes
 SCCTolerance = 1e-10
 SlaterKosterFiles = Type2FileNames {
-Prefix = "./"
+Prefix = "/home/hiroki/config-aimc/dftbplus_workdir/"
 Separator = "-"
 Suffix = ".skf"
 }

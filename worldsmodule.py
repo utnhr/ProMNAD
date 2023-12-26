@@ -2,7 +2,7 @@
 
 import numpy as np
 from tbfmodule import Tbf
-from constants import ATOM_MASSES_AMU, DEFAULT_GWP_WIDTH_AU
+from constants import ATOM_MASSES_AMU, DEFAULT_GWP_WIDTH_AU, H_DIRAC
 from copy import deepcopy
 from utils import stop_with_error
 
@@ -15,7 +15,7 @@ class World:
         
         self.settings = deepcopy(settings)
 
-        self.total_tbf_count = 0
+        #self.total_tbf_count = 0
         self.live_tbf_count  = 0
 
         self.tbfs                  = []
@@ -24,7 +24,7 @@ class World:
         self.old_tbf_coeffs        = np.zeros_like(self.tbf_coeffs)
         self.old_tbf_coeffs_tderiv = np.zeros_like(self.tbf_coeffs)
 
-        self.dt = 0.0
+        self.dt = settings['dt']
 
         self.S_tbf = None
         self.H_tbf = None
@@ -74,20 +74,23 @@ class World:
 
         self.add_tbf(initial_tbf, coeff = 1.0+0.0j)
 
+        return
+
 
     def add_tbf(self, tbf, coeff = 0.0+0.0j, normalize = True):
-        
+
         self.tbfs.append(tbf)
+
         self.tbf_coeffs        = np.append(self.tbf_coeffs, coeff)
         self.tbf_coeffs_tderiv = np.append(self.tbf_coeffs_tderiv, 0.0+0.0j)
         self.old_tbf_coeffs    = np.append(self.old_tbf_coeffs, coeff)
         self.old_tbf_coeffs_tderiv = np.append(self.old_tbf_coeffs_tderiv, 0.0+0.0j)
-        
+
         if normalize:
 
             self.tbf_coeffs /= np.linalg.norm(self.tbf_coeffs)
             self.old_tbf_coeffs /= np.linalg.norm(self.old_tbf_coeffs) # OK?
-        
+
         return
 
     
@@ -100,28 +103,6 @@ class World:
         return
     
 
-    def add_tbf(self, tbf, coeff=None):
-
-        self.tbfs.append(tbf)
-
-        if coeff is None:
-    
-            np.append(self.tbf_coeffs, 0.0+0.0j)
-            np.append(self.tbf_coeffs_tderiv, 0.0+0.0j)
-
-        else:
-
-            np.append(self.tbf_coeffs, coeff)
-            np.append(self.tbf_coeffs_tderiv, 0.0+0.0j)
-
-            self.tbf_coeffs /= np.linalg.norm(self.tbf_coeffs)
-
-        self.total_tbf_count += 1
-        self.live_tbf_count  += 1
-
-        return
-
-    
     def destroy_tbf(self, tbf):
         
         self.live_tbf_count -= 1
@@ -157,10 +138,10 @@ class World:
 
         # update TBF coeffs (leapfrog)
 
-        old_tbf_coeffs      = self.get_old_tbf_coeffs()
+        old_tbf_coeffs      = self.get_tbf_coeffs()
         tbf_coeffs_tderiv   = self.get_tbf_coeffs_tderiv()
 
-        tbf_coeffs = old_tbf_coeffs + 2.0 * tbf_coeffs_tderiv * dt
+        tbf_coeffs = old_tbf_coeffs + 2.0 * tbf_coeffs_tderiv * self.dt
 
         self.set_new_tbf_coeffs(tbf_coeffs)
         
@@ -168,8 +149,8 @@ class World:
 
         n_tbf = self.get_total_tbf_count()
 
-        self.S_tbf = np.zeros( (n_tbf, n_tbf) )
-        self.H_tbf = np.zeros( (n_tbf, n_tbf) )
+        self.S_tbf = np.zeros( (n_tbf, n_tbf), dtype = 'complex128' )
+        self.H_tbf = np.zeros( (n_tbf, n_tbf), dtype = 'complex128' )
 
         for i_tbf in range(n_tbf):
             
@@ -190,8 +171,8 @@ class World:
                 S_ij = Tbf.get_wf_overlap(guy_i, guy_j, gaussian_overlap = g_ij)
                 H_ij = Tbf.get_tbf_hamiltonian_element_BAT(guy_i, guy_j, gaussian_overlap = g_ij)
 
-                self.S_tbf[i,j] = S_ij
-                self.H_tbf[i,j] = H_ij
+                self.S_tbf[i_tbf,j_tbf] = S_ij
+                self.H_tbf[i_tbf,j_tbf] = H_ij
 
         # < \psi_m | d/dt | \psi_n >
 
@@ -213,27 +194,27 @@ class World:
 
                 val = Tbf.get_tbf_derivative_coupling(guy_i, guy_j, g_ij)
 
-                H[i,j] -= val
+                self.H_tbf[i_tbf,j_tbf] -= val
 
         # symmetrize S & hermitize H
 
         for i in range(n_tbf):
             for j in range(i, n_tbf):
 
-                val = 0.5 * (S[i,j] + S[j,i])
-                S[i,j] = val
-                S[j,i] = val
+                val = 0.5 * (self.S_tbf[i,j] + self.S_tbf[j,i])
+                self.S_tbf[i,j] = val
+                self.S_tbf[j,i] = val
 
-                val = 0.5 * ( H[i,j] + np.conjugate(H[j,i]) )
-                H[i,j] = val
-                H[j,i] = np.conjugate(val)
+                val = 0.5 * ( self.H_tbf[i,j] + np.conjugate(self.H_tbf[j,i]) )
+                self.H_tbf[i,j] = val
+                self.H_tbf[j,i] = np.conjugate(val)
         
         # time derivative of TBF coeffs
         
         tbf_coeffs = self.get_tbf_coeffs()
 
         tbf_coeffs_tderiv = (-1.0j / H_DIRAC) * np.dot(
-            np.linalg.inv(S), np.dot(H, tbf_coeffs)
+            np.linalg.inv(self.S_tbf), np.dot(self.H_tbf, tbf_coeffs)
         )
 
         self.set_new_tbf_coeffs_tderiv(tbf_coeffs_tderiv)
@@ -242,7 +223,8 @@ class World:
     
 
     def get_total_tbf_count(self):
-        return self.total_tbf_count
+        #return self.total_tbf_count
+        return len(self.tbfs)
 
 
     def get_live_tbf_count(self):
@@ -250,11 +232,11 @@ class World:
 
 
     def get_tbf_coeffs(self):
-        return tbf_coeffs
+        return deepcopy(self.tbf_coeffs)
 
 
     def get_tbf_coeffs_tderiv(self):
-        return tbf_coeffs_tderiv
+        return deepcopy(self.tbf_coeffs_tderiv)
 
 
     def set_new_tbf_coeffs(self, new_tbf_coeffs):

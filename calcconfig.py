@@ -35,7 +35,6 @@ def init_qc_engine(settings):
             settings['engine']['libpath'], settings['engine']['workdir'],
         )
 
-
     else:
 
         stop_with_ettor("Unknown quantum chemistry package %s ." % settings['engine']['type'])
