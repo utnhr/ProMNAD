@@ -47,16 +47,19 @@ class World:
         natom = len(self.atomparams)
         n_dof = 3 * natom
 
-        mass  = [ 0.0 for i in range(n_dof) ]
-        width = [ 0.0 for i in range(n_dof) ]
+        mass  = [ 0.0  for i in range(n_dof) ]
+        width = [ 0.0  for i in range(n_dof) ]
+        elems = [ None for i in range(n_dof) ]
 
         for iatom, atomparam in enumerate(atomparams):
 
             mass_atom  = ATOM_MASSES_AMU[atomparam.elem]
             width_atom = DEFAULT_GWP_WIDTH_AU[atomparam.elem]
+            elem_atom  = atomparam.elem
 
-            mass[ 3*iatom:3*iatom+3] = [mass_atom, mass_atom, mass_atom]
+            mass[ 3*iatom:3*iatom+3] = [mass_atom , mass_atom , mass_atom ]
             width[3*iatom:3*iatom+3] = [width_atom, width_atom, width_atom]
+            elems[3*iatom:3*iatom+3] = [elem_atom , elem_atom , elem_atom ]
 
         mass  = np.array(mass)
         width = np.array(width)

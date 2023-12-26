@@ -8,27 +8,45 @@ import numpy as np
 import yaml
 import utils
 import ctypes
+from constants import DEFAULT_DFTB_ANGMOM
 
 class dftbplus_manager:
     
-    worker = None
+    worker            = None
+    working_directory = None
+    exe_path          = None
+    template_filename = None
+    angmom_table      = {}
 
     
     @classmethod
     #def dftbplus_init(cls, libpath, workdir, elems, angmom_table, geom):
-    def dftbplus_init(cls, libpath, workdir):
+    def dftbplus_init(cls, libpath, workdir, elem_list, geom):
         
         import dftbplus
 
-        hsdpath = os.path.join(workdir, 'dftb_in.hsd')
-        logpath = os.path.join(workdir, 'dftb.log')
+        cls.working_directory = workdir
+        cls.exe_path = libpath
+
+        hsdpath = os.path.join(cls.working_directory, 'dftb_in.hsd')
+        logpath = os.path.join(cls.working_directory, 'dftb.log')
 
         # make dftb_in.hsd
+        cls.write_gen_format(elem_list, geom, is_1d=True)
+    
+        script_dir = os.path.dirname(os.path.abspath(__file__))
 
-        #cls.worker = dftbplus.DftbPlus(libpath = libpath, hsdpath = hsdpath, logfile = logpath)
+        cls.template_filename = script_dir + '/input_templates/dftbplus_input_template_scc.yaml'
+
+        for elem in elem_list:
+
+            if elem not in cls.angmom_table.keys():
+
+                cls.angmom_table[elem] = '"' + DEFAULT_DFTB_ANGMOM[elem] + '"'
+
+        cls.write_dftbplus_input(cls.template_filename, elem_list)
+
         cls.worker = dftbplus.DftbPlus(libpath = libpath, hsdpath = hsdpath)
-
-        cls.working_directory = workdir
 
         return
 
@@ -63,7 +81,7 @@ class dftbplus_manager:
                         
                         string += "%s {\n" % key
     
-                    string += dict_to_dftbplus_input(value['values'])
+                    string += cls.dict_to_dftbplus_input(value['values'])
     
                     string += "}\n"
     
@@ -71,7 +89,7 @@ class dftbplus_manager:
                     
                     string += "%s = " % key
     
-                    string += dict_to_dftbplus_input(value)
+                    string += cls.dict_to_dftbplus_input(value)
     
             else:
     
@@ -91,12 +109,17 @@ class dftbplus_manager:
     
     
     @classmethod
-    def write_dftbplus_input(cls, template_filename, working_directory, elem_list, angmom_table):
+    def write_dftbplus_input(cls, template_filename, elem_list):
         
         with open(template_filename, 'r') as template:
                 
             input_dict = yaml.safe_load(template)
-    
+
+        input_dict['Geometry']['GenFormat']['values']['(noname)'] = \
+            '<<< ' + '"' + os.path.join(cls.working_directory, 'geo.gen') + '"'
+
+        print(input_dict) ## Debug code
+
         dftb_block = input_dict['Hamiltonian']['DFTB']['values']
         
         dftb_block['MaxAngularMomentum'] = {}
@@ -108,17 +131,22 @@ class dftbplus_manager:
         
         for elem in elem_list:
     
-            dftb_block['MaxAngularMomentum']['(noname)']['values'][elem] = angmom_table[elem]
+            dftb_block['MaxAngularMomentum']['(noname)']['values'][elem] = cls.angmom_table[elem]
+
+        dftb_block['SlaterKosterFiles']['Type2FileNames']['values']['Prefix'] = \
+            cls.working_directory + '/'
         
-        string = dict_to_dftbplus_input(input_dict)
+        string = cls.dict_to_dftbplus_input(input_dict)
     
-        with open(working_directory+'/dftb_in.hsd', 'w') as dftb_in:
+        with open( os.path.join(cls.working_directory, 'dftb_in.hsd'), 'w' ) as dftb_in:
             
             dftb_in.write(string)
+
+        return
     
     
     @classmethod
-    def write_gen_format(cls, elems, geom, working_directory, is_1d=True, elem_list=None):
+    def write_gen_format(cls, elems, geom, is_1d=True, elem_list=None):
         
         # geom can given in either two formats: [3*n_atom] array or [3, n_atom] array.
         # if is_1d is True, former is specified
@@ -154,8 +182,8 @@ class dftbplus_manager:
         for i_elem, elem in enumerate(elem_list):
             
             elem_IDs[elem] = i_elem + 1
-    
-        with open(working_directory+'/geo.gen', 'w') as genfile:
+
+        with open( os.path.join(cls.working_directory, 'geo.gen'), 'w' ) as genfile:
             
             genfile.write("%d C\n" % n_atom)
     
@@ -214,7 +242,7 @@ class dftbplus_manager:
     
     
     @classmethod
-    def run_dftbplus_text(cls, atomparams, geom, mode='read_matrix'): # TODO
+    def run_dftbplus_text(cls, atomparams, geom, mode = 'read_matrix'): # TODO
 
         if mode == 'read_matrix':
     
@@ -227,24 +255,24 @@ class dftbplus_manager:
             
             utils.stop_with_error('DFTB+ working directory is not specified.')
 
-        if cls.exe_path is None:
+        if cls.worker is None:
 
             utils.stop_with_error('DFTB+ executable path is not specified.')
     
-        elem_list = write_gen_format(elems, geom, working_directory)
+        #elem_list = write_gen_format(elems, geom, working_directory)
     
-        script_dir = os.path.dirname(os.path.abspath(__file__))
+        #script_dir = os.path.dirname(os.path.abspath(__file__))
 
-        if mode == 'construct_matrix':
+        #if mode == 'construct_matrix':
     
-            template_filename = script_dir + '/input_templates/dftbplus_input_template_matrix.yaml'
+        #    template_filename = script_dir + '/input_templates/dftbplus_input_template_matrix.yaml'
     
-        if mode == 'get_orbitals':
-            
-            template_filename = script_dir + '/input_templates/dftbplus_input_template_scc.yaml'
+        #if mode == 'get_orbitals':
+        #    
+        #    template_filename = script_dir + '/input_templates/dftbplus_input_template_scc.yaml'
     
-        write_dftbplus_input(template_filename, cls.working_directory, elem_list, angmom_table)
+        #write_dftbplus_input(template_filename, elem_list, angmom_table)
     
-        job = subprocess.run([cls.exe_path], cwd = cls.working_directory, stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL)
+        #job = subprocess.run([cls.exe_path], cwd = cls.working_directory, stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL)
 
-    
+        return

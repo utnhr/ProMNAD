@@ -3,7 +3,7 @@ Geometry:
   GenFormat:
     is_named_dict: True
     values:
-      (noname): '<<< "geo.gen"'
+      (noname):
 
 Hamiltonian:
   is_named_dict: False

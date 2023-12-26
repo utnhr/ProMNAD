@@ -64,10 +64,6 @@ class Electronic_state:
         self.t = t
         return
 
-    def increment_time(self):
-        self.t += 1
-        return self.t
-
 
     def is_uptodate(self, time_last):
         
