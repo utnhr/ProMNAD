@@ -17,7 +17,6 @@ class Electronic_state:
 
     def __init__(self, settings, atomparams, e_coeffs, position, velocity, t, construct_initial_gs = True):
 
-        self.n_occ               = settings['n_occ']
         self.active_occ_mos      = settings['active_occ_mos']
         self.active_vir_mos      = settings['active_vir_mos']
         self.qc_program          = settings['engine']['type']
@@ -30,7 +29,6 @@ class Electronic_state:
         self.velocity            = velocity
         self.H                   = None
         self.S                   = None
-        self.active_orbitals     = None
         self.atomparams          = deepcopy(atomparams)
 
         self.e_coeffs_tderiv     = np.zeros_like(e_coeffs)
@@ -48,8 +46,13 @@ class Electronic_state:
             self.construct_initial_gs()
         else:
             self.gs_energy   = None
+            self.gs_filling  = None
             self.mo_energies = None
             self.mo_coeffs   = None
+            self.n_elec      = None
+            self.n_MO        = None
+            self.n_AO        = None
+            self.gs_rho      = None
 
         return
 
@@ -89,10 +92,6 @@ class Electronic_state:
 
     def get_gs_energy(self):
         return self.gs_energy
-
-
-    def get_active_orbitals(self):
-        return deepcopy(self.active_orbitals)
 
 
     def get_atomparams(self):
@@ -266,15 +265,47 @@ class Electronic_state:
 
     
     def construct_initial_gs(self):
+
+        if self.qc_program == 'dftb+':
         
-        n_atom = len(self.atomparams)
+            n_atom = len(self.atomparams)
 
-        coords = self.position.reshape(n_atom, 3) * ANGST2AU
+            coords = self.position.reshape(n_atom, 3) * ANGST2AU
+            
+            dftbplus_manager.worker.set_geometry(coords)
+
+            self.gs_energy = dftbplus_manager.worker.get_energy()
+
+            self.mo_energies, mo_coeffs_real = dftbplus_manager.worker.get_molecular_orbitals(open_shell = False)
+
+            self.mo_coeffs = mo_coeffs_real.astype('complex128')
+
+            self.gs_filling = dftbplus_manager.worker.get_filling(open_shell = False)
+
+            self.n_elec = np.sum(self.gs_filling)
+
+            self.n_MO = np.size(self.mo_coeffs, 2)
+            self.n_AO = self.n_MO
+
+            self.update_gs_density_matrix()
+
+        else:
+
+            utils.stop_with_error("Not compatible with quantum chemistry program %s ." % self.qc_program)
+
+        return
+
+
+    def update_gs_density_matrix(self):
         
-        dftbplus_manager.worker.set_geometry(coords)
+        # diagonal matrix whose elements are occupation numbers
+        f = np.zeros( (self.n_MO, self.n_MO), dtype = 'float64' )
 
-        self.gs_energy = dftbplus_manager.worker.get_energy()
+        for i_MO in range(self.n_MO):
 
-        self.mo_energies, self.mo_coeffs = dftbplus_manager.worker.get_molecular_orbitals(open_shell = False)
+            f[i_MO,i_MO] = self.gs_filling[0][i_MO]
+        
+        # Assuming closed shell
+        self.gs_rho = ( np.dot( np.transpose(self.mo_coeffs[0,:,:]), np.dot(f, self.mo_coeffs[0,:,:]) ) ).astype('float64')
 
         return
