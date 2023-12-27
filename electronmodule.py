@@ -7,7 +7,7 @@ import numpy as np
 import scipy.linalg as sp
 from copy import deepcopy
 
-from constants import H_DIRAC
+from constants import H_DIRAC, ANGST2AU
 import utils
 
 from interface_dftbplus import dftbplus_manager
@@ -15,7 +15,7 @@ from interface_dftbplus import dftbplus_manager
 class Electronic_state:
     
 
-    def __init__(self, settings, atomparams, e_coeffs, position, velocity, t):
+    def __init__(self, settings, atomparams, e_coeffs, position, velocity, t, construct_initial_gs = True):
 
         self.n_occ               = settings['n_occ']
         self.active_occ_mos      = settings['active_occ_mos']
@@ -30,9 +30,6 @@ class Electronic_state:
         self.velocity            = velocity
         self.H                   = None
         self.S                   = None
-        self.mo_energies         = None
-        self.mo_coeffs           = None
-        self.gs_energy           = 0.0 # placeholder
         self.active_orbitals     = None
         self.atomparams          = deepcopy(atomparams)
 
@@ -47,7 +44,12 @@ class Electronic_state:
         self.t_tdnac              = sys.maxsize
         self.t_state_coeffs       = sys.maxsize
 
-        self.initial_MO_done      = False
+        if construct_initial_gs:
+            self.construct_initial_gs()
+        else:
+            self.gs_energy   = None
+            self.mo_energies = None
+            self.mo_coeffs   = None
 
         return
 
@@ -115,12 +117,8 @@ class Electronic_state:
 
     def get_molecular_orbitals(self):
         """Solve F * C = S * C * e ; get MO energies and coefficients."""    
-        if not self.initial_MO_done:
-            self.construct_initial_molecular_orbitals()
-            self.initial_MO_done = True
 
-        elif self.is_uptodate(self.t_molecular_orbitals):
-            self.update_molecular_orbitals()
+        self.update_molecular_orbitals()
 
         return deepcopy(self.mo_energies), deepcopy(self.mo_coeffs)
 
@@ -263,5 +261,20 @@ class Electronic_state:
         
         self.old_e_coeffs_tderiv = self.e_coeffs_tderiv
         self.e_coeffs_tderiv = e_coeffs_tderiv
+
+        return
+
+    
+    def construct_initial_gs(self):
+        
+        n_atom = len(self.atomparams)
+
+        coords = self.position.reshape(n_atom, 3) * ANGST2AU
+        
+        dftbplus_manager.worker.set_geometry(coords)
+
+        self.gs_energy = dftbplus_manager.worker.get_energy()
+
+        self.mo_energies, self.mo_coeffs = dftbplus_manager.worker.get_molecular_orbitals(open_shell = False)
 
         return

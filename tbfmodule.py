@@ -252,7 +252,8 @@ class Tbf:
         #self.tbf_id = world.total_tbf_count + 1
         
         self.e_part = Electronic_state(
-            settings, atomparams, e_coeffs, self.get_position(), self.get_velocity(), self.t
+            settings, atomparams, e_coeffs, self.get_position(), self.get_velocity(), self.t,
+            construct_initial_gs = True,
         )
         #self.e_part.set_new_position_velocity_time(
         #    self.get_position(), self.get_velocity(), self.get_t()

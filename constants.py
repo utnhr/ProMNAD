@@ -11,7 +11,9 @@ AMU_KG    = 1.6605390666e-27 # kg
 
 # Unit converters
 
-AMU2AU = AMU_KG / E_MASS_KG
+AMU2AU   = AMU_KG / E_MASS_KG
+AU2ANGST = 0.529177210903
+ANGST2AU = 1.0 / AU2ANGST
 
 # Threshold
 
@@ -52,7 +54,7 @@ DEFAULT_GWP_WIDTH_AU = {
     'Cl':  7.4,
 }
 
-#
+# Max. angular momenta for DFTB calculations
 
 DEFAULT_DFTB_ANGMOM = {
     'H' : 's',
