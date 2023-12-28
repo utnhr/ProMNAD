@@ -31,6 +31,8 @@ class Electronic_state:
         self.S                   = None
         self.atomparams          = deepcopy(atomparams)
 
+        self.is_open_shell       = False
+
         self.e_coeffs_tderiv     = np.zeros_like(e_coeffs)
         self.old_e_coeffs_tderiv = np.zeros_like(e_coeffs)
         
@@ -276,11 +278,13 @@ class Electronic_state:
 
             self.gs_energy = dftbplus_manager.worker.get_energy()
 
-            self.mo_energies, mo_coeffs_real = dftbplus_manager.worker.get_molecular_orbitals(open_shell = False)
+            self.mo_energies, mo_coeffs_real = dftbplus_manager.worker.get_molecular_orbitals(
+                open_shell = self.is_open_shell
+            )
 
             self.mo_coeffs = mo_coeffs_real.astype('complex128')
 
-            self.gs_filling = dftbplus_manager.worker.get_filling(open_shell = False)
+            self.gs_filling = dftbplus_manager.worker.get_filling(open_shell = self.is_open_shell)
 
             self.n_elec = np.sum(self.gs_filling)
 
@@ -297,15 +301,25 @@ class Electronic_state:
 
 
     def update_gs_density_matrix(self):
+
+        if self.is_open_shell:
+            n_spin = 2
+        else:
+            n_spin = 1
         
+        self.gs_rho = np.zeros( (n_spin, self.n_MO, self.n_MO), dtype = 'float64' )
+
         # diagonal matrix whose elements are occupation numbers
         f = np.zeros( (self.n_MO, self.n_MO), dtype = 'float64' )
 
-        for i_MO in range(self.n_MO):
+        for i_spin in range(n_spin):
 
-            f[i_MO,i_MO] = self.gs_filling[0][i_MO]
+            for i_MO in range(self.n_MO):
+
+                f[i_MO,i_MO] = self.gs_filling[i_spin][i_MO]
+            
+            rho = np.real( np.dot( np.transpose(self.mo_coeffs[0,:,:]), np.dot(f, self.mo_coeffs[0,:,:]) ) )
+
+            self.gs_rho[i_spin, :, :] = rho[:, :]
         
-        # Assuming closed shell
-        self.gs_rho = ( np.dot( np.transpose(self.mo_coeffs[0,:,:]), np.dot(f, self.mo_coeffs[0,:,:]) ) ).astype('float64')
-
         return
