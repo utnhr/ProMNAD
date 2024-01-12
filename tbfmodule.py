@@ -404,7 +404,7 @@ class Tbf:
         self.momentum     = deepcopy(momentum)
 
         if e_part_too:
-            self.e_part.set_new_momentum(self.momentum)
+            self.e_part.set_new_velocity(self.get_velocity())
 
         return
 
@@ -447,7 +447,7 @@ class Tbf:
         t = self.get_t()
 
         self.e_part.set_new_position( self.get_position() )
-        self.e_part.set_new_momentum( self.get_momentum() )
+        self.e_part.set_new_velocity( self.get_velocity() )
         self.e_part.set_new_time( self.get_t() )
 
         # update electronic wavefunc and relevant physical quantities

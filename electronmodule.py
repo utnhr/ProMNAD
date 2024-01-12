@@ -25,8 +25,10 @@ class Electronic_state:
         self.old_e_coeffs        = deepcopy(self.e_coeffs)
         self.estate_energies     = None
         self.old_estate_energies = None
-        self.position            = position
-        self.velocity            = velocity
+        self.old_position        = deepcopy(position)
+        self.old_velocity        = deepcopy(velocity)
+        self.position            = deepcopy(position)
+        self.velocity            = deepcopy(velocity)
         self.H                   = None
         self.S                   = None
         self.atomparams          = deepcopy(atomparams)
@@ -60,11 +62,13 @@ class Electronic_state:
 
 
     def set_new_position(self, position):
+        self.old_position = deepcopy(self.position)
         self.position = deepcopy(position)
         return
 
-    def set_new_momentum(self, momentum):
-        self.momentum = deepcopy(momentum)
+    def set_new_velocity(self, velocity):
+        self.old_velocity = deepcopy(self.velocity)
+        self.velocity = deepcopy(velocity)
         return
 
     def set_new_time(self, t):
@@ -149,57 +153,74 @@ class Electronic_state:
         return
     
     
-    def get_estate_energies(self, return_1d = True):
+    def get_estate_energies(self, return_1d = True): ## placeholder
         """Get energy of each 'electronic state', which is i->a excitation configuration. Approximate state energy as MO energy difference."""
-        if not self.is_uptodate(self.t_estate_energies):
 
-            utils.printer.write_out('Updating electronic state energies: Started.\n')
-            
-            mo_energies, mo_coeffs = self.get_molecular_orbitals()
+        return np.zeros_like(self.e_coeffs)
 
-            n_mo  = len(mo_energies)
-            n_occ = self.n_occ
-            n_vir = n_mo - self.n_occ
-            
-            if self.active_orbitals is None:
-        
-                self.active_orbitals = [ True for i_mo in range(n_mo) ]
-        
-            state_energies = []
-        
-            for i_occ in range(n_occ):
-                
-                if self.active_orbitals[i_occ]:
-        
-                    row = []
-        
-                    for i_vir in range(n_vir):
-        
-                        if self.active_orbitals[i_vir + n_occ]:
-        
-                            row.append( self.gs_energy + self.mo_energies[i_vir + n_occ] - self.mo_energies[n_mo - n_occ] )
-        
-                    state_energies.append(row)
-            
-            self.old_estate_energies = deepcopy(self.estate_energies)
-            self.estate_energies     = np.array(state_energies)
+        #if not self.is_uptodate(self.t_estate_energies):
 
-            self.t_estate_energies = self.get_t()
-            
-            utils.printer.write_out('Updating electronic state energies: Done.\n')
-        
-        if return_1d:
+        #    utils.printer.write_out('Updating electronic state energies: Started.\n')
+        #    
+        #    mo_energies, mo_coeffs = self.get_molecular_orbitals()
 
-            return np.sort( self.estate_energies.flatten() )
+        #    n_mo  = len(mo_energies)
+        #    n_occ = self.n_occ
+        #    n_vir = n_mo - self.n_occ
+        #    
+        #    if self.active_orbitals is None:
+        #
+        #        self.active_orbitals = [ True for i_mo in range(n_mo) ]
+        #
+        #    state_energies = []
+        #
+        #    for i_occ in range(n_occ):
+        #        
+        #        if self.active_orbitals[i_occ]:
+        #
+        #            row = []
+        #
+        #            for i_vir in range(n_vir):
+        #
+        #                if self.active_orbitals[i_vir + n_occ]:
+        #
+        #                    row.append( self.gs_energy + self.mo_energies[i_vir + n_occ] - self.mo_energies[n_mo - n_occ] )
+        #
+        #            state_energies.append(row)
+        #    
+        #    self.old_estate_energies = deepcopy(self.estate_energies)
+        #    self.estate_energies     = np.array(state_energies)
 
-        else:
+        #    self.t_estate_energies = self.get_t()
+        #    
+        #    utils.printer.write_out('Updating electronic state energies: Done.\n')
+        #
+        #if return_1d:
 
-            return deepcopy(self.estate_energies)
+        #    return np.sort( self.estate_energies.flatten() )
+
+        #else:
+
+        #    return deepcopy(self.estate_energies)
 
 
     def get_tdnac(self): ## placeholder
         
         n_estate = self.get_n_estate()
+
+        old_position_2d = utils.coord_1d_to_2d(self.old_position)
+        position_2d     = utils.coord_1d_to_2d(self.position)
+        
+        if self.qc_program == 'dftb+':
+
+            overlap_twogeom = dftbplus_manager.worker.return_overlap_twogeom(old_position_2d, position_2d)
+
+        else:
+
+            utils.stop_with_error("Unknown quantum chemistry program %s .\n" % self.qc_program)
+
+        print(overlap_twogeom) ## Debug code
+
         tdnac = np.zeros( (n_estate, n_estate), dtype='float64' )
         
         return tdnac
@@ -241,7 +262,7 @@ class Electronic_state:
 
             else:
                 
-                utils.stop_with_error("Unknown quantum chemistry program %s .\n" % electronic_structure.qc_program)
+                utils.stop_with_error("Unknown quantum chemistry program %s .\n" % self.qc_program)
 
             self.t_matrices = self.get_t()
 
