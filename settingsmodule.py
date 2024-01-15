@@ -1,21 +1,43 @@
 #!-*- coding: utf-8 -*-
 
+import utils
+
 class Settings:
+
+    default = {
+        'basis'     : 'configuration',
+        'excitation': 'cis',
+    }
+
     
-    def __init__(self):
-        
-        self.load_default_settings()
-
-    def load_default_settings(self): # placeholder
-
-        self.qc_program       = None
-
-        self.n_occ            = None
-        self.active_orbitals  = None
-        
-        self.n_estate         = None
-
-        self.dt               = None
-        self.propagator_type  = None
-        
-        return 
+    @classmethod
+    def load_setting(cls, settings, key):
+    
+        if type(key) is str:
+    
+            try:
+                
+                return settings[key]
+    
+            except KeyError:
+                
+                return cls.default[key]
+    
+        elif hasattr(key, "__iter__"):
+    
+            if len(key) > 1:
+            
+                return cls.load_setting(settings[key[0]], key[1:])
+    
+            elif len(key) == 1:
+    
+                return cls.load_setting(settings, key[-1])
+    
+            else:
+    
+                utils.stop_with_error("Invalid key.\n")
+    
+        else:
+            
+            utils.stop_with_error("Invalid key.\n")
+    

@@ -69,8 +69,10 @@ def is_equal_ndarray(a, b):
     
     return np.max(np.abs(a-b)) < constants.EPS_FLOAT_EQUAL
 
+
 def coord_1d_to_2d(coord_1d):
     
     natom = int(coord_1d.size / 3)
 
     return coord_1d.reshape([natom, 3])
+

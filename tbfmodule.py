@@ -252,7 +252,7 @@ class Tbf:
         #self.tbf_id = world.total_tbf_count + 1
         
         self.e_part = Electronic_state(
-            settings, atomparams, e_coeffs, self.get_position(), self.get_velocity(), self.t,
+            settings, atomparams, e_coeffs, self.get_position(), self.get_velocity(), settings['dt'], self.t,
             construct_initial_gs = True,
         )
         #self.e_part.set_new_position_velocity_time(
@@ -446,9 +446,9 @@ class Tbf:
 
         t = self.get_t()
 
-        self.e_part.set_new_position( self.get_position() )
-        self.e_part.set_new_velocity( self.get_velocity() )
-        self.e_part.set_new_time( self.get_t() )
+        self.e_part.set_next_position( self.get_position() )
+        self.e_part.set_next_velocity( self.get_velocity() )
+        self.e_part.set_next_time( self.get_t() )
 
         # update electronic wavefunc and relevant physical quantities
 
@@ -470,6 +470,10 @@ class Tbf:
         e_coeffs_tderiv = (-1.0j / H_DIRAC) * np.dot(H_el, e_coeffs)
 
         self.e_part.set_new_e_coeffs_tderiv(e_coeffs_tderiv)
+
+        self.e_part.update_position()
+        self.e_part.update_velocity()
+        self.e_part.update_time()
 
         self.set_new_time( self.get_t() + 1 )
 

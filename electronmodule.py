@@ -9,17 +9,21 @@ from copy import deepcopy
 
 from constants import H_DIRAC, ANGST2AU
 import utils
+from settingsmodule import Settings
 
 from interface_dftbplus import dftbplus_manager
 
 class Electronic_state:
     
 
-    def __init__(self, settings, atomparams, e_coeffs, position, velocity, t, construct_initial_gs = True):
+    def __init__(self, settings, atomparams, e_coeffs, position, velocity, dt, t, construct_initial_gs = True):
 
-        self.active_occ_mos      = settings['active_occ_mos']
-        self.active_vir_mos      = settings['active_vir_mos']
-        self.qc_program          = settings['engine']['type']
+        self.active_occ_mos      = Settings.load_setting(settings, 'active_occ_mos')
+        self.active_vir_mos      = Settings.load_setting(settings, 'active_vir_mos')
+        self.qc_program          = Settings.load_setting(settings, ('engine', 'type') )
+
+        self.basis               = Settings.load_setting(settings, 'basis')
+        self.excitation          = Settings.load_setting(settings, 'excitation')
         
         self.e_coeffs            = e_coeffs # np.array (n_estate)
         self.old_e_coeffs        = deepcopy(self.e_coeffs)
@@ -33,12 +37,17 @@ class Electronic_state:
         self.S                   = None
         self.atomparams          = deepcopy(atomparams)
 
+        self.dt                  = dt
+
         self.is_open_shell       = False
 
         self.e_coeffs_tderiv     = np.zeros_like(e_coeffs)
         self.old_e_coeffs_tderiv = np.zeros_like(e_coeffs)
+
+        self.t                    = t
+        self.next_t               = None
         
-        self.t_e_coeffs           = t
+        self.t_e_coeffs           = self.t
         self.t_molecular_orbitals = sys.maxsize
         self.t_estate_energies    = sys.maxsize
         self.t_matrices           = sys.maxsize
@@ -61,24 +70,61 @@ class Electronic_state:
         return
 
 
-    def set_new_position(self, position):
-        self.old_position = deepcopy(self.position)
-        self.position = deepcopy(position)
+    #def set_new_position(self, position):
+    #    self.old_position = deepcopy(self.position)
+    #    self.position = deepcopy(position)
+    #    return
+
+
+    def set_next_position(self, position):
+        self.next_position = deepcopy(position)
         return
 
-    def set_new_velocity(self, velocity):
-        self.old_velocity = deepcopy(self.velocity)
-        self.velocity = deepcopy(velocity)
+
+    def update_position(self):
+        self.old_position  = deepcopy(self.position)
+        self.position      = deepcopy(self.next_position)
+        self.next_position = None
         return
 
-    def set_new_time(self, t):
-        self.t = t
+
+    #def set_new_velocity(self, velocity):
+    #    self.old_velocity = deepcopy(self.velocity)
+    #    self.velocity = deepcopy(velocity)
+    #    return
+
+
+    def set_next_velocity(self, velocity):
+        self.next_velocity = deepcopy(velocity)
+        return
+
+
+    def update_velocity(self):
+        self.old_velocity  = deepcopy(self.velocity)
+        self.velocity      = deepcopy(self.next_velocity)
+        self.next_velocity = None
+        return
+
+
+    #def set_new_time(self, t):
+    #    self.t = t
+    #    return
+
+
+    def set_next_time(self, t):
+        self.next_t = t
+        return
+
+
+    def update_time(self):
+        self.t = self.next_t
         return
 
 
     def is_uptodate(self, time_last):
         
-        if utils.is_equal_scalar(self.get_t(), time_last):
+        #if utils.is_equal_scalar(self.get_t(), time_last):
+        if self.get_t() == time_last:
             return True
         else:
             return False
@@ -208,20 +254,43 @@ class Electronic_state:
         
         n_estate = self.get_n_estate()
 
-        old_position_2d = utils.coord_1d_to_2d(self.old_position)
-        position_2d     = utils.coord_1d_to_2d(self.position)
+        #if self.next_position is None:
+        #    utils.stop_with_error("Next position not set; TDNAC calculation failed.\n")
+
+        #old_position_2d  = utils.coord_1d_to_2d(self.old_position)
+        #next_position_2d = utils.coord_1d_to_2d(self.next_position)
+
+        position_2d = utils.coord_1d_to_2d(self.position)
+        velocity_2d = utils.coord_1d_to_2d(self.velocity)
+
+        old_position_2d = position_2d - self.dt * velocity_2d
+        new_position_2d = position_2d + self.dt * velocity_2d
         
         if self.qc_program == 'dftb+':
 
-            overlap_twogeom = dftbplus_manager.worker.return_overlap_twogeom(old_position_2d, position_2d)
+            overlap_twogeom = dftbplus_manager.worker.return_overlap_twogeom(old_position_2d, new_position_2d)
 
         else:
 
             utils.stop_with_error("Unknown quantum chemistry program %s .\n" % self.qc_program)
 
-        print(overlap_twogeom) ## Debug code
+        ao_derivative_coupling = overlap_twogeom / (2.0 * self.dt)
 
-        tdnac = np.zeros( (n_estate, n_estate), dtype='float64' )
+        if self.basis == 'configuration':
+
+            # AO -> MO
+
+            # MO -> determinant
+
+            # determinant -> CSF
+
+            pass
+
+        else:
+
+            utils.stop_with_error("Unknown electronic-state basis %s; TDNAC calculation failed.\n" % self.basis)
+
+        tdnac = np.zeros( (n_estate, n_estate), dtype='float64' ) ## placeholder
         
         return tdnac
 
@@ -258,7 +327,16 @@ class Electronic_state:
 
             if self.qc_program == 'dftb+':
 
-                n_AO, self.H, self.S = dftbplus_manager.run_dftbplus_text(self.atomparams, self.position)
+                position_2d = utils.coord_1d_to_2d(self.position)
+
+                dftbplus_manager.worker.set_geometry(position_2d)
+
+                n_AO = sum( dftbplus_manager.worker.get_atom_nr_basis() )
+
+                self.H = dftbplus_manager.worker.return_hamiltonian(self.rho)
+                self.S = dftbplus_manager.worker.return_overlap_twogeom(position_2d, position_2d)
+
+                #n_AO, self.H, self.S = dftbplus_manager.run_dftbplus_text(self.atomparams, self.position)
 
             else:
                 
