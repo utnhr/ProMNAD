@@ -9,7 +9,7 @@ from copy import deepcopy
 
 from constants import H_DIRAC, ANGST2AU
 import utils
-from settingsmodule import Settings
+from settingsmodule import load_setting
 
 from interface_dftbplus import dftbplus_manager
 
@@ -18,23 +18,31 @@ class Electronic_state:
 
     def __init__(self, settings, atomparams, e_coeffs, position, velocity, dt, t, construct_initial_gs = True):
 
-        self.active_occ_mos      = Settings.load_setting(settings, 'active_occ_mos')
-        self.active_vir_mos      = Settings.load_setting(settings, 'active_vir_mos')
-        self.qc_program          = Settings.load_setting(settings, ('engine', 'type') )
+        self.active_occ_mos      = load_setting(settings, 'active_occ_mos')
+        self.active_vir_mos      = load_setting(settings, 'active_vir_mos')
+        self.qc_program          = load_setting(settings, ('engine', 'type') )
 
-        self.basis               = Settings.load_setting(settings, 'basis')
-        self.excitation          = Settings.load_setting(settings, 'excitation')
+        self.basis               = load_setting(settings, 'basis')
+        self.excitation          = load_setting(settings, 'excitation')
         
         self.e_coeffs            = e_coeffs # np.array (n_estate)
         self.old_e_coeffs        = deepcopy(self.e_coeffs)
+        #### order of linear coefficients ####
+        #   case of 'configuration' & 'cis':
+        #       
+
+
         self.estate_energies     = None
         self.old_estate_energies = None
+
         self.old_position        = deepcopy(position)
         self.old_velocity        = deepcopy(velocity)
         self.position            = deepcopy(position)
         self.velocity            = deepcopy(velocity)
+
         self.H                   = None
         self.S                   = None
+
         self.atomparams          = deepcopy(atomparams)
 
         self.dt                  = dt
