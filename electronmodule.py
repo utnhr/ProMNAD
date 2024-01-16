@@ -66,14 +66,15 @@ class Electronic_state:
         if construct_initial_gs:
             self.construct_initial_gs()
         else:
-            self.gs_energy   = None
-            self.gs_filling  = None
-            self.mo_energies = None
-            self.mo_coeffs   = None
-            self.n_elec      = None
-            self.n_MO        = None
-            self.n_AO        = None
-            self.gs_rho      = None
+            self.gs_energy     = None
+            self.gs_filling    = None
+            self.mo_energies   = None
+            self.mo_coeffs     = None
+            self.old_mo_coeffs = None
+            self.n_elec        = None
+            self.n_MO          = None
+            self.n_AO          = None
+            self.gs_rho        = None
 
         return
 
@@ -198,8 +199,37 @@ class Electronic_state:
     def update_molecular_orbitals(self):
         """Update MO energies and coefficients according to TD-KS equation."""
         utils.printer.write_out('Updating MOs: Started.\n')
-        ## placeholder
-        
+
+        is_initial_step = self.old_mo_coeffs is None
+
+        if is_initial_step:
+            self.old_mo_coeffs = np.zeros_like(self.mo_coeffs)
+
+        if self.is_open_shell:
+            n_spin = 2
+        else:
+            n_spin = 1
+
+        for i_spin in range(n_spin):
+
+            mo_midstep = deepcopy(self.mo_coeffs[i_spin,:,:])
+
+            mo_tderiv = - (0.0+1.0j) * np.dot(
+                np.dot( np.linalg.inv(self.S).astype('complex128'), self.H[i_spin,:,:] ), mo_midstep
+            )
+
+            if self.old_mo_coeffs is None:
+                
+                self.old_mo_coeffs[i_spin,:,:] = mo_midstep
+                self.mo_coeffs[i_spin,:,:]     = mo_midstep + self.dt * mo_tderiv
+
+            else:
+                
+                self.mo_coeffs[i_spin,:,:]     = self.old_mo_coeffs + 2.0 * self.dt * mo_tderiv
+                self.old_mo_coeffs[i_spin,:,:] = mo_midstep
+
+        print(self.mo_coeffs) ## Debug code
+
         self.t_mos = self.get_t()
 
         utils.printer.write_out('Updating MOs: Done.\n')
@@ -341,8 +371,12 @@ class Electronic_state:
 
                 n_AO = sum( dftbplus_manager.worker.get_atom_nr_basis() )
 
-                self.H = dftbplus_manager.worker.return_hamiltonian(self.rho)
+                self.H = dftbplus_manager.worker.return_hamiltonian( self.rho.astype('float64') )
                 self.S = dftbplus_manager.worker.return_overlap_twogeom(position_2d, position_2d)
+
+                self.update_molecular_orbitals()
+
+                self.construct_density_matrix()
 
                 #n_AO, self.H, self.S = dftbplus_manager.run_dftbplus_text(self.atomparams, self.position)
 
@@ -372,6 +406,67 @@ class Electronic_state:
 
         return
 
+
+    def construct_density_matrix(self):
+        
+        if self.basis == 'configuration' and self.excitation == 'cis' and not self.is_open_shell:
+
+            self.rho = np.zeros_like(self.gs_rho, dtype='complex128')
+
+            # Ground-state contribution
+
+            self.rho += self.e_coeffs[0] * self.gs_rho.astype('complex128')
+
+            # 1-electron excitation contribution
+
+            n_occ = len(self.active_occ_mos)
+            n_vir = len(self.active_vir_mos)
+            n_act = n_occ + n_vir
+
+            active_mos = np.zeros( (self.mo_coeffs.shape[1], n_act), dtype = 'complex128' )
+
+            for i_occ, active_occ_imo in enumerate(self.active_occ_mos):
+
+                active_mos[:,i_occ] = self.mo_coeffs[0,:,active_occ_imo]
+
+            for i_vir, active_vir_imo in enumerate(self.active_vir_mos):
+
+                active_mos[:,n_occ+i_vir] = self.mo_coeffs[0,:,active_vir_imo]
+
+            cis_coeffs = self.e_coeffs[1:].reshape(n_occ, n_vir) # MO basis
+
+            rho_oo_mo = np.dot( cis_coeffs, cis_coeffs.transpose() )
+            rho_vv_mo = np.dot( cis_coeffs.transpose(), cis_coeffs )
+            rho_ov_mo = self.e_coeffs[0].conjugate() * cis_coeffs
+            rho_vo_mo = np.conjugate( rho_ov_mo.transpose() )
+
+            rho_cis = np.zeros( (n_act, n_act), dtype = 'complex128' )
+
+            rho_cis[0    :n_occ, 0    :n_occ] = rho_oo_mo[0:n_occ,0:n_occ]
+            rho_cis[n_occ:n_act, n_occ:n_act] = rho_vv_mo[0:n_vir,0:n_vir]
+            rho_cis[0    :n_occ, n_occ:n_act] = rho_ov_mo[0:n_occ,0:n_vir]
+            rho_cis[n_occ:n_act, 0    :n_occ] = rho_vo_mo[0:n_vir,0:n_occ]
+
+            # MO -> AO
+
+            rho_cis_ao = np.dot( active_mos, np.dot( rho_cis, active_mos.transpose() ) )
+
+            self.rho[0,:,:] += rho_cis_ao
+
+        else:
+
+            if self.is_open_shell:
+                string = 'open shell'
+            else:
+                string = 'closed shell'
+
+            utils.stop_with_error("1-RDM construction failed; not compatible with %s X %s X %s .\n" % (
+                    self.basis, self.excitation, string
+                )
+            )
+
+        return
+
     
     def construct_initial_gs(self):
 
@@ -389,7 +484,8 @@ class Electronic_state:
                 open_shell = self.is_open_shell
             )
 
-            self.mo_coeffs = mo_coeffs_real.astype('complex128')
+            self.mo_coeffs     = mo_coeffs_real.astype('complex128')
+            self.old_mo_coeffs = None
 
             self.gs_filling = dftbplus_manager.worker.get_filling(open_shell = self.is_open_shell)
 
@@ -399,6 +495,12 @@ class Electronic_state:
             self.n_AO = self.n_MO
 
             self.update_gs_density_matrix()
+
+            self.rho = np.zeros_like(self.gs_rho, dtype = 'complex128')
+
+            self.rho = deepcopy(self.gs_rho)
+
+            #self.construct_initial_molecular_orbitals()
 
         else:
 

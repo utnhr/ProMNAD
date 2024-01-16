@@ -76,3 +76,8 @@ def coord_1d_to_2d(coord_1d):
 
     return coord_1d.reshape([natom, 3])
 
+def symmetrize(M, upper_triangle = True): ## placeholder
+    
+    pass
+
+

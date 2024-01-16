@@ -12,7 +12,7 @@ def configure_calculation(settings):
             
             settings['n_occ'] = len(settings['active_occ_mos'])
 
-            settings['n_estate'] = settings['n_occ'] * len(settings['active_vir_mos'])
+            settings['n_estate'] = settings['n_occ'] * len(settings['active_vir_mos']) + 1
 
     else:
 

@@ -16,9 +16,21 @@ mo_type: restricted
 active_occ_mos:
   - 0
   - 1
-active_vir_mos:
   - 2
   - 3
+  - 4
+  - 5
+  - 6
+  - 7
+  - 8
+active_vir_mos:
+  - 9
+  - 10
+  - 11
+  - 12
+  - 13
+  - 14
+  - 15
 
 initial_estate: 2 # start 1
 n_step: 100
