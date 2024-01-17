@@ -371,9 +371,18 @@ class Electronic_state:
 
                 n_AO = sum( dftbplus_manager.worker.get_atom_nr_basis() )
 
-                self.H = dftbplus_manager.worker.return_hamiltonian( self.rho.astype('float64') )
-                self.S = dftbplus_manager.worker.return_overlap_twogeom(position_2d, position_2d)
+                H = dftbplus_manager.worker.return_hamiltonian( self.rho.astype('float64') )
+                S = dftbplus_manager.worker.return_overlap_twogeom(position_2d, position_2d)
 
+                n_spin = int(self.is_open_shell) + 1
+
+                self.H = np.zeros_like(H)
+
+                for i_spin in range(n_spin):
+                    self.H[i_spin,:,:] = utils.hermitize(H[i_spin,:,:], is_upper_triangle = True)
+
+                self.S = utils.symmetrize(S, is_upper_triangle = True)
+                
                 self.update_molecular_orbitals()
 
                 self.construct_density_matrix()
