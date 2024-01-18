@@ -56,7 +56,7 @@ class Electronic_state:
         self.next_t               = None
         
         self.t_e_coeffs           = self.t
-        self.t_molecular_orbitals = sys.maxsize
+        self.t_molecular_orbitals = self.t
         self.t_estate_energies    = sys.maxsize
         self.t_matrices           = sys.maxsize
         self.t_force              = sys.maxsize
@@ -66,15 +66,15 @@ class Electronic_state:
         if construct_initial_gs:
             self.construct_initial_gs()
         else:
-            self.gs_energy     = None
-            self.gs_filling    = None
-            self.mo_energies   = None
-            self.mo_coeffs     = None
-            self.old_mo_coeffs = None
-            self.n_elec        = None
-            self.n_MO          = None
-            self.n_AO          = None
-            self.gs_rho        = None
+            self.gs_energy        = None
+            self.gs_filling       = None
+            self.init_mo_energies = None
+            self.mo_coeffs        = None
+            self.old_mo_coeffs    = None
+            self.n_elec           = None
+            self.n_MO             = None
+            self.n_AO             = None
+            self.gs_rho           = None
 
         return
 
@@ -218,23 +218,56 @@ class Electronic_state:
                 np.dot( np.linalg.inv(self.S).astype('complex128'), self.H[i_spin,:,:] ), mo_midstep
             )
 
-            if self.old_mo_coeffs is None:
-                
-                self.old_mo_coeffs[i_spin,:,:] = mo_midstep
-                self.mo_coeffs[i_spin,:,:]     = mo_midstep + self.dt * mo_tderiv
-
-            else:
-                
-                self.mo_coeffs[i_spin,:,:]     = self.old_mo_coeffs + 2.0 * self.dt * mo_tderiv
+            if is_initial_step:
                 self.old_mo_coeffs[i_spin,:,:] = mo_midstep
 
-        print(self.mo_coeffs) ## Debug code
+            self.mo_coeffs[i_spin,:,:] = self.propagate_without_trivial_phase(
+                self.old_mo_coeffs[i_spin,:,:], mo_midstep[:,:], mo_tderiv,
+                self.init_mo_energies[i_spin], self.t_molecular_orbitals, self.dt, is_initial_step)
 
-        self.t_mos = self.get_t()
+            self.old_mo_coeffs[i_spin,:,:] = mo_midstep
+
+        self.t_molecular_orbitals += self.dt
 
         utils.printer.write_out('Updating MOs: Done.\n')
 
+        #print( 'MO_TEST', np.real(self.mo_coeffs[0,0,0]) ) ## Debug code
+        print( 'MO_TEST', self.mo_coeffs[0,0,0] ) ## Debug code
+
         return
+    
+    
+    def propagate_without_trivial_phase(self, old_mo, mid_mo, mo_tderiv, init_mo_energies, t, dt, is_init_step):
+        
+        trivial_phase     = np.zeros_like(old_mo, dtype = 'complex128')
+        inv_trivial_phase = np.zeros_like(old_mo, dtype = 'complex128')
+
+        for i_MO in range(self.n_MO):
+
+            trivial_phase[i_MO,:]     = np.exp( -(0.0+1.0j) * init_mo_energies[i_MO] * t )
+            inv_trivial_phase[i_MO,:] = np.exp(  (0.0+1.0j) * init_mo_energies[i_MO] * t )
+
+        print('TRIVIAL_PHASE', trivial_phase) ## Debug code
+
+        old_mo_nophase = old_mo * inv_trivial_phase
+        mid_mo_nophase = mid_mo * inv_trivial_phase
+
+        mo_tderiv_nophase = inv_trivial_phase * mo_tderiv + (0.0+1.0j) * init_mo_energies * mid_mo_nophase
+
+        print('MO_TDERIV_NOPHASE', mo_tderiv_nophase) ## Debug code
+
+        if is_init_step:
+            factor = 1.0
+        else:
+            factor = 2.0
+
+        new_mo_nophase = old_mo_nophase + factor * dt * mo_tderiv_nophase
+
+        print('MO_NOPHASE_TEST', new_mo_nophase[0,0]) ## Debug code
+
+        new_mo = new_mo_nophase * trivial_phase
+
+        return new_mo
     
     
     def get_estate_energies(self, return_1d = True): ## placeholder
@@ -359,43 +392,41 @@ class Electronic_state:
 
     def update_matrices(self):
 
-        if not self.is_uptodate(self.t_matrices):
+        utils.printer.write_out('Updating hamiltonian and overlap matrices: Started.\n')
 
-            utils.printer.write_out('Updating hamiltonian and overlap matrices: Started.\n')
+        if self.qc_program == 'dftb+':
 
-            if self.qc_program == 'dftb+':
+            position_2d = utils.coord_1d_to_2d(self.position)
 
-                position_2d = utils.coord_1d_to_2d(self.position)
+            dftbplus_manager.worker.set_geometry(position_2d)
 
-                dftbplus_manager.worker.set_geometry(position_2d)
+            n_AO = sum( dftbplus_manager.worker.get_atom_nr_basis() )
 
-                n_AO = sum( dftbplus_manager.worker.get_atom_nr_basis() )
+            H = dftbplus_manager.worker.return_hamiltonian( np.real(self.rho).astype('float64') )
+            S = dftbplus_manager.worker.return_overlap_twogeom(position_2d, position_2d)
 
-                H = dftbplus_manager.worker.return_hamiltonian( self.rho.astype('float64') )
-                S = dftbplus_manager.worker.return_overlap_twogeom(position_2d, position_2d)
+            n_spin = int(self.is_open_shell) + 1
 
-                n_spin = int(self.is_open_shell) + 1
+            self.H = np.zeros_like(H)
 
-                self.H = np.zeros_like(H)
+            for i_spin in range(n_spin):
+                self.H[i_spin,:,:] = utils.hermitize(H[i_spin,:,:], is_upper_triangle = True)
 
-                for i_spin in range(n_spin):
-                    self.H[i_spin,:,:] = utils.hermitize(H[i_spin,:,:], is_upper_triangle = True)
+            self.S = utils.symmetrize(S, is_upper_triangle = True)
+            
+            self.update_molecular_orbitals()
 
-                self.S = utils.symmetrize(S, is_upper_triangle = True)
-                
-                self.update_molecular_orbitals()
+            self.construct_density_matrix()
 
-                self.construct_density_matrix()
+            #n_AO, self.H, self.S = dftbplus_manager.run_dftbplus_text(self.atomparams, self.position)
 
-                #n_AO, self.H, self.S = dftbplus_manager.run_dftbplus_text(self.atomparams, self.position)
+        else:
+            
+            utils.stop_with_error("Unknown quantum chemistry program %s .\n" % self.qc_program)
 
-            else:
-                
-                utils.stop_with_error("Unknown quantum chemistry program %s .\n" % self.qc_program)
+        self.t_matrices = self.get_t()
 
-            self.t_matrices = self.get_t()
-
-            utils.printer.write_out('Updating hamiltonian and overlap matrices: Done.\n')
+        utils.printer.write_out('Updating hamiltonian and overlap matrices: Done.\n')
 
         return
 
@@ -489,7 +520,7 @@ class Electronic_state:
 
             self.gs_energy = dftbplus_manager.worker.get_energy()
 
-            self.mo_energies, mo_coeffs_real = dftbplus_manager.worker.get_molecular_orbitals(
+            self.init_mo_energies, mo_coeffs_real = dftbplus_manager.worker.get_molecular_orbitals(
                 open_shell = self.is_open_shell
             )
 
@@ -505,9 +536,9 @@ class Electronic_state:
 
             self.update_gs_density_matrix()
 
-            self.rho = np.zeros_like(self.gs_rho, dtype = 'complex128')
+            #self.rho = np.zeros_like(self.gs_rho, dtype = 'complex128')
 
-            self.rho = deepcopy(self.gs_rho)
+            self.rho = self.gs_rho.astype('complex128')
 
             #self.construct_initial_molecular_orbitals()
 
@@ -525,7 +556,7 @@ class Electronic_state:
         else:
             n_spin = 1
         
-        self.gs_rho = np.zeros( (n_spin, self.n_MO, self.n_MO), dtype = 'float64' )
+        self.gs_rho = np.zeros( (n_spin, self.n_AO, self.n_AO), dtype = 'float64' )
 
         # diagonal matrix whose elements are occupation numbers
         f = np.zeros( (self.n_MO, self.n_MO), dtype = 'float64' )
