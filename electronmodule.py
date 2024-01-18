@@ -247,14 +247,14 @@ class Electronic_state:
             trivial_phase[i_MO,:]     = np.exp( -(0.0+1.0j) * init_mo_energies[i_MO] * t )
             inv_trivial_phase[i_MO,:] = np.exp(  (0.0+1.0j) * init_mo_energies[i_MO] * t )
 
-        print('TRIVIAL_PHASE', trivial_phase) ## Debug code
+        #print('TRIVIAL_PHASE', trivial_phase) ## Debug code
 
         old_mo_nophase = old_mo * inv_trivial_phase
         mid_mo_nophase = mid_mo * inv_trivial_phase
 
         mo_tderiv_nophase = inv_trivial_phase * mo_tderiv + (0.0+1.0j) * init_mo_energies * mid_mo_nophase
 
-        print('MO_TDERIV_NOPHASE', mo_tderiv_nophase) ## Debug code
+        #print('MO_TDERIV_NOPHASE', mo_tderiv_nophase) ## Debug code
 
         if is_init_step:
             factor = 1.0
@@ -263,7 +263,7 @@ class Electronic_state:
 
         new_mo_nophase = old_mo_nophase + factor * dt * mo_tderiv_nophase
 
-        print('MO_NOPHASE_TEST', new_mo_nophase[0,0]) ## Debug code
+        #print('MO_NOPHASE_TEST', new_mo_nophase[0,0]) ## Debug code
 
         new_mo = new_mo_nophase * trivial_phase
 
@@ -413,6 +413,11 @@ class Electronic_state:
                 self.H[i_spin,:,:] = utils.hermitize(H[i_spin,:,:], is_upper_triangle = True)
 
             self.S = utils.symmetrize(S, is_upper_triangle = True)
+
+            e_vals, e_vecs = sp.eig(self.H[0,:,:], self.S) ## Debug code
+            print('E_VECS', e_vecs) ## Debug code
+            
+            print('MO_PHASE', self.mo_coeffs) ## Debug code
             
             self.update_molecular_orbitals()
 

@@ -78,32 +78,22 @@ def coord_1d_to_2d(coord_1d):
 
 def symmetrize(M, is_upper_triangle = True): ## placeholder
 
-    dim = M.shape[0]
-    
     if is_upper_triangle:
         temp = np.triu(M)
     else:
         temp = np.tril(M)
 
-    temp = temp + temp.transpose()
+    res = temp + temp.transpose() - np.diag(np.diag(temp))
     
-    for i in range(dim):
-        temp[i,i] *= 0.5
-
-    return temp
+    return res
 
 def hermitize(M, is_upper_triangle = True): ## placeholder
 
-    dim = M.shape[0]
-    
     if is_upper_triangle:
         temp = np.triu(M)
     else:
         temp = np.tril(M)
-
-    temp = temp + np.conjugate( temp.transpose() )
     
-    for i in range(dim):
-        temp[i,i] *= 0.5
+    res = temp + np.conjugate( temp.transpose() ) - np.diag(np.diag(temp))
 
-    return temp
+    return res
