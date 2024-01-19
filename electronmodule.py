@@ -413,11 +413,19 @@ class Electronic_state:
                 self.H[i_spin,:,:] = utils.hermitize(H[i_spin,:,:], is_upper_triangle = True)
 
             self.S = utils.symmetrize(S, is_upper_triangle = True)
+            
+            ## Debug code
+            n_AO = self.S.shape[0]
+            for i in range(n_AO):
+                for j in range(n_AO):
+                    print('S', i, j, self.S[i,j])
+            ## End Debug code
 
             e_vals, e_vecs = sp.eig(self.H[0,:,:], self.S) ## Debug code
             print('E_VECS', e_vecs) ## Debug code
             
             print('MO_PHASE', self.mo_coeffs) ## Debug code
+            print('MO VALID', np.dot(np.dot(self.mo_coeffs[0,:,:].transpose(),self.S),self.mo_coeffs[0,:,:])) ## Debug code
             
             self.update_molecular_orbitals()
 
@@ -498,6 +506,8 @@ class Electronic_state:
 
             self.rho[0,:,:] += rho_cis_ao
 
+            print( 'TOTAL NELEC', np.dot(self.rho[0,:,:], self.S ) ) ## Debug code
+
         else:
 
             if self.is_open_shell:
@@ -528,6 +538,8 @@ class Electronic_state:
             self.init_mo_energies, mo_coeffs_real = dftbplus_manager.worker.get_molecular_orbitals(
                 open_shell = self.is_open_shell
             )
+
+            print('MO_COEFFS_REAL',mo_coeffs_real) ## Debug code
 
             self.mo_coeffs     = mo_coeffs_real.astype('complex128')
             self.old_mo_coeffs = None
@@ -564,15 +576,20 @@ class Electronic_state:
         self.gs_rho = np.zeros( (n_spin, self.n_AO, self.n_AO), dtype = 'float64' )
 
         # diagonal matrix whose elements are occupation numbers
-        f = np.zeros( (self.n_MO, self.n_MO), dtype = 'float64' )
+        f = np.zeros( (self.n_MO, self.n_MO), dtype = 'complex128' )
 
         for i_spin in range(n_spin):
 
+            scaled_mo_coeffs = np.zeros_like(self.mo_coeffs[i_spin,:,:])
+
             for i_MO in range(self.n_MO):
 
-                f[i_MO,i_MO] = self.gs_filling[i_spin][i_MO]
+                #f[i_MO,i_MO] = self.gs_filling[i_spin][i_MO]
+                scaled_mo_coeffs[:,i_MO] = self.gs_filling[i_spin][i_MO] * self.mo_coeffs[i_spin,:,i_MO]
             
-            rho = np.real( np.dot( np.transpose(self.mo_coeffs[0,:,:]), np.dot(f, self.mo_coeffs[0,:,:]) ) )
+            rho = np.real(
+                np.dot( self.mo_coeffs[i_spin,:,:], np.transpose(scaled_mo_coeffs) )
+            )
 
             self.gs_rho[i_spin, :, :] = rho[:, :]
         
