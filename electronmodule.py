@@ -214,9 +214,9 @@ class Electronic_state:
 
             mo_midstep = deepcopy(self.mo_coeffs[i_spin,:,:])
 
-            mo_tderiv = - (0.0+1.0j) * np.dot(
-                np.dot( np.linalg.inv(self.S).astype('complex128'), self.H[i_spin,:,:] ), mo_midstep
-            )
+            mo_tderiv = -(0.0+1.0j) * np.dot(
+                np.dot( np.linalg.inv(self.S).astype('complex128'), self.H[i_spin,:,:] ), mo_midstep.transpose()
+            ).transpose()
 
             if is_initial_step:
                 self.old_mo_coeffs[i_spin,:,:] = mo_midstep
@@ -231,30 +231,28 @@ class Electronic_state:
 
         utils.printer.write_out('Updating MOs: Done.\n')
 
-        #print( 'MO_TEST', np.real(self.mo_coeffs[0,0,0]) ) ## Debug code
-        print( 'MO_TEST', self.mo_coeffs[0,0,0] ) ## Debug code
-
         return
     
     
     def propagate_without_trivial_phase(self, old_mo, mid_mo, mo_tderiv, init_mo_energies, t, dt, is_init_step):
         
-        trivial_phase     = np.zeros_like(old_mo, dtype = 'complex128')
-        inv_trivial_phase = np.zeros_like(old_mo, dtype = 'complex128')
+        if is_init_step:
+            old_mo_nophase = old_mo * self.get_trivial_phase_factor(init_mo_energies, t   , invert = True)
+        else:
+            old_mo_nophase = old_mo * self.get_trivial_phase_factor(init_mo_energies, t-dt, invert = True)
 
+        mid_mo_nophase = mid_mo * self.get_trivial_phase_factor(init_mo_energies, t, invert = True)
+        
+        mo_tderiv_nophase = np.zeros_like(mo_tderiv)
+
+        inv_trivial_phase_factor = self.get_trivial_phase_factor(init_mo_energies, t, invert = True)
+        
         for i_MO in range(self.n_MO):
 
-            trivial_phase[i_MO,:]     = np.exp( -(0.0+1.0j) * init_mo_energies[i_MO] * t )
-            inv_trivial_phase[i_MO,:] = np.exp(  (0.0+1.0j) * init_mo_energies[i_MO] * t )
-
-        #print('TRIVIAL_PHASE', trivial_phase) ## Debug code
-
-        old_mo_nophase = old_mo * inv_trivial_phase
-        mid_mo_nophase = mid_mo * inv_trivial_phase
-
-        mo_tderiv_nophase = inv_trivial_phase * mo_tderiv + (0.0+1.0j) * init_mo_energies * mid_mo_nophase
-
-        #print('MO_TDERIV_NOPHASE', mo_tderiv_nophase) ## Debug code
+            #mo_tderiv_nophase = (0.0+1.0j) * init_mo_energies * mid_mo_nophase * \
+            #                    self.get_trivial_phase_factor(init_mo_energies, t, invert = True) * mo_tderiv
+            mo_tderiv_nophase[i_MO,:] = (0.0+1.0j) * init_mo_energies[i_MO] * mid_mo_nophase[i_MO,:] + \
+                                inv_trivial_phase_factor[i_MO,:] * mo_tderiv[i_MO,:]
 
         if is_init_step:
             factor = 1.0
@@ -263,12 +261,29 @@ class Electronic_state:
 
         new_mo_nophase = old_mo_nophase + factor * dt * mo_tderiv_nophase
 
-        #print('MO_NOPHASE_TEST', new_mo_nophase[0,0]) ## Debug code
+        print('MO_NOPHASE_TEST', new_mo_nophase[0,0]) ## Debug code
 
-        new_mo = new_mo_nophase * trivial_phase
+        #new_mo = new_mo_nophase * trivial_phase
+        new_mo = new_mo_nophase * self.get_trivial_phase_factor(init_mo_energies, t+dt, invert = False)
 
         return new_mo
+
     
+    def get_trivial_phase_factor(self, mo_energies, t, invert = False):
+
+        trivial_phase = np.zeros( (self.n_MO, self.n_AO), dtype = 'complex128' )
+    
+        if invert:
+            factor = 1.0
+        else:
+            factor = -1.0
+
+        for i_MO in range(self.n_MO):
+
+            trivial_phase[i_MO,:] = np.exp( factor * (0.0+1.0j) * mo_energies[i_MO] * t)
+
+        return trivial_phase
+
     
     def get_estate_energies(self, return_1d = True): ## placeholder
         """Get energy of each 'electronic state', which is i->a excitation configuration. Approximate state energy as MO energy difference."""
@@ -338,8 +353,14 @@ class Electronic_state:
         new_position_2d = position_2d + self.dt * velocity_2d
         
         if self.qc_program == 'dftb+':
+            
+            old_position_2d *= ANGST2AU
+            new_position_2d *= ANGST2AU
 
-            overlap_twogeom = dftbplus_manager.worker.return_overlap_twogeom(old_position_2d, new_position_2d)
+            overlap_twogeom_1 = dftbplus_manager.worker.return_overlap_twogeom(old_position_2d, new_position_2d)
+            overlap_twogeom_2 = dftbplus_manager.worker.return_overlap_twogeom(new_position_2d, old_position_2d)
+
+            overlap_twogeom = np.triu(overlap_twogeom_1) + np.triu(overlap_twogeom_2).transpose() - np.diag(overlap_twogeom_1)
 
         else:
 
@@ -395,14 +416,16 @@ class Electronic_state:
         utils.printer.write_out('Updating hamiltonian and overlap matrices: Started.\n')
 
         if self.qc_program == 'dftb+':
-
-            position_2d = utils.coord_1d_to_2d(self.position)
+            
+            position_2d = utils.coord_1d_to_2d(self.position) * ANGST2AU
 
             dftbplus_manager.worker.set_geometry(position_2d)
 
+            self.update_gs_density_matrix()
+
             n_AO = sum( dftbplus_manager.worker.get_atom_nr_basis() )
 
-            H = dftbplus_manager.worker.return_hamiltonian( np.real(self.rho).astype('float64') )
+            H = dftbplus_manager.worker.return_hamiltonian(self.gs_rho)
             S = dftbplus_manager.worker.return_overlap_twogeom(position_2d, position_2d)
 
             n_spin = int(self.is_open_shell) + 1
@@ -414,22 +437,17 @@ class Electronic_state:
 
             self.S = utils.symmetrize(S, is_upper_triangle = True)
             
-            ## Debug code
-            n_AO = self.S.shape[0]
-            for i in range(n_AO):
-                for j in range(n_AO):
-                    print('S', i, j, self.S[i,j])
-            ## End Debug code
-
-            e_vals, e_vecs = sp.eig(self.H[0,:,:], self.S) ## Debug code
-            print('E_VECS', e_vecs) ## Debug code
+            #e_vals, e_vecs = sp.eig(self.H[0,:,:], self.S) ## Debug code
+            #print('E_VALS', e_vals) ## Debug code
             
             print('MO_PHASE', self.mo_coeffs) ## Debug code
-            print('MO VALID', np.dot(np.dot(self.mo_coeffs[0,:,:].transpose(),self.S),self.mo_coeffs[0,:,:])) ## Debug code
+            print('MO VALID', np.dot(np.dot(self.mo_coeffs[0,:,:].conjugate(),self.S),self.mo_coeffs[0,:,:].transpose()) ) ## Debug code
             
-            self.update_molecular_orbitals()
+            #self.update_gs_density_matrix()
 
             self.construct_density_matrix()
+
+            self.update_molecular_orbitals()
 
             #n_AO, self.H, self.S = dftbplus_manager.run_dftbplus_text(self.atomparams, self.position)
 
@@ -506,7 +524,8 @@ class Electronic_state:
 
             self.rho[0,:,:] += rho_cis_ao
 
-            print( 'TOTAL NELEC', np.dot(self.rho[0,:,:], self.S ) ) ## Debug code
+            print( 'TOTAL NELEC', np.trace( np.dot(self.rho[0,:,:], self.S ) ) ) ## Debug code
+            #print( 'RHO', self.rho[0,:,:] ) ## Debug code
 
         else:
 
@@ -585,11 +604,21 @@ class Electronic_state:
             for i_MO in range(self.n_MO):
 
                 #f[i_MO,i_MO] = self.gs_filling[i_spin][i_MO]
-                scaled_mo_coeffs[:,i_MO] = self.gs_filling[i_spin][i_MO] * self.mo_coeffs[i_spin,:,i_MO]
-            
+                #scaled_mo_coeffs[:,i_MO] = self.gs_filling[i_spin][i_MO] * self.mo_coeffs[i_spin,:,i_MO]
+                scaled_mo_coeffs[i_MO,:] = self.gs_filling[i_spin][i_MO] * self.mo_coeffs[i_spin,i_MO,:]
+
             rho = np.real(
-                np.dot( self.mo_coeffs[i_spin,:,:], np.transpose(scaled_mo_coeffs) )
+                #np.dot( self.mo_coeffs[i_spin,:,:], np.transpose(scaled_mo_coeffs) )
+                np.dot( np.transpose(self.mo_coeffs[i_spin,:,:]).conjugate(), scaled_mo_coeffs )
             )
+
+            ### Debug code
+            #rho[:,:] = 0.0
+            #for i_AO in range(self.n_AO):
+            #    for j_AO in range(self.n_AO):
+            #        for i_MO in range(self.n_MO):
+            #            rho[i_AO,j_AO] += self.gs_filling[i_spin][i_MO] * self.mo_coeffs[i_spin,i_MO,i_AO].conjugate() * self.mo_coeffs[i_spin,i_MO,j_AO]
+            ### End Debug code
 
             self.gs_rho[i_spin, :, :] = rho[:, :]
         

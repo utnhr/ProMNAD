@@ -33,6 +33,6 @@ active_vir_mos:
   - 15
 
 initial_estate: 1 # start 1
-n_step: 1
+n_step: 100
 
-dt: 0.1
+dt: 0.005
