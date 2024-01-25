@@ -223,7 +223,11 @@ class Electronic_state:
 
             self.mo_coeffs[i_spin,:,:] = self.propagate_without_trivial_phase(
                 self.old_mo_coeffs[i_spin,:,:], mo_midstep[:,:], mo_tderiv,
-                self.init_mo_energies[i_spin], self.t_molecular_orbitals, self.dt, is_initial_step)
+                self.init_mo_energies[i_spin], self.t_molecular_orbitals, self.dt, is_initial_step
+            )
+            #self.mo_coeffs[i_spin,:,:] = self.propagate_with_trivial_phase(
+            #    self.old_mo_coeffs[i_spin,:,:], mo_midstep[:,:], mo_tderiv, self.dt, is_initial_step
+            #)
 
             self.old_mo_coeffs[i_spin,:,:] = mo_midstep
 
@@ -232,7 +236,19 @@ class Electronic_state:
         utils.printer.write_out('Updating MOs: Done.\n')
 
         return
+
+
+    def propagate_with_trivial_phase(self, old_mo, mid_mo, mo_tderiv, dt, is_init_step):
     
+        if is_init_step:
+            factor = 1.0
+        else:
+            factor = 2.0
+
+        new_mo = old_mo + factor * dt * mo_tderiv
+
+        return new_mo
+
     
     def propagate_without_trivial_phase(self, old_mo, mid_mo, mo_tderiv, init_mo_energies, t, dt, is_init_step):
         
