@@ -512,7 +512,7 @@ class Electronic_state:
 
             # Ground-state contribution
 
-            self.rho += self.e_coeffs[0] * self.gs_rho.astype('complex128')
+            self.rho += self.gs_rho.astype('complex128')
 
             # 1-electron excitation contribution
 
@@ -532,8 +532,8 @@ class Electronic_state:
 
             cis_coeffs = self.e_coeffs[1:].reshape(n_occ, n_vir) # MO basis
 
-            rho_oo_mo = np.dot( cis_coeffs, cis_coeffs.transpose() )
-            rho_vv_mo = np.dot( cis_coeffs.transpose(), cis_coeffs )
+            rho_oo_mo = -np.dot( cis_coeffs.conjugate(), cis_coeffs.transpose() )
+            rho_vv_mo = np.dot( cis_coeffs.transpose().conjugate(), cis_coeffs )
             rho_ov_mo = self.e_coeffs[0].conjugate() * cis_coeffs
             rho_vo_mo = np.conjugate( rho_ov_mo.transpose() )
 
@@ -544,13 +544,16 @@ class Electronic_state:
             rho_cis[0    :n_occ, n_occ:n_act] = rho_ov_mo[0:n_occ,0:n_vir]
             rho_cis[n_occ:n_act, 0    :n_occ] = rho_vo_mo[0:n_vir,0:n_occ]
 
+            #print('RHO_CIS', rho_cis) ## Debug code
+
             # MO -> AO
 
-            rho_cis_ao = np.dot( active_mos.transpose(), np.dot( rho_cis, active_mos ) )
+            rho_cis_ao = np.dot( active_mos.transpose().conjugate(), np.dot( rho_cis, active_mos ) )
 
             self.rho[0,:,:] += rho_cis_ao
 
             print( 'TOTAL NELEC', np.trace( np.dot(self.rho[0,:,:], self.S ) ) ) ## Debug code
+            #print( 'EXCITED NELEC', np.trace( np.dot(rho_cis_ao[:,:], self.S ) ) ) ## Debug code
             #print( 'RHO', self.rho[0,:,:] ) ## Debug code
 
         else:
@@ -584,8 +587,6 @@ class Electronic_state:
                 open_shell = self.is_open_shell
             )
 
-            print('MO_COEFFS_REAL',mo_coeffs_real) ## Debug code
-
             self.mo_coeffs     = mo_coeffs_real.astype('complex128')
             self.old_mo_coeffs = None
 
@@ -597,8 +598,6 @@ class Electronic_state:
             self.n_AO = self.n_MO
 
             self.update_gs_density_matrix()
-
-            #self.rho = np.zeros_like(self.gs_rho, dtype = 'complex128')
 
             self.rho = self.gs_rho.astype('complex128')
 
