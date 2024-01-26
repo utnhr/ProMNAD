@@ -42,6 +42,7 @@ class Electronic_state:
 
         self.H                   = None
         self.S                   = None
+        self.deriv_coupling      = None
 
         self.atomparams          = deepcopy(atomparams)
 
@@ -214,8 +215,11 @@ class Electronic_state:
 
             mo_midstep = deepcopy(self.mo_coeffs[i_spin,:,:])
 
+            Heff = self.H[i_spin,:,:] - (0.0+1.0j) * self.deriv_coupling[:,:]
+
             mo_tderiv = -(0.0+1.0j) * np.dot(
-                np.dot( np.linalg.inv(self.S).astype('complex128'), self.H[i_spin,:,:] ), mo_midstep.transpose()
+                #np.dot( np.linalg.inv(self.S).astype('complex128'), self.H[i_spin,:,:] ), mo_midstep.transpose()
+                np.dot( np.linalg.inv(self.S).astype('complex128'), Heff ), mo_midstep.transpose()
             ).transpose()
 
             if is_initial_step:
@@ -352,15 +356,7 @@ class Electronic_state:
         #    return deepcopy(self.estate_energies)
 
 
-    def get_tdnac(self): ## placeholder
-        
-        n_estate = self.get_n_estate()
-
-        #if self.next_position is None:
-        #    utils.stop_with_error("Next position not set; TDNAC calculation failed.\n")
-
-        #old_position_2d  = utils.coord_1d_to_2d(self.old_position)
-        #next_position_2d = utils.coord_1d_to_2d(self.next_position)
+    def update_derivative_coupling(self):
 
         position_2d = utils.coord_1d_to_2d(self.position)
         velocity_2d = utils.coord_1d_to_2d(self.velocity)
@@ -373,16 +369,28 @@ class Electronic_state:
             old_position_2d *= ANGST2AU
             new_position_2d *= ANGST2AU
 
-            overlap_twogeom_1 = dftbplus_manager.worker.return_overlap_twogeom(old_position_2d, new_position_2d)
-            overlap_twogeom_2 = dftbplus_manager.worker.return_overlap_twogeom(new_position_2d, old_position_2d)
+            overlap_twogeom_1 = dftbplus_manager.worker.return_overlap_twogeom(position_2d, new_position_2d)
+            overlap_twogeom_2 = dftbplus_manager.worker.return_overlap_twogeom(position_2d, old_position_2d)
 
-            overlap_twogeom = np.triu(overlap_twogeom_1) + np.triu(overlap_twogeom_2).transpose() - np.diag(overlap_twogeom_1)
+            temp = np.triu(overlap_twogeom_1 - overlap_twogeom_2)
+
+            overlap_twogeom = temp - temp.transpose()
+
+            #overlap_twogeom = np.triu(overlap_twogeom_1) + np.triu(overlap_twogeom_2).transpose() - np.diag(overlap_twogeom_1)
+            
 
         else:
 
             utils.stop_with_error("Unknown quantum chemistry program %s .\n" % self.qc_program)
 
-        ao_derivative_coupling = overlap_twogeom / (2.0 * self.dt)
+        self.deriv_coupling = overlap_twogeom / (2.0 * self.dt)
+
+        return
+
+
+    def get_tdnac(self): ## placeholder
+        
+        n_estate = self.get_n_estate()
 
         if self.basis == 'configuration':
 
@@ -456,12 +464,14 @@ class Electronic_state:
             #e_vals, e_vecs = sp.eig(self.H[0,:,:], self.S) ## Debug code
             #print('E_VALS', e_vals) ## Debug code
             
-            print('MO_PHASE', self.mo_coeffs) ## Debug code
-            print('MO VALID', np.dot(np.dot(self.mo_coeffs[0,:,:].conjugate(),self.S),self.mo_coeffs[0,:,:].transpose()) ) ## Debug code
+            #print('MO_PHASE', self.mo_coeffs) ## Debug code
+            #print('MO VALID', np.dot(np.dot(self.mo_coeffs[0,:,:].conjugate(),self.S),self.mo_coeffs[0,:,:].transpose()) ) ## Debug code
             
             #self.update_gs_density_matrix()
 
             self.construct_density_matrix()
+
+            self.update_derivative_coupling()
 
             self.update_molecular_orbitals()
 
@@ -510,15 +520,15 @@ class Electronic_state:
             n_vir = len(self.active_vir_mos)
             n_act = n_occ + n_vir
 
-            active_mos = np.zeros( (self.mo_coeffs.shape[1], n_act), dtype = 'complex128' )
+            active_mos = np.zeros( (n_act, self.mo_coeffs.shape[2]), dtype = 'complex128' )
 
             for i_occ, active_occ_imo in enumerate(self.active_occ_mos):
 
-                active_mos[:,i_occ] = self.mo_coeffs[0,:,active_occ_imo]
+                active_mos[i_occ,:] = self.mo_coeffs[0,active_occ_imo,:]
 
             for i_vir, active_vir_imo in enumerate(self.active_vir_mos):
 
-                active_mos[:,n_occ+i_vir] = self.mo_coeffs[0,:,active_vir_imo]
+                active_mos[n_occ+i_vir,:] = self.mo_coeffs[0,active_vir_imo,:]
 
             cis_coeffs = self.e_coeffs[1:].reshape(n_occ, n_vir) # MO basis
 
@@ -536,7 +546,7 @@ class Electronic_state:
 
             # MO -> AO
 
-            rho_cis_ao = np.dot( active_mos, np.dot( rho_cis, active_mos.transpose() ) )
+            rho_cis_ao = np.dot( active_mos.transpose(), np.dot( rho_cis, active_mos ) )
 
             self.rho[0,:,:] += rho_cis_ao
 

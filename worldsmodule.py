@@ -67,7 +67,9 @@ class World:
         momentum = mass * velocity
 
         initial_e_coeffs = [ 0.0+0.0j for i in range(self.settings['n_estate']) ]
-        initial_e_coeffs[self.settings['initial_estate']-1] = 1.0+0.0j
+        #initial_e_coeffs[self.settings['initial_estate']-1] = 1.0+0.0j
+        initial_e_coeffs[self.settings['initial_estate']] = 1.0+0.0j ## Debug code
+        print('WARNING WARNING WARNING: initial state is 1st excited state') ## Debug code
         initial_e_coeffs = np.array(initial_e_coeffs)
         
         initial_tbf = Tbf(
