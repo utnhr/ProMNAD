@@ -42,6 +42,7 @@ class Electronic_state:
 
         self.H                   = None
         self.S                   = None
+        self.Sinv                = None
         self.deriv_coupling      = None
 
         self.atomparams          = deepcopy(atomparams)
@@ -63,6 +64,8 @@ class Electronic_state:
         self.t_force              = sys.maxsize
         self.t_tdnac              = sys.maxsize
         self.t_state_coeffs       = sys.maxsize
+
+        self.is_edyn_initialized  = False
 
         if construct_initial_gs:
             self.construct_initial_gs()
@@ -432,6 +435,14 @@ class Electronic_state:
 
         force = np.zeros_like(self.position)
 
+        if not self.is_edyn_initialized:
+            dftbplus_manager.worker.init_elec_dynamics()
+
+        if self.S is None:
+            self.update_matrices()
+
+        dftbplus_manager.worker.get_ehrenfest_force(self.H, self.rho, self.S, self.Sinv)
+
         return force
     
 
@@ -460,6 +471,8 @@ class Electronic_state:
                 self.H[i_spin,:,:] = utils.hermitize(H[i_spin,:,:], is_upper_triangle = True)
 
             self.S = utils.symmetrize(S, is_upper_triangle = True)
+
+            self.Sinv = np.linalg.inv(S)
             
             #e_vals, e_vecs = sp.eig(self.H[0,:,:], self.S) ## Debug code
             #print('E_VALS', e_vals) ## Debug code

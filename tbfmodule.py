@@ -488,7 +488,9 @@ class Tbf:
         position = old_position + 2.0 * velocity * dt
 
         old_momentum = self.get_old_momentum()
-        force        = self.get_force()
+        
+        self.update_force()
+        force = self.get_force()
 
         momentum = old_momentum + 2.0 * force * dt
 
