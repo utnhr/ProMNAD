@@ -441,7 +441,12 @@ class Electronic_state:
         if self.S is None:
             self.update_matrices()
 
-        dftbplus_manager.worker.get_ehrenfest_force(self.H, self.rho, self.S, self.Sinv)
+        S = np.zeros( (1, self.n_AO, self.n_AO), dtype = 'float64' )
+        Sinv = np.zeros( (1, self.n_AO, self.n_AO), dtype = 'float64' )
+        S[0,:,:] = self.S[:,:]
+        Sinv[0,:,:] = self.Sinv[:,:]
+
+        dftbplus_manager.worker.get_ehrenfest_force(self.H, self.rho, S, Sinv)
 
         return force
     
@@ -465,7 +470,7 @@ class Electronic_state:
 
             n_spin = int(self.is_open_shell) + 1
 
-            self.H = np.zeros_like(H)
+            self.H = np.zeros_like(H, dtype = 'complex128')
 
             for i_spin in range(n_spin):
                 self.H[i_spin,:,:] = utils.hermitize(H[i_spin,:,:], is_upper_triangle = True)
