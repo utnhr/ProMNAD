@@ -430,13 +430,14 @@ class Electronic_state:
         return deepcopy(self.old_e_coeffs_tderiv)
 
 
-    def get_force(self): # placeholder
+    def get_force(self):
         """Get nuclear force originating from electronic states."""
 
         force = np.zeros_like(self.position)
 
         if not self.is_edyn_initialized:
             dftbplus_manager.worker.init_elec_dynamics()
+            self.is_edyn_initialized = True
 
         if self.S is None:
             self.update_matrices()
@@ -446,7 +447,9 @@ class Electronic_state:
         S[0,:,:] = self.S[:,:]
         Sinv[0,:,:] = self.Sinv[:,:]
 
-        dftbplus_manager.worker.get_ehrenfest_force(self.H, self.rho, S, Sinv)
+        print('SELF.RHO', self.rho) ## Debug code
+
+        force = dftbplus_manager.worker.get_ehrenfest_force(self.H, self.rho, S, Sinv)
 
         return force
     

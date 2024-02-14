@@ -5,6 +5,13 @@ Geometry:
     values:
       (noname):
 
+Driver:
+  is_named_dict: False
+  SteepestDescent:
+    is_named_dict: True
+    values:
+      MaxSteps: 1
+
 Hamiltonian:
   is_named_dict: False
   DFTB:
@@ -21,3 +28,4 @@ Hamiltonian:
             Prefix: '"./"'
             Separator: '"-"'
             Suffix: '".skf"'
+      ForceEvaluation: '"traditional"'
