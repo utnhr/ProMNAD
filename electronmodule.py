@@ -451,6 +451,10 @@ class Electronic_state:
 
         force = dftbplus_manager.worker.get_ehrenfest_force(self.H, self.rho, S, Sinv)
 
+        n_atom = len(self.atomparams)
+
+        force = force.reshape(3*n_atom)
+
         return force
     
 
