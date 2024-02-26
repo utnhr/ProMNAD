@@ -447,7 +447,7 @@ class Electronic_state:
         S[0,:,:] = self.S[:,:]
         Sinv[0,:,:] = self.Sinv[:,:]
 
-        print('SELF.RHO', self.rho) ## Debug code
+        #print('SELF.RHO', self.rho) ## Debug code
 
         force = dftbplus_manager.worker.get_ehrenfest_force(self.H, self.rho, S, Sinv)
 

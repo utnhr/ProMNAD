@@ -7,7 +7,7 @@ import numpy as np
 import scipy.linalg as sp
 from copy import deepcopy
 
-from constants import H_DIRAC
+from constants import H_DIRAC, AMU2AU
 import utils
 from interface_dftbplus import dftbplus_manager
 from electronmodule import Electronic_state
@@ -289,6 +289,10 @@ class Tbf:
         return deepcopy(self.mass)
 
 
+    def get_mass_au(self):
+        return deepcopy(self.mass) * AMU2AU
+
+
     def get_width(self):
         return deepcopy(self.width)
 
@@ -318,11 +322,11 @@ class Tbf:
 
 
     def get_velocity(self):
-        return deepcopy(self.momentum / self.mass)
+        return deepcopy(self.momentum / self.get_mass_au())
 
 
     def get_old_velocity(self):
-        return deepcopy(self.old_momentum / self.mass)
+        return deepcopy(self.old_momentum / self.get_mass_au())
 
 
     def get_phase(self):
@@ -497,5 +501,25 @@ class Tbf:
         self.set_new_position(position)
         self.set_new_momentum(momentum)
 
-        return
+        self.print_xyz('traject.xyz') ## Debug code
 
+        return
+    
+    def print_xyz(self, filename):
+
+        with open(filename, 'a') as xyz_file:
+        
+            n_atom = len(self.atomparams)
+
+            xyz_file.write("%d\n" % n_atom)
+
+            xyz_file.write("T= %20.12f\n" % self.t)
+
+            for i_atom in range(n_atom):
+
+                elem = self.atomparams[i_atom].elem
+                coord = self.position[3*i_atom:3*i_atom+3]
+
+                xyz_file.write("%s %20.12f %20.12f %20.12f\n" % (
+                    elem, coord[0], coord[1], coord[2]
+                ) )
