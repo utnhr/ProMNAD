@@ -36,3 +36,5 @@ initial_estate: 1 # start 1
 n_step: 10000
 
 dt: 0.2
+
+is_fixed: True

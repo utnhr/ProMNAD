@@ -7,7 +7,7 @@ import numpy as np
 import scipy.linalg as sp
 from copy import deepcopy
 
-from constants import H_DIRAC, AMU2AU
+from constants import H_DIRAC, AMU2AU, AU2ANGST
 import utils
 from interface_dftbplus import dftbplus_manager
 from electronmodule import Electronic_state
@@ -210,6 +210,7 @@ class Tbf:
     def __init__(
         self, settings, atomparams, position, n_dof, n_estate, tbf_id,
         momentum=None, mass=None, width=None, phase=None, e_coeffs=None, initial_gs_energy=None, t=0,
+        is_fixed=False,
         ):
 
         self.atomparams    = atomparams        # dictionary { 'elems': array, 'angmom_table': array (optional, for DFTB+) }
@@ -220,6 +221,7 @@ class Tbf:
         self.width         = width             # np.array (n_dof)
         self.init_t        = t                 # integer, index of step
         self.tbf_id        = tbf_id            # integer (start 0)
+        self.is_fixed      = is_fixed          # logical
         #self.world_id      = world_id          # int (start 0)
 
         if momentum is not None:
@@ -498,6 +500,10 @@ class Tbf:
 
         momentum = old_momentum + 2.0 * force * dt
 
+        if self.is_fixed:
+            position = old_position
+            momentum = old_momentum
+
         self.set_new_position(position)
         self.set_new_momentum(momentum)
 
@@ -518,7 +524,7 @@ class Tbf:
             for i_atom in range(n_atom):
 
                 elem = self.atomparams[i_atom].elem
-                coord = self.position[3*i_atom:3*i_atom+3]
+                coord = self.position[3*i_atom:3*i_atom+3] * AU2ANGST
 
                 xyz_file.write("%s %20.12f %20.12f %20.12f\n" % (
                     elem, coord[0], coord[1], coord[2]

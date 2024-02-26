@@ -5,6 +5,7 @@ import utils
 default = {
     'basis'     : 'configuration',
     'excitation': 'cis',
+    'is_fixed'  : False,
 }
 
     

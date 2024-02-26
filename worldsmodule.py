@@ -36,7 +36,7 @@ class World:
         return
 
 
-    def set_initial_state(self, atomparams, position, velocity):
+    def set_initial_state(self, atomparams, position, velocity, is_fixed = False):
 
         if len(self.tbfs) > 0:
 
@@ -75,6 +75,7 @@ class World:
         initial_tbf = Tbf(
             self.settings, self.atomparams, position, n_dof, self.settings['n_estate'], len(self.tbfs),
             momentum = momentum, mass = mass, width = width, e_coeffs = initial_e_coeffs,
+            is_fixed = is_fixed,
         )
 
         self.add_tbf(initial_tbf, coeff = 1.0+0.0j)

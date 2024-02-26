@@ -2,6 +2,7 @@
 
 import numpy as np
 import yaml
+from constants import ANGST2AU
 
 def read_input(filename):
     
@@ -31,7 +32,7 @@ def get_geom(filename, return_geom_1d=False, return_elems_1d=False):
             ll = geom_file.readline().split()
 
             elem       = ll[0]
-            atom_coord = [ float(ll[1]), float(ll[2]), float(ll[3]) ]
+            atom_coord = np.array( [ float(ll[1]), float(ll[2]), float(ll[3]) ] ) * ANGST2AU
             
             elems.append(elem)
             elems_n_dof += [elem, elem, elem]
