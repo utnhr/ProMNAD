@@ -238,6 +238,11 @@ class Electronic_state:
 
             self.old_mo_coeffs[i_spin,:,:] = mo_midstep
 
+            ## Debug code
+            #csc = np.dot( mo_midstep, np.dot( self.S.astype('complex128'), mo_midstep.transpose().conj() ) )
+            #print('CSC', csc)
+            ## End Debug code
+
         self.t_molecular_orbitals += self.dt
 
         utils.printer.write_out('Updating MOs: Done.\n')

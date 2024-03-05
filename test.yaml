@@ -13,6 +13,8 @@ calctype: config-aimc
 
 mo_type: restricted
 
+read_traject: True
+
 active_occ_mos:
   - 0
   - 1
@@ -37,4 +39,4 @@ n_step: 10000
 
 dt: 0.2
 
-is_fixed: True
+is_fixed: False

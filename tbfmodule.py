@@ -266,6 +266,15 @@ class Tbf:
         #self.world = World.worlds[self.world_id]
         #self.world.add_tbf(self)
 
+        self.read_traject = settings['read_traject']
+
+        if self.read_traject:
+
+            self.given_geoms      = deepcopy(settings['given_geoms'])
+            self.given_velocities = deepcopy(settings['given_velocities'])
+
+            self.i_step = 0
+
         return
 
 
@@ -491,14 +500,26 @@ class Tbf:
         old_position = self.get_old_position()
         velocity     = self.get_velocity()
 
-        position = old_position + 2.0 * velocity * dt
+        if self.read_traject:
+
+            position, velocity = self.get_next_given_traject()
+
+        else:
+
+            position = old_position + 2.0 * velocity * dt
 
         old_momentum = self.get_old_momentum()
         
         self.update_force()
         force = self.get_force()
 
-        momentum = old_momentum + 2.0 * force * dt
+        if self.read_traject:
+                
+            momentum = velocity * self.get_mass()
+
+        else:
+
+            momentum = old_momentum + 2.0 * force * dt
 
         if self.is_fixed:
             position = old_position
@@ -510,6 +531,17 @@ class Tbf:
         self.print_xyz('traject.xyz') ## Debug code
 
         return
+
+    
+    def get_next_given_traject(self):
+
+        geom  = self.given_geoms[self.i_step]
+        veloc = self.given_velocities[self.i_step]
+        
+        self.i_step += 1
+
+        return geom, veloc
+
     
     def print_xyz(self, filename):
 

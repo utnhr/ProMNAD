@@ -2,7 +2,7 @@
 
 from utils import stop_with_error
 from interface_dftbplus import dftbplus_manager
-from inout import get_geom
+from inout import get_geom, get_traject
 
 def configure_calculation(settings):
     
@@ -17,6 +17,12 @@ def configure_calculation(settings):
     else:
 
         stop_with_error("Unknown calctype %s ." % settings['calctype'])
+
+    if settings['read_traject']:
+
+        settings['given_geoms'], settings['given_velocities'] = get_traject(
+            'traject', 'velocity', return_geom_1d = True
+        )
 
 def fill_default_settings(settings):
     
