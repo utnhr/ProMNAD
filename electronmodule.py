@@ -377,10 +377,15 @@ class Electronic_state:
             #old_position_2d *= ANGST2AU
             #new_position_2d *= ANGST2AU
 
+            overlap_twogeom_0 = dftbplus_manager.worker.return_overlap_twogeom(position_2d,     position_2d)
             overlap_twogeom_1 = dftbplus_manager.worker.return_overlap_twogeom(position_2d, new_position_2d)
             overlap_twogeom_2 = dftbplus_manager.worker.return_overlap_twogeom(position_2d, old_position_2d)
 
-            temp = np.triu(overlap_twogeom_1 - overlap_twogeom_2)
+            temp1 = overlap_twogeom_1 - overlap_twogeom_0
+            temp2 = overlap_twogeom_0 - overlap_twogeom_2
+
+            #temp = np.triu(overlap_twogeom_1 - overlap_twogeom_2)
+            temp = np.triu(temp1 + temp2)
 
             overlap_twogeom = temp - temp.transpose()
 
