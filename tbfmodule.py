@@ -11,6 +11,7 @@ from constants import H_DIRAC, AMU2AU, AU2ANGST
 import utils
 from interface_dftbplus import dftbplus_manager
 from electronmodule import Electronic_state
+from settingsmodule import load_setting
 #from worldsmodule import World
 
 class Tbf:
@@ -266,12 +267,15 @@ class Tbf:
         #self.world = World.worlds[self.world_id]
         #self.world.add_tbf(self)
 
-        self.read_traject = settings['read_traject']
+        self.read_traject = load_setting(settings, 'read_traject')
 
         if self.read_traject:
 
-            self.given_geoms      = deepcopy(settings['given_geoms'])
-            self.given_velocities = deepcopy(settings['given_velocities'])
+            given_geoms      = load_setting(settings, 'given_geoms')
+            given_velocities = load_setting(settings, 'given_velocities')
+
+            self.given_geoms      = deepcopy(given_geoms)
+            self.given_velocities = deepcopy(given_velocities)
 
             self.i_step = 0
 
@@ -515,7 +519,7 @@ class Tbf:
 
         if self.read_traject:
                 
-            momentum = velocity * self.get_mass()
+            momentum = velocity * self.get_mass_au()
 
         else:
 

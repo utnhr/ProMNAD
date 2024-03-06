@@ -6,6 +6,7 @@ default = {
     'basis'     : 'configuration',
     'excitation': 'cis',
     'is_fixed'  : False,
+    'dt_deriv'  : 0.01,
 }
 
     

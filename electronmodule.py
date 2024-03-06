@@ -45,6 +45,8 @@ class Electronic_state:
         self.Sinv                = None
         self.deriv_coupling      = None
 
+        self.dt_deriv            = load_setting(settings, 'dt_deriv')
+
         self.atomparams          = deepcopy(atomparams)
 
         self.dt                  = dt
@@ -369,23 +371,25 @@ class Electronic_state:
         position_2d = utils.coord_1d_to_2d(self.position)
         velocity_2d = utils.coord_1d_to_2d(self.velocity)
 
-        old_position_2d = position_2d - self.dt * velocity_2d
-        new_position_2d = position_2d + self.dt * velocity_2d
+        #old_position_2d = position_2d - self.dt * velocity_2d
+        #new_position_2d = position_2d + self.dt * velocity_2d
+        old_position_2d = position_2d - self.dt_deriv * velocity_2d
+        new_position_2d = position_2d + self.dt_deriv * velocity_2d
         
         if self.qc_program == 'dftb+':
             
-            #old_position_2d *= ANGST2AU
-            #new_position_2d *= ANGST2AU
-
             overlap_twogeom_0 = dftbplus_manager.worker.return_overlap_twogeom(position_2d,     position_2d)
             overlap_twogeom_1 = dftbplus_manager.worker.return_overlap_twogeom(position_2d, new_position_2d)
             overlap_twogeom_2 = dftbplus_manager.worker.return_overlap_twogeom(position_2d, old_position_2d)
 
-            temp1 = overlap_twogeom_1 - overlap_twogeom_0
-            temp2 = overlap_twogeom_0 - overlap_twogeom_2
+            overlap_twogeom_3 = dftbplus_manager.worker.return_overlap_twogeom(old_position_2d, new_position_2d)
 
-            #temp = np.triu(overlap_twogeom_1 - overlap_twogeom_2)
-            temp = np.triu(temp1 + temp2)
+            temp1 = overlap_twogeom_1 - overlap_twogeom_0
+            temp2 = overlap_twogeom_2 - overlap_twogeom_0
+
+            temp = np.triu(overlap_twogeom_1 - overlap_twogeom_2)
+            #temp = np.triu(overlap_twogeom_3 - overlap_twogeom_0)
+            #temp = np.triu(temp1 + temp2)
 
             overlap_twogeom = temp - temp.transpose()
 
@@ -396,7 +400,10 @@ class Electronic_state:
 
             utils.stop_with_error("Unknown quantum chemistry program %s .\n" % self.qc_program)
 
-        self.deriv_coupling = overlap_twogeom / (2.0 * self.dt)
+        #self.deriv_coupling = overlap_twogeom / (2.0 * self.dt)
+        self.deriv_coupling = overlap_twogeom / (2.0 * self.dt_deriv)
+
+        print('DERIV_COUPLING', self.deriv_coupling)
 
         return
 
@@ -494,6 +501,9 @@ class Electronic_state:
                 self.H[i_spin,:,:] = utils.hermitize(H[i_spin,:,:], is_upper_triangle = True)
 
             self.S = utils.symmetrize(S, is_upper_triangle = True)
+
+            #print('S', S) ## Debug code
+            print('S', S[0,15], S[15,0]) ## Debug code
 
             self.Sinv = np.linalg.inv(S)
             
