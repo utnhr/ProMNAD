@@ -223,8 +223,7 @@ class Electronic_state:
             Heff = self.H[i_spin,:,:] - (0.0+1.0j) * self.deriv_coupling[:,:]
 
             mo_tderiv = -(0.0+1.0j) * np.dot(
-                #np.dot( np.linalg.inv(self.S).astype('complex128'), self.H[i_spin,:,:] ), mo_midstep.transpose()
-                np.dot( np.linalg.inv(self.S).astype('complex128'), Heff ), mo_midstep.transpose()
+                np.dot( self.Sinv.astype('complex128'), Heff ), mo_midstep.transpose()
             ).transpose()
 
             if is_initial_step:
@@ -240,10 +239,10 @@ class Electronic_state:
 
             self.old_mo_coeffs[i_spin,:,:] = mo_midstep
 
-            ## Debug code
-            #csc = np.dot( mo_midstep, np.dot( self.S.astype('complex128'), mo_midstep.transpose().conj() ) )
-            #print('CSC', csc)
-            ## End Debug code
+            # Debug code
+            csc = np.dot( mo_midstep, np.dot( self.S.astype('complex128'), mo_midstep.transpose().conj() ) )
+            print('CSC', csc)
+            # End Debug code
 
         self.t_molecular_orbitals += self.dt
 
