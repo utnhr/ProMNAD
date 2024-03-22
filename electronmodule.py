@@ -403,7 +403,7 @@ class Electronic_state:
         #self.deriv_coupling = overlap_twogeom / (2.0 * self.dt)
         self.deriv_coupling = overlap_twogeom / (2.0 * self.dt_deriv)
 
-        print('DERIV_COUPLING', self.deriv_coupling)
+        #print('DERIV_COUPLING', self.deriv_coupling)
 
         return
 
@@ -503,9 +503,9 @@ class Electronic_state:
             self.S = utils.symmetrize(S, is_upper_triangle = True)
 
             #print('S', S) ## Debug code
-            print('S', S[0,15], S[15,0]) ## Debug code
+            print('S', self.S[0,15], self.S[15,0]) ## Debug code
 
-            self.Sinv = np.linalg.inv(S)
+            self.Sinv = np.linalg.inv(self.S)
             
             #e_vals, e_vecs = sp.eig(self.H[0,:,:], self.S) ## Debug code
             #print('E_VALS', e_vals) ## Debug code
