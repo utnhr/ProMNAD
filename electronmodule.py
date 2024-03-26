@@ -220,7 +220,9 @@ class Electronic_state:
 
             mo_midstep = deepcopy(self.mo_coeffs[i_spin,:,:])
 
-            Heff = self.H[i_spin,:,:] - (0.0+1.0j) * self.deriv_coupling[:,:]
+            #Heff = self.H[i_spin,:,:] - (0.0+1.0j) * self.deriv_coupling[:,:]
+            print(" ##### WARNING: Heff is not correct (for debug) ##### ") ## Debug code
+            Heff = - (0.0+1.0j) * self.deriv_coupling[:,:] ## Debug code
 
             mo_tderiv = -(0.0+1.0j) * np.dot(
                 np.dot( self.Sinv.astype('complex128'), Heff ), mo_midstep.transpose()
