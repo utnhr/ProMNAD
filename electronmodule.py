@@ -224,6 +224,8 @@ class Electronic_state:
             print(" ##### WARNING: Heff is not correct (for debug) ##### ") ## Debug code
             Heff = - (0.0+1.0j) * self.deriv_coupling[:,:] ## Debug code
 
+            print('H_EFF', Heff) ## Debug code
+
             mo_tderiv = -(0.0+1.0j) * np.dot(
                 np.dot( self.Sinv.astype('complex128'), Heff ), mo_midstep.transpose()
             ).transpose()
@@ -374,7 +376,8 @@ class Electronic_state:
 
         #old_position_2d = position_2d - self.dt * velocity_2d
         #new_position_2d = position_2d + self.dt * velocity_2d
-        old_position_2d = position_2d - self.dt_deriv * velocity_2d
+        #old_position_2d = position_2d - self.dt_deriv * velocity_2d
+        old_position_2d = utils.coord_1d_to_2d(self.old_position)
         new_position_2d = position_2d + self.dt_deriv * velocity_2d
         
         if self.qc_program == 'dftb+':
@@ -388,9 +391,10 @@ class Electronic_state:
             temp1 = overlap_twogeom_1 - overlap_twogeom_0
             temp2 = overlap_twogeom_2 - overlap_twogeom_0
 
-            temp = np.triu(overlap_twogeom_1 - overlap_twogeom_2)
+            #temp = np.triu(overlap_twogeom_1 - overlap_twogeom_2)
             #temp = np.triu(overlap_twogeom_3 - overlap_twogeom_0)
             #temp = np.triu(temp1 + temp2)
+            temp = np.triu(-temp2)
 
             overlap_twogeom = temp - temp.transpose()
 
@@ -639,6 +643,8 @@ class Electronic_state:
             self.init_mo_energies, mo_coeffs_real = dftbplus_manager.worker.get_molecular_orbitals(
                 open_shell = self.is_open_shell
             )
+            print(" ##### WARNING: Initial MO energies set to zero (for debug) ##### ") ## Debug code
+            self.init_mo_energies[:] = 0.0 ## Debug code
 
             self.mo_coeffs     = mo_coeffs_real.astype('complex128')
             self.old_mo_coeffs = None
