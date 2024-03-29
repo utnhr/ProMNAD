@@ -202,14 +202,15 @@ class Electronic_state:
         return
 
 
-    def update_molecular_orbitals(self):
+    def update_molecular_orbitals(self, is_before_initial = False):
         """Update MO energies and coefficients according to TD-KS equation."""
         utils.printer.write_out('Updating MOs: Started.\n')
 
-        is_initial_step = self.old_mo_coeffs is None
+        is_initial_step = self.old_mo_coeffs is None or is_before_initial
 
         if is_initial_step:
-            self.old_mo_coeffs = np.zeros_like(self.mo_coeffs)
+            #self.old_mo_coeffs = np.zeros_like(self.mo_coeffs)
+            self.old_mo_coeffs = deepcopy(self.mo_coeffs[:,:,:])
 
         if self.is_open_shell:
             n_spin = 2
@@ -219,6 +220,13 @@ class Electronic_state:
         for i_spin in range(n_spin):
 
             mo_midstep = deepcopy(self.mo_coeffs[i_spin,:,:])
+
+            print('INITIAL', is_initial_step) ## Debug code
+
+            # Debug code
+            csc = np.dot( mo_midstep, np.dot( self.S.astype('complex128'), mo_midstep.transpose().conj() ) )
+            print('CSC', csc)
+            # End Debug code
 
             #Heff = self.H[i_spin,:,:] - (0.0+1.0j) * self.deriv_coupling[:,:]
             print(" ##### WARNING: Heff is not correct (for debug) ##### ") ## Debug code
@@ -243,12 +251,15 @@ class Electronic_state:
 
             self.old_mo_coeffs[i_spin,:,:] = mo_midstep
 
-            # Debug code
-            csc = np.dot( mo_midstep, np.dot( self.S.astype('complex128'), mo_midstep.transpose().conj() ) )
-            print('CSC', csc)
-            # End Debug code
+            ## Debug code
+            #csc = np.dot( mo_midstep, np.dot( self.S.astype('complex128'), mo_midstep.transpose().conj() ) )
+            #print('CSC', csc)
+            ## End Debug code
 
         self.t_molecular_orbitals += self.dt
+
+        if is_before_initial:
+            self.old_mo_coeffs = None
 
         utils.printer.write_out('Updating MOs: Done.\n')
 
@@ -378,7 +389,8 @@ class Electronic_state:
         #new_position_2d = position_2d + self.dt * velocity_2d
         #old_position_2d = position_2d - self.dt_deriv * velocity_2d
         old_position_2d = utils.coord_1d_to_2d(self.old_position)
-        new_position_2d = position_2d + self.dt_deriv * velocity_2d
+        #new_position_2d = position_2d + self.dt_deriv * velocity_2d
+        new_position_2d = position_2d + self.dt * velocity_2d
         
         if self.qc_program == 'dftb+':
             
@@ -405,8 +417,8 @@ class Electronic_state:
 
             utils.stop_with_error("Unknown quantum chemistry program %s .\n" % self.qc_program)
 
-        #self.deriv_coupling = overlap_twogeom / (2.0 * self.dt)
-        self.deriv_coupling = overlap_twogeom / (2.0 * self.dt_deriv)
+        self.deriv_coupling = overlap_twogeom / (2.0 * self.dt)
+        #self.deriv_coupling = overlap_twogeom / (2.0 * self.dt_deriv)
 
         #print('DERIV_COUPLING', self.deriv_coupling)
 
@@ -462,7 +474,11 @@ class Electronic_state:
             self.is_edyn_initialized = True
 
         if self.S is None:
-            self.update_matrices()
+            self.update_matrices(is_before_initial = True)
+            #position_2d = utils.coord_1d_to_2d(self.position)
+            #S = dftbplus_manager.worker.return_overlap_twogeom(position_2d, position_2d)
+            #self.S = utils.symmetrize(S, is_upper_triangle = True)
+            #self.Sinv = np.linalg.inv(self.S)
 
         S = np.zeros( (1, self.n_AO, self.n_AO), dtype = 'float64' )
         Sinv = np.zeros( (1, self.n_AO, self.n_AO), dtype = 'float64' )
@@ -480,7 +496,7 @@ class Electronic_state:
         return force
     
 
-    def update_matrices(self):
+    def update_matrices(self, is_before_initial = False):
 
         utils.printer.write_out('Updating hamiltonian and overlap matrices: Started.\n')
 
@@ -526,7 +542,7 @@ class Electronic_state:
 
             self.update_derivative_coupling()
 
-            self.update_molecular_orbitals()
+            self.update_molecular_orbitals(is_before_initial = is_before_initial)
 
             #self.update_gs_density_matrix()
 
