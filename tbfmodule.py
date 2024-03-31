@@ -245,6 +245,27 @@ class Tbf:
         self.old_momentum = deepcopy(self.momentum)
         self.t_momentum   = t
 
+        self.read_traject = load_setting(settings, 'read_traject')
+
+        if self.read_traject:
+
+            given_geoms      = load_setting(settings, 'given_geoms')
+            given_velocities = load_setting(settings, 'given_velocities')
+
+            self.given_geoms      = deepcopy(given_geoms)
+            self.given_velocities = deepcopy(given_velocities)
+
+            self.i_step = 0
+
+            position, velocity = self.get_next_given_traject()
+
+            self.position = position
+            self.momentum = self.mass * velocity
+            self.old_position = deepcopy(self.position)
+            self.old_momentum = deepcopy(self.momentum)
+
+            self.i_step = 0 # i_step has been updated in get_next_given_traject(), but is should be set to 0
+
         self.force        = np.zeros_like(self.position)
         self.old_force    = np.zeros_like(self.position)
 
@@ -266,18 +287,6 @@ class Tbf:
 
         #self.world = World.worlds[self.world_id]
         #self.world.add_tbf(self)
-
-        self.read_traject = load_setting(settings, 'read_traject')
-
-        if self.read_traject:
-
-            given_geoms      = load_setting(settings, 'given_geoms')
-            given_velocities = load_setting(settings, 'given_velocities')
-
-            self.given_geoms      = deepcopy(given_geoms)
-            self.given_velocities = deepcopy(given_velocities)
-
-            self.i_step = 0
 
         return
 
@@ -543,6 +552,8 @@ class Tbf:
         veloc = self.given_velocities[self.i_step]
         
         self.i_step += 1
+
+        #print(geom) ## Debug code
 
         return geom, veloc
 

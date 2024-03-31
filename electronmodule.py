@@ -45,6 +45,10 @@ class Electronic_state:
         self.Sinv                = None
         self.deriv_coupling      = None
 
+        self.old_H               = None
+        self.old_S               = None
+        self.old_Sinv            = None
+
         self.dt_deriv            = load_setting(settings, 'dt_deriv')
 
         self.atomparams          = deepcopy(atomparams)
@@ -221,22 +225,27 @@ class Electronic_state:
 
             mo_midstep = deepcopy(self.mo_coeffs[i_spin,:,:])
 
-            print('INITIAL', is_initial_step) ## Debug code
+            #print('INITIAL', is_initial_step) ## Debug code
 
             # Debug code
             csc = np.dot( mo_midstep, np.dot( self.S.astype('complex128'), mo_midstep.transpose().conj() ) )
+            #csc = np.dot( mo_midstep, np.dot( self.old_S.astype('complex128'), mo_midstep.transpose().conj() ) )
             print('CSC', csc)
             # End Debug code
 
-            #Heff = self.H[i_spin,:,:] - (0.0+1.0j) * self.deriv_coupling[:,:]
-            print(" ##### WARNING: Heff is not correct (for debug) ##### ") ## Debug code
-            Heff = - (0.0+1.0j) * self.deriv_coupling[:,:] ## Debug code
+            Heff = self.H[i_spin,:,:] - (0.0+1.0j) * self.deriv_coupling[:,:]
+            #print(" ##### WARNING: Heff is not correct (for debug) ##### ") ## Debug code
+            #Heff = - (0.0+1.0j) * self.deriv_coupling[:,:] ## Debug code
 
-            print('H_EFF', Heff) ## Debug code
+            #print('H_EFF', Heff) ## Debug code
 
             mo_tderiv = -(0.0+1.0j) * np.dot(
                 np.dot( self.Sinv.astype('complex128'), Heff ), mo_midstep.transpose()
             ).transpose()
+
+            #print('MO_TDERIV', mo_tderiv) ## Debug code
+            #print('OLD_MO_COEFFS', self.old_mo_coeffs) ## Debug code
+            #print('MO_MIDSTEP', mo_midstep) ## Debug code
 
             if is_initial_step:
                 self.old_mo_coeffs[i_spin,:,:] = mo_midstep
@@ -302,6 +311,8 @@ class Electronic_state:
             factor = 1.0
         else:
             factor = 2.0
+
+        #print('MO_TDERIV_NOPHASE', mo_tderiv_nophase) ## Debug code
 
         new_mo_nophase = old_mo_nophase + factor * dt * mo_tderiv_nophase
 
@@ -420,6 +431,9 @@ class Electronic_state:
         self.deriv_coupling = overlap_twogeom / (2.0 * self.dt)
         #self.deriv_coupling = overlap_twogeom / (2.0 * self.dt_deriv)
 
+        #print('POSITION_2D', position_2d) ## Debug code
+        #print('OLD_POSITION_2D', old_position_2d) ## Debug code
+
         #print('DERIV_COUPLING', self.deriv_coupling)
 
         return
@@ -516,6 +530,13 @@ class Electronic_state:
 
             n_spin = int(self.is_open_shell) + 1
 
+            if self.H is not None:
+                self.old_H = deepcopy(self.H)
+            if self.S is not None:
+                self.old_S = deepcopy(self.S)
+            if self.Sinv is not None:
+                self.old_Sinv = deepcopy(self.Sinv)
+
             self.H = np.zeros_like(H, dtype = 'complex128')
 
             for i_spin in range(n_spin):
@@ -524,10 +545,10 @@ class Electronic_state:
             self.S = utils.symmetrize(S, is_upper_triangle = True)
 
             #print('S', S) ## Debug code
-            print('S', self.S[0,15], self.S[15,0]) ## Debug code
+            #print('S', self.S[0,15], self.S[15,0]) ## Debug code
 
             self.Sinv = np.linalg.inv(self.S)
-            
+
             #e_vals, e_vecs = sp.eig(self.H[0,:,:], self.S) ## Debug code
             #print('E_VALS', e_vals) ## Debug code
             
@@ -535,6 +556,13 @@ class Electronic_state:
             #print('MO VALID', np.dot(np.dot(self.mo_coeffs[0,:,:].conjugate(),self.S),self.mo_coeffs[0,:,:].transpose()) ) ## Debug code
 
             #self.update_molecular_orbitals()
+
+            if self.old_H is None:
+                self.old_H = deepcopy(self.H)
+            if self.old_S is None:
+                self.old_S = deepcopy(self.S)
+            if self.old_Sinv is None:
+                self.old_Sinv = deepcopy(self.Sinv)
             
             self.update_gs_density_matrix()
 
@@ -659,8 +687,8 @@ class Electronic_state:
             self.init_mo_energies, mo_coeffs_real = dftbplus_manager.worker.get_molecular_orbitals(
                 open_shell = self.is_open_shell
             )
-            print(" ##### WARNING: Initial MO energies set to zero (for debug) ##### ") ## Debug code
-            self.init_mo_energies[:] = 0.0 ## Debug code
+            #print(" ##### WARNING: Initial MO energies set to zero (for debug) ##### ") ## Debug code
+            #self.init_mo_energies[:] = 0.0 ## Debug code
 
             self.mo_coeffs     = mo_coeffs_real.astype('complex128')
             self.old_mo_coeffs = None
