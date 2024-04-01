@@ -24,13 +24,14 @@ class Electronic_state:
 
         self.basis               = load_setting(settings, 'basis')
         self.excitation          = load_setting(settings, 'excitation')
+
+        self.reconst_interval    = load_setting(settings, 'reconst_interval')
         
         self.e_coeffs            = e_coeffs # np.array (n_estate)
         self.old_e_coeffs        = deepcopy(self.e_coeffs)
         #### order of linear coefficients ####
         #   case of 'configuration' & 'cis':
         #       
-
 
         self.estate_energies     = None
         self.old_estate_energies = None
@@ -74,7 +75,7 @@ class Electronic_state:
         self.is_edyn_initialized  = False
 
         if construct_initial_gs:
-            self.construct_initial_gs()
+            self.reconstruct_gs(is_initial = True)
         else:
             self.gs_energy        = None
             self.gs_filling       = None
@@ -396,12 +397,10 @@ class Electronic_state:
         position_2d = utils.coord_1d_to_2d(self.position)
         velocity_2d = utils.coord_1d_to_2d(self.velocity)
 
-        #old_position_2d = position_2d - self.dt * velocity_2d
+        old_position_2d = position_2d - self.dt_deriv * velocity_2d
+        #old_position_2d = utils.coord_1d_to_2d(self.old_position)
+        new_position_2d = position_2d + self.dt_deriv * velocity_2d
         #new_position_2d = position_2d + self.dt * velocity_2d
-        #old_position_2d = position_2d - self.dt_deriv * velocity_2d
-        old_position_2d = utils.coord_1d_to_2d(self.old_position)
-        #new_position_2d = position_2d + self.dt_deriv * velocity_2d
-        new_position_2d = position_2d + self.dt * velocity_2d
         
         if self.qc_program == 'dftb+':
             
@@ -414,22 +413,28 @@ class Electronic_state:
             temp1 = overlap_twogeom_1 - overlap_twogeom_0
             temp2 = overlap_twogeom_2 - overlap_twogeom_0
 
+            #temp1 = ( temp1 + temp1.transpose() ) * 0.5
+            #temp2 = ( temp2 + temp2.transpose() ) * 0.5
+
             #temp = np.triu(overlap_twogeom_1 - overlap_twogeom_2)
             #temp = np.triu(overlap_twogeom_3 - overlap_twogeom_0)
+            #temp = np.triu(temp1 - temp2)
+            #temp = np.tril(temp1 - temp2)
+            temp = temp1 - temp2
             #temp = np.triu(temp1 + temp2)
-            temp = np.triu(-temp2)
+            #temp = np.triu(-temp2)
+            #temp = np.zeros_like(temp2) ## Debug code
 
-            overlap_twogeom = temp - temp.transpose()
-
-            #overlap_twogeom = np.triu(overlap_twogeom_1) + np.triu(overlap_twogeom_2).transpose() - np.diag(overlap_twogeom_1)
-            
+            overlap_twogeom = temp
+            #overlap_twogeom = temp.transpose()
 
         else:
 
             utils.stop_with_error("Unknown quantum chemistry program %s .\n" % self.qc_program)
 
-        self.deriv_coupling = overlap_twogeom / (2.0 * self.dt)
-        #self.deriv_coupling = overlap_twogeom / (2.0 * self.dt_deriv)
+        #self.deriv_coupling = overlap_twogeom / self.dt
+        #self.deriv_coupling = overlap_twogeom / (2.0 * self.dt)
+        self.deriv_coupling = overlap_twogeom / (2.0 * self.dt_deriv)
 
         #print('POSITION_2D', position_2d) ## Debug code
         #print('OLD_POSITION_2D', old_position_2d) ## Debug code
@@ -672,7 +677,7 @@ class Electronic_state:
         return
 
     
-    def construct_initial_gs(self):
+    def reconstruct_gs(self, is_initial = False):
 
         if self.qc_program == 'dftb+':
         
@@ -701,8 +706,9 @@ class Electronic_state:
             self.n_AO = self.n_MO
 
             self.update_gs_density_matrix()
-
-            self.rho = self.gs_rho.astype('complex128')
+            
+            if is_initial:
+                self.rho = self.gs_rho.astype('complex128')
 
             #self.construct_initial_molecular_orbitals()
 
