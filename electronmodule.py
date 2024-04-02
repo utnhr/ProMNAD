@@ -227,16 +227,21 @@ class Electronic_state:
 
             #print('INITIAL', is_initial_step) ## Debug code
 
-            # Debug code
+            ## Debug code
             csc = np.dot( mo_midstep, np.dot( self.S.astype('complex128'), mo_midstep.transpose().conj() ) )
             #print('CSC', csc)
             real_diag = np.real(np.diag(csc))
             print('CSC', real_diag)
-            # End Debug code
+            ## End Debug code
 
-            Heff = self.H[i_spin,:,:] - (0.0+1.0j) * self.deriv_coupling[:,:]
-            #print(" ##### WARNING: Heff is not correct (for debug) ##### ") ## Debug code
-            #Heff = - (0.0+1.0j) * self.deriv_coupling[:,:] ## Debug code
+            ## Debug code
+            H_MO = np.dot( mo_midstep, np.dot(self.H[i_spin,:,:], mo_midstep.transpose().conj() ) )
+            print( 'H_MO', np.diag(H_MO) )
+            ## End Debug code
+
+            #Heff = self.H[i_spin,:,:] - (0.0+1.0j) * self.deriv_coupling[:,:]
+            print(" ##### WARNING: Heff is not correct (for debug) ##### ") ## Debug code
+            Heff = - (0.0+1.0j) * self.deriv_coupling[:,:] ## Debug code
 
             #print('H_EFF', Heff) ## Debug code
 
@@ -263,10 +268,10 @@ class Electronic_state:
 
             self.old_mo_coeffs[i_spin,:,:] = mo_midstep
 
-            ## Debug code
+            ### Debug code
             #csc = np.dot( mo_midstep, np.dot( self.S.astype('complex128'), mo_midstep.transpose().conj() ) )
             #print('CSC', csc)
-            ## End Debug code
+            ### End Debug code
 
         self.t_molecular_orbitals += self.dt
 
@@ -693,8 +698,8 @@ class Electronic_state:
             self.init_mo_energies, mo_coeffs_real = dftbplus_manager.worker.get_molecular_orbitals(
                 open_shell = self.is_open_shell
             )
-            #print(" ##### WARNING: Initial MO energies set to zero (for debug) ##### ") ## Debug code
-            #self.init_mo_energies[:] = 0.0 ## Debug code
+            print(" ##### WARNING: Initial MO energies set to zero (for debug) ##### ") ## Debug code
+            self.init_mo_energies[:] = 0.0 ## Debug code
 
             self.mo_coeffs     = mo_coeffs_real.astype('complex128')
             self.old_mo_coeffs = None

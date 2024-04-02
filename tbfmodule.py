@@ -7,7 +7,7 @@ import numpy as np
 import scipy.linalg as sp
 from copy import deepcopy
 
-from constants import H_DIRAC, AMU2AU, AU2ANGST
+from constants import H_DIRAC, AMU2AU, AU2ANGST, AU2EV, KB_EV
 import utils
 from interface_dftbplus import dftbplus_manager
 from electronmodule import Electronic_state
@@ -237,6 +237,8 @@ class Tbf:
 
         self.gs_energy     = initial_gs_energy # None or float
 
+        self.istep = self.init_istep
+
         self.position       = deepcopy(self.init_position)
         self.old_position   = deepcopy(self.position)
         self.istep_position = istep
@@ -247,6 +249,8 @@ class Tbf:
 
         self.read_traject = load_setting(settings, 'read_traject')
 
+        self.print_xyz_interval = load_setting(settings, 'print_xyz_interval')
+
         if self.read_traject:
 
             given_geoms      = load_setting(settings, 'given_geoms')
@@ -255,8 +259,6 @@ class Tbf:
             self.given_geoms      = deepcopy(given_geoms)
             self.given_velocities = deepcopy(given_velocities)
 
-            self.i_step = 0
-
             position, velocity = self.get_next_given_traject()
 
             self.position = position
@@ -264,12 +266,10 @@ class Tbf:
             self.old_position = deepcopy(self.position)
             self.old_momentum = deepcopy(self.momentum)
 
-            self.i_step = 0 # i_step has been updated in get_next_given_traject(), but is should be set to 0
+            self.istep = self.init_istep # istep has been updated in get_next_given_traject(), but is should be set to 0
 
         self.force        = np.zeros_like(self.position)
         self.old_force    = np.zeros_like(self.position)
-
-        self.istep = self.init_istep
 
         self.e_dot = np.zeros(n_estate) # dc/dt
 
@@ -287,6 +287,9 @@ class Tbf:
 
         #self.world = World.worlds[self.world_id]
         #self.world.add_tbf(self)
+
+        self.Epot = 0.0
+        self.Ekin = 0.0
 
         return
 
@@ -541,20 +544,44 @@ class Tbf:
             position = old_position
             momentum = old_momentum
 
+        delta = 0.5 * (position - old_position)
+        self.Epot -= np.dot(delta, force)
+        self.Ekin  = sum( 0.5 * momentum**2 / self.get_mass_au() )
+
         self.set_new_position(position)
         self.set_new_momentum(momentum)
 
-        self.print_xyz('traject.xyz') ## Debug code
+        if self.is_print_xyz_step():
+            self.print_xyz('traject.xyz') ## Debug code
+
+        print('E_POT', self.Epot) ## Debug code
+        print('E_KIN', self.Ekin) ## Debug code
+        print('TEMPERATURE: ', self.get_temperature(), 'K') ## Debug code
 
         return
+
+
+    def is_print_xyz_step(self):
+        
+        if self.print_xyz_interval != 0 and (self.istep % self.print_xyz_interval) == 0:
+            return True
+        else:
+            return False
+
+    
+    def get_temperature(self):
+        
+        e_kin_per_dof_ev = AU2EV * self.Ekin / np.size(self.position)
+        temp_kelvin = e_kin_per_dof_ev / (0.5 * KB_EV)
+        return temp_kelvin
 
     
     def get_next_given_traject(self):
 
-        geom  = self.given_geoms[self.i_step]
-        veloc = self.given_velocities[self.i_step]
+        geom  = self.given_geoms[self.istep]
+        veloc = self.given_velocities[self.istep]
         
-        self.i_step += 1
+        self.istep += 1
 
         #print(geom) ## Debug code
 

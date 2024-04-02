@@ -15,6 +15,8 @@ mo_type: restricted
 
 read_traject: False
 
+print_xyz_interval: 10
+
 active_occ_mos:
   - 0
   - 1

@@ -8,6 +8,7 @@ H_PLANCK  = 2*math.pi # atomic units
 H_DIRAC   = 1         # atomic units
 E_MASS_KG = 9.1093837015e-31 # kg
 AMU_KG    = 1.6605390666e-27 # kg
+KB_EV     = 8.617333262e-5 # eV/K
 
 # Unit converters
 
@@ -16,6 +17,7 @@ AU2ANGST = 0.529177210903
 ANGST2AU = 1.0 / AU2ANGST
 AU2SEC   = 2.4188843265857e-17
 SEC2AU   = 1.0 / AU2SEC
+AU2EV    = 27.211386245988
 
 # Threshold
 
