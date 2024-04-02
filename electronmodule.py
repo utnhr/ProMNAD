@@ -16,7 +16,7 @@ from interface_dftbplus import dftbplus_manager
 class Electronic_state:
     
 
-    def __init__(self, settings, atomparams, e_coeffs, position, velocity, dt, t, construct_initial_gs = True):
+    def __init__(self, settings, atomparams, e_coeffs, position, velocity, dt, istep, construct_initial_gs = True):
 
         self.active_occ_mos      = load_setting(settings, 'active_occ_mos')
         self.active_vir_mos      = load_setting(settings, 'active_vir_mos')
@@ -61,16 +61,16 @@ class Electronic_state:
         self.e_coeffs_tderiv     = np.zeros_like(e_coeffs)
         self.old_e_coeffs_tderiv = np.zeros_like(e_coeffs)
 
-        self.t                    = t
-        self.next_t               = None
+        self.istep                = istep
+        self.next_istep           = None
         
-        self.t_e_coeffs           = self.t
-        self.t_molecular_orbitals = self.t
-        self.t_estate_energies    = sys.maxsize
-        self.t_matrices           = sys.maxsize
-        self.t_force              = sys.maxsize
-        self.t_tdnac              = sys.maxsize
-        self.t_state_coeffs       = sys.maxsize
+        self.t_e_coeffs           = 0.0
+        self.t_molecular_orbitals = 0.0
+        #self.t_estate_energies    = sys.maxsize
+        #self.t_matrices           = sys.maxsize
+        #self.t_force              = sys.maxsize
+        #self.t_tdnac              = sys.maxsize
+        #self.t_state_coeffs       = sys.maxsize
 
         self.is_edyn_initialized  = False
 
@@ -131,27 +131,26 @@ class Electronic_state:
     #    return
 
 
-    def set_next_time(self, t):
-        self.next_t = t
+    def set_next_istep(self, istep):
+        self.next_istep = istep
         return
 
 
-    def update_time(self):
-        self.t = self.next_t
+    def update_istep(self):
+        self.istep = self.next_istep
         return
 
 
-    def is_uptodate(self, time_last):
+    def is_uptodate(self, istep_last):
         
-        #if utils.is_equal_scalar(self.get_t(), time_last):
-        if self.get_t() == time_last:
+        if self.get_istep() == istep_last:
             return True
         else:
             return False
 
 
-    def get_t(self):
-        return self.t
+    def get_istep(self):
+        return self.istep
 
 
     def get_n_estate(self):
@@ -202,7 +201,7 @@ class Electronic_state:
         self.mo_energies, self.mo_coeffs = sp.eigh(H, S, type=1)
         #self.mo_energies, self.mo_coeffs = np.linalg.eigh(H, S)
 
-        self.t_mos = self.get_t()
+        #self.t_mos = self.get_istep()
 
         return
 
@@ -230,8 +229,9 @@ class Electronic_state:
 
             # Debug code
             csc = np.dot( mo_midstep, np.dot( self.S.astype('complex128'), mo_midstep.transpose().conj() ) )
-            #csc = np.dot( mo_midstep, np.dot( self.old_S.astype('complex128'), mo_midstep.transpose().conj() ) )
-            print('CSC', csc)
+            #print('CSC', csc)
+            real_diag = np.real(np.diag(csc))
+            print('CSC', real_diag)
             # End Debug code
 
             Heff = self.H[i_spin,:,:] - (0.0+1.0j) * self.deriv_coupling[:,:]
@@ -240,7 +240,7 @@ class Electronic_state:
 
             #print('H_EFF', Heff) ## Debug code
 
-            mo_tderiv = -(0.0+1.0j) * np.dot(
+            mo_tderiv = - (0.0+1.0j) * np.dot(
                 np.dot( self.Sinv.astype('complex128'), Heff ), mo_midstep.transpose()
             ).transpose()
 
@@ -250,6 +250,8 @@ class Electronic_state:
 
             if is_initial_step:
                 self.old_mo_coeffs[i_spin,:,:] = mo_midstep
+
+            #print('IS_INITIAL_STEP', is_initial_step) ## Debug code
 
             self.mo_coeffs[i_spin,:,:] = self.propagate_without_trivial_phase(
                 self.old_mo_coeffs[i_spin,:,:], mo_midstep[:,:], mo_tderiv,
@@ -307,7 +309,7 @@ class Electronic_state:
             #                    self.get_trivial_phase_factor(init_mo_energies, t, invert = True) * mo_tderiv
             mo_tderiv_nophase[i_MO,:] = (0.0+1.0j) * init_mo_energies[i_MO] * mid_mo_nophase[i_MO,:] + \
                                 inv_trivial_phase_factor[i_MO,:] * mo_tderiv[i_MO,:]
-
+        
         if is_init_step:
             factor = 1.0
         else:
@@ -407,14 +409,17 @@ class Electronic_state:
             overlap_twogeom_0 = dftbplus_manager.worker.return_overlap_twogeom(position_2d,     position_2d)
             overlap_twogeom_1 = dftbplus_manager.worker.return_overlap_twogeom(position_2d, new_position_2d)
             overlap_twogeom_2 = dftbplus_manager.worker.return_overlap_twogeom(position_2d, old_position_2d)
+            overlap_twogeom_3 = dftbplus_manager.worker.return_overlap_twogeom(new_position_2d, position_2d)
+            overlap_twogeom_4 = dftbplus_manager.worker.return_overlap_twogeom(old_position_2d, position_2d)
 
-            overlap_twogeom_3 = dftbplus_manager.worker.return_overlap_twogeom(old_position_2d, new_position_2d)
-
-            temp1 = overlap_twogeom_1 - overlap_twogeom_0
-            temp2 = overlap_twogeom_2 - overlap_twogeom_0
+            #temp1 = overlap_twogeom_1 - overlap_twogeom_0
+            #temp2 = overlap_twogeom_2 - overlap_twogeom_0
 
             #temp1 = ( temp1 + temp1.transpose() ) * 0.5
             #temp2 = ( temp2 + temp2.transpose() ) * 0.5
+
+            temp1 = np.triu(overlap_twogeom_1) + np.triu(overlap_twogeom_3).transpose()
+            temp2 = np.triu(overlap_twogeom_2) + np.triu(overlap_twogeom_4).transpose()
 
             #temp = np.triu(overlap_twogeom_1 - overlap_twogeom_2)
             #temp = np.triu(overlap_twogeom_3 - overlap_twogeom_0)
@@ -439,7 +444,11 @@ class Electronic_state:
         #print('POSITION_2D', position_2d) ## Debug code
         #print('OLD_POSITION_2D', old_position_2d) ## Debug code
 
+        #print('TEMP1', temp1)
         #print('DERIV_COUPLING', self.deriv_coupling)
+        
+        #print(' WARNING: derivative coupling set to zero') ## Debug code
+        #self.deriv_coupling = np.zeros_like(self.deriv_coupling) ## Debug code
 
         return
 
@@ -524,14 +533,15 @@ class Electronic_state:
             #position_2d = utils.coord_1d_to_2d(self.position) * ANGST2AU
             position_2d = utils.coord_1d_to_2d(self.position)
 
+            n_AO = sum( dftbplus_manager.worker.get_atom_nr_basis() )
+
+            S = dftbplus_manager.worker.return_overlap_twogeom(position_2d, position_2d)
+
             dftbplus_manager.worker.set_geometry(position_2d)
 
             self.update_gs_density_matrix()
 
-            n_AO = sum( dftbplus_manager.worker.get_atom_nr_basis() )
-
             H = dftbplus_manager.worker.return_hamiltonian(self.gs_rho)
-            S = dftbplus_manager.worker.return_overlap_twogeom(position_2d, position_2d)
 
             n_spin = int(self.is_open_shell) + 1
 
@@ -549,18 +559,7 @@ class Electronic_state:
 
             self.S = utils.symmetrize(S, is_upper_triangle = True)
 
-            #print('S', S) ## Debug code
-            #print('S', self.S[0,15], self.S[15,0]) ## Debug code
-
             self.Sinv = np.linalg.inv(self.S)
-
-            #e_vals, e_vecs = sp.eig(self.H[0,:,:], self.S) ## Debug code
-            #print('E_VALS', e_vals) ## Debug code
-            
-            #print('MO_PHASE', self.mo_coeffs) ## Debug code
-            #print('MO VALID', np.dot(np.dot(self.mo_coeffs[0,:,:].conjugate(),self.S),self.mo_coeffs[0,:,:].transpose()) ) ## Debug code
-
-            #self.update_molecular_orbitals()
 
             if self.old_H is None:
                 self.old_H = deepcopy(self.H)
@@ -569,7 +568,7 @@ class Electronic_state:
             if self.old_Sinv is None:
                 self.old_Sinv = deepcopy(self.Sinv)
             
-            self.update_gs_density_matrix()
+            #self.update_gs_density_matrix()
 
             self.construct_density_matrix()
 
@@ -579,13 +578,15 @@ class Electronic_state:
 
             #self.update_gs_density_matrix()
 
+            #self.construct_density_matrix()
+
             #n_AO, self.H, self.S = dftbplus_manager.run_dftbplus_text(self.atomparams, self.position)
 
         else:
             
             utils.stop_with_error("Unknown quantum chemistry program %s .\n" % self.qc_program)
 
-        self.t_matrices = self.get_t()
+        self.t_matrices = self.get_istep()
 
         utils.printer.write_out('Updating hamiltonian and overlap matrices: Done.\n')
 
@@ -612,11 +613,11 @@ class Electronic_state:
         
         if self.basis == 'configuration' and self.excitation == 'cis' and not self.is_open_shell:
 
-            self.rho = np.zeros_like(self.gs_rho, dtype='complex128')
+            self.rho = np.zeros_like(self.gs_rho, dtype = 'complex128')
 
             # Ground-state contribution
 
-            self.rho += self.gs_rho.astype('complex128')
+            self.rho += self.gs_rho
 
             # 1-electron excitation contribution
 
@@ -658,7 +659,7 @@ class Electronic_state:
 
             self.rho[0,:,:] += rho_cis_ao
 
-            print( 'TOTAL NELEC', np.trace( np.dot(self.rho[0,:,:], self.S ) ) ) ## Debug code
+            print( 'TOTAL NELEC      ', np.trace( np.dot(self.rho[0,:,:], self.S ) ) ) ## Debug code
             #print( 'EXCITED NELEC', np.trace( np.dot(rho_cis_ao[:,:], self.S ) ) ) ## Debug code
             #print( 'RHO', self.rho[0,:,:] ) ## Debug code
 
@@ -726,7 +727,8 @@ class Electronic_state:
         else:
             n_spin = 1
         
-        self.gs_rho = np.zeros( (n_spin, self.n_AO, self.n_AO), dtype = 'float64' )
+        self.gs_rho      = np.zeros( (n_spin, self.n_AO, self.n_AO), dtype = 'float64' )
+        #self.gs_rho_cplx = np.zeros( (n_spin, self.n_AO, self.n_AO), dtype = 'complex128' )
 
         # diagonal matrix whose elements are occupation numbers
         f = np.zeros( (self.n_MO, self.n_MO), dtype = 'complex128' )
@@ -741,10 +743,11 @@ class Electronic_state:
                 #scaled_mo_coeffs[:,i_MO] = self.gs_filling[i_spin][i_MO] * self.mo_coeffs[i_spin,:,i_MO]
                 scaled_mo_coeffs[i_MO,:] = self.gs_filling[i_spin][i_MO] * self.mo_coeffs[i_spin,i_MO,:]
 
-            rho = np.real(
-                #np.dot( self.mo_coeffs[i_spin,:,:], np.transpose(scaled_mo_coeffs) )
-                np.dot( np.transpose(self.mo_coeffs[i_spin,:,:]).conjugate(), scaled_mo_coeffs )
-            )
+            #rho = np.real(
+            #    #np.dot( self.mo_coeffs[i_spin,:,:], np.transpose(scaled_mo_coeffs) )
+            #    np.dot( np.transpose(self.mo_coeffs[i_spin,:,:]).conjugate(), scaled_mo_coeffs )
+            #)
+            rho = np.dot( np.transpose(self.mo_coeffs[i_spin,:,:]).conjugate(), scaled_mo_coeffs )
 
             ### Debug code
             #rho[:,:] = 0.0
@@ -754,6 +757,7 @@ class Electronic_state:
             #            rho[i_AO,j_AO] += self.gs_filling[i_spin][i_MO] * self.mo_coeffs[i_spin,i_MO,i_AO].conjugate() * self.mo_coeffs[i_spin,i_MO,j_AO]
             ### End Debug code
 
-            self.gs_rho[i_spin, :, :] = rho[:, :]
+            self.gs_rho[i_spin, :, :]      = np.real(rho[:, :])
+            #self.gs_rho_cplx[i_spin, :, :] = rho[:, :]
         
         return

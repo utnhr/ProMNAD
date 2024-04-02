@@ -13,7 +13,7 @@ calctype: config-aimc
 
 mo_type: restricted
 
-read_traject: True
+read_traject: False
 
 active_occ_mos:
   - 0
@@ -37,12 +37,12 @@ active_vir_mos:
 #active_vir_mos: []
 
 initial_estate: 1
-n_step: 100000
+n_step: 10000
 
 dt: 0.2
 
-dt_deriv: 0.01
+dt_deriv: 0.1
 
-reconst_interval: 100
+#reconst_interval: 100
 
 is_fixed: False

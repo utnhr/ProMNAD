@@ -210,7 +210,7 @@ class Tbf:
 
     def __init__(
         self, settings, atomparams, position, n_dof, n_estate, tbf_id,
-        momentum=None, mass=None, width=None, phase=None, e_coeffs=None, initial_gs_energy=None, t=0,
+        momentum=None, mass=None, width=None, phase=None, e_coeffs=None, initial_gs_energy=None, istep=0,
         is_fixed=False,
         ):
 
@@ -220,7 +220,7 @@ class Tbf:
         self.init_position = position          # np.array (n_dof)
         self.mass          = mass              # np.array (n_dof)
         self.width         = width             # np.array (n_dof)
-        self.init_t        = t                 # integer, index of step
+        self.init_istep    = istep             # integer, index of step
         self.tbf_id        = tbf_id            # integer (start 0)
         self.is_fixed      = is_fixed          # logical
         #self.world_id      = world_id          # int (start 0)
@@ -237,13 +237,13 @@ class Tbf:
 
         self.gs_energy     = initial_gs_energy # None or float
 
-        self.position     = deepcopy(self.init_position)
-        self.old_position = deepcopy(self.position)
-        self.t_position   = t
+        self.position       = deepcopy(self.init_position)
+        self.old_position   = deepcopy(self.position)
+        self.istep_position = istep
 
-        self.momentum     = deepcopy(self.init_momentum)
-        self.old_momentum = deepcopy(self.momentum)
-        self.t_momentum   = t
+        self.momentum       = deepcopy(self.init_momentum)
+        self.old_momentum   = deepcopy(self.momentum)
+        self.istep_momentum = istep
 
         self.read_traject = load_setting(settings, 'read_traject')
 
@@ -269,14 +269,14 @@ class Tbf:
         self.force        = np.zeros_like(self.position)
         self.old_force    = np.zeros_like(self.position)
 
-        self.t = self.init_t
+        self.istep = self.init_istep
 
         self.e_dot = np.zeros(n_estate) # dc/dt
 
         #self.tbf_id = world.total_tbf_count + 1
         
         self.e_part = Electronic_state(
-            settings, atomparams, e_coeffs, self.get_position(), self.get_velocity(), settings['dt'], self.t,
+            settings, atomparams, e_coeffs, self.get_position(), self.get_velocity(), settings['dt'], self.istep,
             construct_initial_gs = True,
         )
         #self.e_part.set_new_position_velocity_time(
@@ -357,8 +357,8 @@ class Tbf:
         return deepcopy(self.phase)
 
 
-    def get_t(self):
-        return self.t
+    def get_istep(self):
+        return self.istep
 
 
     def get_n_estate(self):
@@ -449,12 +449,12 @@ class Tbf:
         return deepcopy(self.force)
 
 
-    def set_new_time(self, t, e_part_too=False):
+    def set_new_istep(self, istep, e_part_too=False):
         
-        self.t = t
+        self.istep = istep
 
         if e_part_too:
-            self.e_part.set_new_t(self.t)
+            self.e_part.set_new_istep(self.istep)
 
         return
 
@@ -472,11 +472,14 @@ class Tbf:
 
         # update position and velocity for electronic part
 
-        t = self.get_t()
+        istep = self.get_istep()
 
         self.e_part.set_next_position( self.get_position() )
         self.e_part.set_next_velocity( self.get_velocity() )
-        self.e_part.set_next_time( self.get_t() )
+        self.e_part.set_next_istep( self.get_istep() )
+
+        self.e_part.update_position()
+        self.e_part.update_velocity()
 
         # update electronic wavefunc and relevant physical quantities
 
@@ -499,11 +502,11 @@ class Tbf:
 
         self.e_part.set_new_e_coeffs_tderiv(e_coeffs_tderiv)
 
-        self.e_part.update_position()
-        self.e_part.update_velocity()
-        self.e_part.update_time()
+        #self.e_part.update_position()
+        #self.e_part.update_velocity()
+        self.e_part.update_istep()
 
-        self.set_new_time( self.get_t() + 1 )
+        self.set_new_istep( self.get_istep() + 1 )
 
         return
 
@@ -566,7 +569,7 @@ class Tbf:
 
             xyz_file.write("%d\n" % n_atom)
 
-            xyz_file.write("T= %20.12f\n" % self.t)
+            xyz_file.write("T= %d\n" % self.istep)
 
             for i_atom in range(n_atom):
 
