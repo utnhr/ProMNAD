@@ -43,7 +43,7 @@ n_step: 10000
 
 dt: 0.2
 
-dt_deriv: 0.1
+dt_deriv: 0.01
 
 #reconst_interval: 100
 

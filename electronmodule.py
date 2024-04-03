@@ -7,7 +7,7 @@ import numpy as np
 import scipy.linalg as sp
 from copy import deepcopy
 
-from constants import H_DIRAC, ANGST2AU
+from constants import H_DIRAC, ANGST2AU, AU2EV
 import utils
 from settingsmodule import load_setting
 
@@ -236,7 +236,8 @@ class Electronic_state:
 
             ## Debug code
             H_MO = np.dot( mo_midstep, np.dot(self.H[i_spin,:,:], mo_midstep.transpose().conj() ) )
-            print( 'H_MO', np.diag(H_MO) )
+            E_MO = np.real(np.diag(H_MO))
+            print( 'E GAP', (E_MO[9]-E_MO[8])*AU2EV )
             ## End Debug code
 
             #Heff = self.H[i_spin,:,:] - (0.0+1.0j) * self.deriv_coupling[:,:]
@@ -519,8 +520,15 @@ class Electronic_state:
         Sinv[0,:,:] = self.Sinv[:,:]
 
         #print('SELF.RHO', self.rho) ## Debug code
+        
+        rho_real = np.zeros_like(self.rho, dtype = 'float64')
+        rho_real[:,:,:] = self.rho[:,:,:]
+        
+        H = np.zeros_like(self.H)
+        tmp = dftbplus_manager.worker.return_hamiltonian(rho_real)
+        H[:,:,:] = tmp[:,:,:]
 
-        force = dftbplus_manager.worker.get_ehrenfest_force(self.H, self.rho, S, Sinv)
+        force = dftbplus_manager.worker.get_ehrenfest_force(H, self.rho, S, Sinv)
 
         n_atom = len(self.atomparams)
 
