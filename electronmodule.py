@@ -526,9 +526,17 @@ class Electronic_state:
         
         H = np.zeros_like(self.H)
         tmp = dftbplus_manager.worker.return_hamiltonian(rho_real)
-        H[:,:,:] = tmp[:,:,:]
+
+        if self.is_open_shell:
+            n_spin = 2
+        else:
+            n_spin = 1
+
+        for i_spin in range(n_spin):
+            H[i_spin,:,:] = utils.hermitize(tmp[i_spin,:,:], is_upper_triangle = True)
 
         force = dftbplus_manager.worker.get_ehrenfest_force(H, self.rho, S, Sinv)
+        #force = dftbplus_manager.worker.get_ehrenfest_force(self.H, self.rho, S, Sinv)
 
         n_atom = len(self.atomparams)
 
