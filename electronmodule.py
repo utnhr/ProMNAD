@@ -240,9 +240,9 @@ class Electronic_state:
             print( 'E GAP', (E_MO[9]-E_MO[8])*AU2EV )
             ## End Debug code
 
-            #Heff = self.H[i_spin,:,:] - (0.0+1.0j) * self.deriv_coupling[:,:]
-            print(" ##### WARNING: Heff is not correct (for debug) ##### ") ## Debug code
-            Heff = - (0.0+1.0j) * self.deriv_coupling[:,:] ## Debug code
+            Heff = self.H[i_spin,:,:] - (0.0+1.0j) * self.deriv_coupling[:,:]
+            #print(" ##### WARNING: Heff is not correct (for debug) ##### ") ## Debug code
+            #Heff = - (0.0+1.0j) * self.deriv_coupling[:,:] ## Debug code
 
             #print('H_EFF', Heff) ## Debug code
 
@@ -716,8 +716,8 @@ class Electronic_state:
             self.init_mo_energies, mo_coeffs_real = dftbplus_manager.worker.get_molecular_orbitals(
                 open_shell = self.is_open_shell
             )
-            print(" ##### WARNING: Initial MO energies set to zero (for debug) ##### ") ## Debug code
-            self.init_mo_energies[:] = 0.0 ## Debug code
+            #print(" ##### WARNING: Initial MO energies set to zero (for debug) ##### ") ## Debug code
+            #self.init_mo_energies[:] = 0.0 ## Debug code
 
             self.mo_coeffs     = mo_coeffs_real.astype('complex128')
             self.old_mo_coeffs = None
