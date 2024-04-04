@@ -525,12 +525,13 @@ class Tbf:
 
         else:
 
-            position = old_position + 2.0 * velocity * dt
+            #position = old_position + 2.0 * velocity * dt
+            position = self.get_position() + velocity * dt + 0.5 * ( self.force / self.get_mass_au() ) * dt**2
 
         old_momentum = self.get_old_momentum()
         
         self.update_force()
-        force = self.get_force()
+        #force = self.get_force()
 
         if self.read_traject:
                 
@@ -538,18 +539,25 @@ class Tbf:
 
         else:
 
-            momentum = old_momentum + 2.0 * force * dt
+            #momentum = old_momentum + 2.0 * force * dt
+            momentum = self.get_momentum() + 0.5 * (self.old_force + self.force) * dt
 
         if self.is_fixed:
             position = old_position
             momentum = old_momentum
 
         delta = 0.5 * (position - old_position)
-        self.Epot -= np.dot(delta, force)
+        self.Epot -= np.dot(delta, self.force)
         self.Ekin  = sum( 0.5 * momentum**2 / self.get_mass_au() )
 
         self.set_new_position(position)
         self.set_new_momentum(momentum)
+
+        #$print('MOMENTUM', momentum) ## Debug code
+        veloc = self.get_velocity()
+        print('VELOCITY', velocity[0:6]) ## Debug code
+        #print('POSITION', position) ## Debug code
+        #print('FORCE', force) ## Debug code
 
         if self.is_print_xyz_step():
             self.print_xyz('traject.xyz') ## Debug code

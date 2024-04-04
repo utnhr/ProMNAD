@@ -560,6 +560,8 @@ class Electronic_state:
 
             dftbplus_manager.worker.set_geometry(position_2d)
 
+            dftbplus_manager.worker.update_coordinate_dependent_stuffs()
+
             self.update_gs_density_matrix()
 
             H = dftbplus_manager.worker.return_hamiltonian(self.gs_rho)
