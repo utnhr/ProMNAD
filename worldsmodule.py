@@ -2,7 +2,7 @@
 
 import numpy as np
 from tbfmodule import Tbf
-from constants import ATOM_MASSES_AMU, DEFAULT_GWP_WIDTH_AU, H_DIRAC
+from constants import ATOM_MASSES_AMU, DEFAULT_GWP_WIDTH_AU, H_DIRAC, AMU2AU
 from copy import deepcopy
 from utils import stop_with_error
 
@@ -64,12 +64,12 @@ class World:
         mass  = np.array(mass)
         width = np.array(width)
 
-        momentum = mass * velocity
+        momentum = mass * AMU2AU * velocity # be careful for unit of mass
 
         initial_e_coeffs = [ 0.0+0.0j for i in range(self.settings['n_estate']) ]
         #initial_e_coeffs[self.settings['initial_estate']-1] = 1.0+0.0j
         initial_e_coeffs[self.settings['initial_estate']] = 1.0+0.0j ## Debug code
-        print('WARNING WARNING WARNING: initial state is 1st excited state') ## Debug code
+        #print('WARNING WARNING WARNING: initial state is 1st excited state') ## Debug code
         initial_e_coeffs = np.array(initial_e_coeffs)
         
         initial_tbf = Tbf(

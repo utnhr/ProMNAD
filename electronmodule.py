@@ -681,6 +681,8 @@ class Electronic_state:
             rho_cis_ao = np.dot( active_mos.transpose().conjugate(), np.dot( rho_cis, active_mos ) )
 
             self.rho[0,:,:] += rho_cis_ao
+            #self.rho[0,:,:] += 0.5 * rho_cis_ao
+            #self.rho[0,:,:] += 0.5 * math.sqrt(2.0) * rho_cis_ao
 
             print( 'TOTAL NELEC      ', np.trace( np.dot(self.rho[0,:,:], self.S ) ) ) ## Debug code
             #print( 'EXCITED NELEC', np.trace( np.dot(rho_cis_ao[:,:], self.S ) ) ) ## Debug code
