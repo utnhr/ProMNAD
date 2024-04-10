@@ -8,7 +8,7 @@ import numpy as np
 import yaml
 import utils
 import ctypes
-from constants import DEFAULT_DFTB_ANGMOM
+from constants import DEFAULT_DFTB_ANGMOM, AU2ANGST
 
 class dftbplus_manager:
     
@@ -199,7 +199,7 @@ class dftbplus_manager:
     
                     genfile.write("%d %d %25.15f %25.15f %25.15f\n" % (
                             i_atom+1, elem_IDs[ elems[3*i_atom] ],
-                            geom[3*i_atom], geom[3*i_atom+1], geom[3*i_atom+2]
+                            geom[3*i_atom]*AU2ANGST, geom[3*i_atom+1]*AU2ANGST, geom[3*i_atom+2]*AU2ANGST
                         )
                     )
     
@@ -209,7 +209,7 @@ class dftbplus_manager:
     
                     genfile.write("%d %d %25.15f %25.15f %25.15f\n" % (
                             i_atom+1, elem_IDs[ elems[i_atom] ],
-                            geom[0, i_atom], geom[1, i_atom+1], geom[2, i_atom+2]
+                            geom[0, i_atom]*AU2ANGST, geom[1, i_atom+1]*AU2ANGST, geom[2, i_atom+2]*AU2ANGST
                         )
                     )
     

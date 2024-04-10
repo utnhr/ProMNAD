@@ -19,15 +19,15 @@ read_traject: False
 print_xyz_interval: 100
 
 active_occ_mos:
-  - 0
-  - 1
-  - 2
-  - 3
-  - 4
-  - 5
-  - 6
-  - 7
   - 8
+  - 7
+  - 6
+  - 5
+  - 4
+  - 3
+  - 2
+  - 1
+  - 0
 active_vir_mos:
   - 9
   - 10
@@ -39,7 +39,7 @@ active_vir_mos:
 #active_occ_mos: []
 #active_vir_mos: []
 
-initial_estate: 0
+initial_estate: 1
 n_step: 100000
 
 dt: 0.02
