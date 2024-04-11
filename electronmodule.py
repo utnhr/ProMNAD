@@ -13,6 +13,8 @@ from settingsmodule import load_setting
 
 from interface_dftbplus import dftbplus_manager
 
+import struct
+
 class Electronic_state:
     
 
@@ -323,7 +325,18 @@ class Electronic_state:
 
         #print('MO_TDERIV_NOPHASE', mo_tderiv_nophase) ## Debug code
 
+        #n_order = 15
+        #propagator = np.zeros( (self.n_AO, self.n_AO), dtype = 'complex128')
+        ##propagator[:,:] = 1.0+0.0j
+        #term = mo_tderiv_nophase * factor * dt
+        #factorial = 1.0
+        #for i in range(n_order):
+        #    propagator += (1.0 / factorial) * term
+        #    term *= mo_tderiv_nophase * factor * dt
+        #    factorial *= float(n_order)
+
         new_mo_nophase = old_mo_nophase + factor * dt * mo_tderiv_nophase
+        #new_mo_nophase = old_mo_nophase + propagator
 
         #print('MO_NOPHASE_TEST', new_mo_nophase[0,0]) ## Debug code
 
@@ -542,6 +555,8 @@ class Electronic_state:
 
         force = force.reshape(3*n_atom)
 
+        print('FORCE', force) ## Debug code
+
         return force
     
 
@@ -683,6 +698,29 @@ class Electronic_state:
             self.rho[0,:,:] += rho_cis_ao
             #self.rho[0,:,:] += 0.5 * rho_cis_ao
             #self.rho[0,:,:] += 0.5 * math.sqrt(2.0) * rho_cis_ao
+
+            ### Debug code
+            #self.rho[:,:,:] = 0.0+0.0j
+            #with open('DM1.dat', 'rb') as f:
+            #    b = f.read()
+            #    u = struct.iter_unpack('<d', b)
+            #    count = 0
+            #    for ivalue, value in enumerate(u):
+            #        #print(value[0])
+            #        if ivalue == 0:
+            #            continue
+            #        elif ivalue % 2 == 1:
+            #            tmp1 = value[0]
+            #        else:
+            #            tmp2 = value[0]
+            #            count += 1
+            #            iraw = ((ivalue-1)//2) // self.n_AO
+            #            icol = ((ivalue-1)//2) % self.n_AO
+            #            #print(count,iraw,icol)
+            #            self.rho[0,iraw,icol] = tmp1 + 1.0j * tmp2
+            ### End Debug code
+
+            #print('RHO', self.rho)
 
             print( 'TOTAL NELEC      ', np.trace( np.dot(self.rho[0,:,:], self.S ) ) ) ## Debug code
             #print( 'EXCITED NELEC', np.trace( np.dot(rho_cis_ao[:,:], self.S ) ) ) ## Debug code
