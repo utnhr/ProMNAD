@@ -7,7 +7,7 @@ import numpy as np
 import scipy.linalg as sp
 from copy import deepcopy
 
-from constants import H_DIRAC, ANGST2AU, AU2EV
+from constants import H_DIRAC, ANGST2AU, AU2EV, ONEOVER24
 import utils
 from settingsmodule import load_setting
 
@@ -75,6 +75,11 @@ class Electronic_state:
         #self.t_state_coeffs       = sys.maxsize
 
         self.is_edyn_initialized  = False
+
+        self.i_called_propagate_without_trivial_phase = 0
+
+        self.mo_nophase_history        = [ None, None, None, None ]
+        self.mo_tderiv_nophase_history = [ None, None, None, None ]
 
         if construct_initial_gs:
             self.reconstruct_gs(is_initial = True)
@@ -217,6 +222,7 @@ class Electronic_state:
         if is_initial_step:
             #self.old_mo_coeffs = np.zeros_like(self.mo_coeffs)
             self.old_mo_coeffs = deepcopy(self.mo_coeffs[:,:,:])
+            self.old_mo_tderiv = np.zeros_like(self.mo_coeffs)
 
         if self.is_open_shell:
             n_spin = 2
@@ -258,18 +264,24 @@ class Electronic_state:
 
             if is_initial_step:
                 self.old_mo_coeffs[i_spin,:,:] = mo_midstep
+                self.old_mo_tderiv[i_spin,:,:] = mo_tderiv
 
             #print('IS_INITIAL_STEP', is_initial_step) ## Debug code
 
+            #self.mo_coeffs[i_spin,:,:] = self.propagate_without_trivial_phase(
+            #    self.old_mo_coeffs[i_spin,:,:], mo_midstep[:,:], mo_tderiv, self.old_mo_tderiv[i_spin,:,:],
+            #    self.init_mo_energies[i_spin], self.t_molecular_orbitals, self.dt, is_initial_step
+            #)
             self.mo_coeffs[i_spin,:,:] = self.propagate_without_trivial_phase(
-                self.old_mo_coeffs[i_spin,:,:], mo_midstep[:,:], mo_tderiv,
-                self.init_mo_energies[i_spin], self.t_molecular_orbitals, self.dt, is_initial_step
+                mo_midstep[:,:], mo_tderiv, self.init_mo_energies[i_spin],
+                self.t_molecular_orbitals, self.dt,
             )
             #self.mo_coeffs[i_spin,:,:] = self.propagate_with_trivial_phase(
             #    self.old_mo_coeffs[i_spin,:,:], mo_midstep[:,:], mo_tderiv, self.dt, is_initial_step
             #)
 
             self.old_mo_coeffs[i_spin,:,:] = mo_midstep
+            self.old_mo_tderiv[i_spin,:,:] = mo_tderiv
 
             ### Debug code
             #csc = np.dot( mo_midstep, np.dot( self.S.astype('complex128'), mo_midstep.transpose().conj() ) )
@@ -298,50 +310,48 @@ class Electronic_state:
         return new_mo
 
     
-    def propagate_without_trivial_phase(self, old_mo, mid_mo, mo_tderiv, init_mo_energies, t, dt, is_init_step):
-        
-        if is_init_step:
-            old_mo_nophase = old_mo * self.get_trivial_phase_factor(init_mo_energies, t   , invert = True)
-        else:
-            old_mo_nophase = old_mo * self.get_trivial_phase_factor(init_mo_energies, t-dt, invert = True)
-
-        mid_mo_nophase = mid_mo * self.get_trivial_phase_factor(init_mo_energies, t, invert = True)
-        
-        mo_tderiv_nophase = np.zeros_like(mo_tderiv)
+    def propagate_without_trivial_phase(self, mo, mo_tderiv, init_mo_energies, t, dt):
 
         inv_trivial_phase_factor = self.get_trivial_phase_factor(init_mo_energies, t, invert = True)
+
+        mo_nophase = mo * inv_trivial_phase_factor
+
+        self.mo_nophase_history[3] = deepcopy(mo_nophase)
+
+        mo_tderiv_nophase = np.zeros_like(mo_tderiv)
         
         for i_MO in range(self.n_MO):
 
-            #mo_tderiv_nophase = (0.0+1.0j) * init_mo_energies * mid_mo_nophase * \
-            #                    self.get_trivial_phase_factor(init_mo_energies, t, invert = True) * mo_tderiv
-            mo_tderiv_nophase[i_MO,:] = (0.0+1.0j) * init_mo_energies[i_MO] * mid_mo_nophase[i_MO,:] + \
+            mo_tderiv_nophase[i_MO,:] = (0.0+1.0j) * init_mo_energies[i_MO] * mo_nophase[i_MO,:] + \
                                 inv_trivial_phase_factor[i_MO,:] * mo_tderiv[i_MO,:]
-        
-        if is_init_step:
-            factor = 1.0
-        else:
-            factor = 2.0
 
-        #print('MO_TDERIV_NOPHASE', mo_tderiv_nophase) ## Debug code
+        self.mo_tderiv_nophase_history[3] = deepcopy(mo_tderiv_nophase)
 
-        #n_order = 15
-        #propagator = np.zeros( (self.n_AO, self.n_AO), dtype = 'complex128')
-        ##propagator[:,:] = 1.0+0.0j
-        #term = mo_tderiv_nophase * factor * dt
-        #factorial = 1.0
-        #for i in range(n_order):
-        #    propagator += (1.0 / factorial) * term
-        #    term *= mo_tderiv_nophase * factor * dt
-        #    factorial *= float(n_order)
+        if self.i_called_propagate_without_trivial_phase == 0:
+            # initial step: Euler method
+            new_mo_nophase = self.mo_nophase_history[3] + dt * self.mo_tderiv_nophase_history[3]
 
-        new_mo_nophase = old_mo_nophase + factor * dt * mo_tderiv_nophase
-        #new_mo_nophase = old_mo_nophase + propagator
+        #elif 0 < self.i_called_propagate_without_trivial_phase < 3:
+        elif 0 < self.i_called_propagate_without_trivial_phase:
+            # Two-step Adams-Bashforth method
+            new_mo_nophase = self.mo_nophase_history[3] + 0.5 * dt * (
+                3.0 * self.mo_tderiv_nophase_history[3] - self.mo_tderiv_nophase_history[2]
+            )
 
-        #print('MO_NOPHASE_TEST', new_mo_nophase[0,0]) ## Debug code
+        #else:
+        #    # Four-step Adams-Bashforth method
+        #    new_mo_nophase = self.mo_nophase_history[3] + ONEOVER24 * dt * (
+        #        55.0 * self.mo_tderiv_nophase_history[3] - 59.0 * self.mo_tderiv_nophase_history[2]
+        #      + 37.0 * self.mo_tderiv_nophase_history[1] -  9.0 * self.mo_tderiv_nophase_history[0]
+        #    )
 
-        #new_mo = new_mo_nophase * trivial_phase
         new_mo = new_mo_nophase * self.get_trivial_phase_factor(init_mo_energies, t+dt, invert = False)
+
+        self.i_called_propagate_without_trivial_phase += 0
+
+        for i in range(3):
+            self.mo_nophase_history[i]        = deepcopy(self.mo_nophase_history[i+1])
+            self.mo_tderiv_nophase_history[i] = deepcopy(self.mo_tderiv_nophase_history[i+1])
 
         return new_mo
 

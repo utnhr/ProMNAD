@@ -23,6 +23,11 @@ AU2EV    = 27.211386245988
 
 EPS_FLOAT_EQUAL = 1e-15
 
+# Mathematic constants
+
+#ONEOVER24 = 0.041666666666666664
+ONEOVER24 = 1.0 / 24.0
+
 # atom mass table
 
 ATOM_MASSES_AMU = {
