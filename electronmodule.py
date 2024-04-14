@@ -10,14 +10,15 @@ from copy import deepcopy
 from constants import H_DIRAC, ANGST2AU, AU2EV, ONEOVER24
 import utils
 from settingsmodule import load_setting
+from integratormodule import Integrator
 
 from interface_dftbplus import dftbplus_manager
 
 import struct
 
 class Electronic_state:
-    
 
+    
     def __init__(self, settings, atomparams, e_coeffs, position, velocity, dt, istep, construct_initial_gs = True):
 
         self.active_occ_mos      = load_setting(settings, 'active_occ_mos')
@@ -80,6 +81,8 @@ class Electronic_state:
 
         self.mo_nophase_history        = [ None, None, None, None ]
         self.mo_tderiv_nophase_history = [ None, None, None, None ]
+
+        self.integrator = Integrator()
 
         if construct_initial_gs:
             self.reconstruct_gs(is_initial = True)
@@ -211,6 +214,53 @@ class Electronic_state:
         #self.t_mos = self.get_istep()
 
         return
+
+
+    def make_mo_tderiv(self, mo_coeffs, deriv_coupling, Sinv):
+
+        def get_mo_dependent_gs_density_matrix(mo_coeffs):
+
+            if self.is_open_shell:
+                n_spin = 2
+            else:
+                n_spin = 1
+            
+            gs_rho = np.zeros( (n_spin, self.n_AO, self.n_AO), dtype = 'float64' )
+
+            # diagonal matrix whose elements are occupation numbers
+            f = np.zeros( (self.n_MO, self.n_MO), dtype = 'complex128' )
+
+            for i_spin in range(n_spin):
+
+                scaled_mo_coeffs = np.zeros_like(mo_coeffs[i_spin,:,:])
+
+                for i_MO in range(self.n_MO):
+
+                    scaled_mo_coeffs[i_MO,:] = self.gs_filling[i_spin][i_MO] * self.mo_coeffs[i_spin,i_MO,:]
+
+                rho = np.dot( np.transpose(self.mo_coeffs[i_spin,:,:]).conjugate(), scaled_mo_coeffs )
+
+                gs_rho[i_spin, :, :] = np.real(rho[:, :])
+            
+            return gs_rho
+        
+        def get_mo_dependent_hamiltonian(mo_coeffs):
+            
+            gs_rho = get_mo_dependent_gs_density_matrix(mo_coeffs)
+
+            H = dftbplus_manager.worker.return_hamiltonian(gs_rho)
+            
+            return H
+
+        H = get_mo_dependent_hamiltonian(mo_coeffs)
+        
+        Heff = H - (0.0+1.0j) * deriv_coupling[:,:]
+        
+        mo_tderiv = -(0.0+1.0j) * np.dot(
+            np.dot( Sinv.astype('complex128'), Heff ), mo_coeffs.transpose()
+        )
+
+        return mo_tderiv
 
 
     def update_molecular_orbitals(self, is_before_initial = False):
