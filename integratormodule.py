@@ -14,11 +14,11 @@ class Integrator:
 
         self.n_hist = 5
 
-        self.y_hist = [ None for i in self.n_hist ] # new (i-1) -> old
-        self.f_hist = [ None for i in self.n_hist ] # new (i-1) -> old
+        self.y_hist = [ None for i in range(self.n_hist) ] # new (i-1) -> old
+        self.f_hist = [ None for i in range(self.n_hist) ] # new (i-1) -> old
 
         self.error_threshold = 1.0e-10
-        self.mix_alpha = 0.2
+        self.mix_alpha = 1.0
         
         self.i_called = 0
 
@@ -40,27 +40,26 @@ class Integrator:
         return
 
 
-    def euler(self, dt, y, f_func, *fargs):
+    def euler(self, dt, t, y, f_func, *fargs):
         
-        f = f_func(y, *fargs)
+        f = f_func(t, y, *fargs)
 
         y_new = y + dt * f
         
-        if not is_internal:
-            self.update_history(y, f)
+        self.update_history(y, f)
         
         return y_new
     
 
-    def leapfrog(self, dt, y, f_func, *fargs):
+    def leapfrog(self, dt, t, y, f_func, *fargs):
 
-        if i_called < 1:
+        if self.i_called < 1:
 
-            return self.euler(dt, y, f_func, *fargs)
+            return self.euler(dt, t, y, f_func, *fargs)
 
         else:
             
-            f = f_func(y, *fargs)
+            f = f_func(t, y, *fargs)
             
             y_new = self.y_hist[0] + 2.0 * dt * f # y(i-1) + 2*f(i) -> y(i+1)
 
@@ -69,15 +68,15 @@ class Integrator:
         return y_new
 
 
-    def adams_bashforth_2(self, dt, y, f_func, *fargs):
+    def adams_bashforth_2(self, dt, t, y, f_func, *fargs):
 
-        if i_called < 1:
+        if self.i_called < 1:
 
-            return self.euler(dt, y, f_func, *fargs)
+            return self.euler(dt, t, y, f_func, *fargs)
 
         else:
 
-            f = f_func(y, *fargs)
+            f = f_func(t, y, *fargs)
 
             y_new = y + 0.5 * dt * (3.0*self.f_hist[0] - f)
 
@@ -86,15 +85,15 @@ class Integrator:
         return y_new
 
 
-    def adams_bashforth_4(self, dt, y, f_func, *fargs):
+    def adams_bashforth_4(self, dt, t, y, f_func, *fargs):
 
-        if i_called < 3:
+        if self.i_called < 3:
 
-            return self.adams_bashforth_2(y, f_func, *fargs)
+            return self.adams_bashforth_2(dt, t, y, f_func, *fargs)
 
         else:
             
-            f = f_func(y, *fargs)
+            f = f_func(t, y, *fargs)
 
             y_new = y + ONEOVER24 * dt * (
                 55.0*self.f_hist[0] - 59.0*self.f_hist[1] + 37.0*self.f_hist[2] - 9.0*self.f_hist[3]
@@ -105,31 +104,27 @@ class Integrator:
         return y_new
 
 
-    def adams_moulton_2(self, dt, y, f_func, *fargs):
+    def adams_moulton_2(self, dt, t, y, f_func, *fargs):
 
-        def corrector(dt, y1p, f0, f_func, *fargs):
+        if self.i_called < 1:
 
-            f1p = f_func(y1p, *fargs)
-
-            return y + 0.5 * dt * (f0 + f1p)
-
-        if i_called < 1:
-
-            return self.euler(dt, y, f_func, *fargs)
+            return self.euler(dt, t, y, f_func, *fargs)
 
         else:
 
-            f = f_func(y, *fargs)
+            f = f_func(t, y, *fargs)
 
             y1p = y + 0.5 * dt * (3.0*self.f_hist[0] - f) # predictor: 2-step Adams-Bashforth
+
+            i_iter = 0
             
             while True:
 
-                f1p = f_func(y1p, *fargs)
+                f1p = f_func(t+dt, y1p, *fargs)
 
                 y1c = y + 0.5 * dt * (f1p + f) # corrector
 
-                error = abs(y1p - y1c)
+                error = np.linalg.norm(y1p - y1c)
 
                 if error < self.error_threshold:
 
@@ -140,6 +135,8 @@ class Integrator:
                 else:
 
                     y1p = self.mix_alpha * y1c + (1.0 - self.mix_alpha) * y1p
+
+                    i_iter += 1
 
             self.update_history(y, f)
         

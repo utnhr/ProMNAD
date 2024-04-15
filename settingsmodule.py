@@ -9,6 +9,7 @@ default = {
     'dt_deriv'  : 0.01,
     'reconst_interval': 0,
     'print_xyz_interval': 0,
+    'integrator': 'adams_moulton_2',
 }
 
     

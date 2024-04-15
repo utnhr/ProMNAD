@@ -12,6 +12,8 @@ include_ground_state: False
 
 calctype: config-aimc
 
+integrator: leapfrog
+
 mo_type: restricted
 
 read_traject: False
