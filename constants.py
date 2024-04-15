@@ -26,7 +26,8 @@ EPS_FLOAT_EQUAL = 1e-15
 # Mathematic constants
 
 #ONEOVER24 = 0.041666666666666664
-ONEOVER24 = 1.0 / 24.0
+ONEOVER24  = 1.0 / 24.0
+ONEOVER720 = 1.0 / 720.0
 
 # atom mass table
 

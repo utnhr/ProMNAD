@@ -555,7 +555,7 @@ class Tbf:
 
         #$print('MOMENTUM', momentum) ## Debug code
         veloc = self.get_velocity()
-        print('VELOCITY', velocity[0:6]) ## Debug code
+        #print('VELOCITY', velocity[0:6]) ## Debug code
         #print('POSITION', position) ## Debug code
         #print('FORCE', force) ## Debug code
 

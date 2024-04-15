@@ -5,7 +5,7 @@ import math
 from cmath import exp, pi
 import numpy as np
 from copy import deepcopy
-from constants import H_DIRAC, ANGST2AU, AU2EV, ONEOVER24
+from constants import H_DIRAC, ANGST2AU, AU2EV, ONEOVER24, ONEOVER720
 import utils
 
 class Integrator:
@@ -139,6 +139,52 @@ class Integrator:
                     i_iter += 1
 
             self.update_history(y, f)
+
+            #print('AM2 ITER', i_iter) ## Debug code
+        
+        return y_new
+
+    def adams_moulton_4(self, dt, t, y, f_func, *fargs):
+        
+        if self.i_called < 3:
+            
+            return self.adams_bashforth_2(dt, t, y, f_func, *fargs)
+
+        else:
+            
+            f = f_func(t, y, *fargs)
+
+            y1p = y + ONEOVER24 * dt * (
+                55.0*self.f_hist[0] - 59.0*self.f_hist[1] + 37.0*self.f_hist[2] - 9.0*self.f_hist[3]
+            ) # predictor: 4-step Adams-Bashforth
+
+            i_iter = 0
+
+            while True:
+
+                f1p = f_func(t+dt, y1p, *fargs)
+
+                y1c = y + ONEOVER720 * dt * (
+                    251.0*f1p + 646.0*f - 264.0*self.f_hist[0] + 106.0*self.f_hist[1] - 19.0*self.f_hist[2]
+                ) # corrector
+
+                error = np.linalg.norm(y1p - y1c)
+
+                if error < self.error_threshold:
+
+                    y_new = y1c
+
+                    break
+
+                else:
+
+                    y1p = self.mix_alpha * y1c + (1.0 - self.mix_alpha) * y1p
+
+                    i_iter += 1
+
+            self.update_history(y, f)
+
+            print('AM4 ITER', i_iter) ## Debug code
         
         return y_new
 

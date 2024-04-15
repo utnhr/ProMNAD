@@ -218,23 +218,21 @@ class Electronic_state:
         return
 
 
-    def make_mo_tderiv(self, t, mo_coeffs, deriv_coupling, Sinv, without_trivial_phase = True,
-                       init_mo_energies = None, inv_trivial_phase_factor = None,
-    ):
+    def make_mo_tderiv(self, t, mo_coeffs, deriv_coupling, Sinv, without_trivial_phase = True, init_mo_energies = None):
 
         if self.is_open_shell:
             n_spin = 2
         else:
             n_spin = 1
 
+        trivial_phase_factor     = self.get_trivial_phase_factor(init_mo_energies, t, invert = False)
+        inv_trivial_phase_factor = self.get_trivial_phase_factor(init_mo_energies, t, invert = True)
+
         def get_mo_dependent_gs_density_matrix(mo_coeffs):
             
             # mo_coeffs can either phase-containing or phaseless MOs
             
             gs_rho = np.zeros( (n_spin, self.n_AO, self.n_AO), dtype = 'float64' )
-
-            # diagonal matrix whose elements are occupation numbers
-            f = np.zeros( (self.n_MO, self.n_MO), dtype = 'complex128' )
 
             for i_spin in range(n_spin):
 
@@ -265,23 +263,26 @@ class Electronic_state:
             
             return H
 
-        H = get_mo_dependent_hamiltonian(mo_coeffs)
+        if without_trivial_phase:
+            mo = mo_coeffs * trivial_phase_factor
+        else:
+            mo = mo_coeffs
+
+        H = get_mo_dependent_hamiltonian(mo)
 
         Heff = np.zeros_like(H)
 
-        mo_tderiv = np.zeros_like(mo_coeffs)
+        mo_tderiv = np.zeros_like(mo)
 
         for i_spin in range(n_spin):
 
             Heff[i_spin,:,:] = H[i_spin,:,:] - (0.0+1.0j) * deriv_coupling[:,:]
         
             mo_tderiv[i_spin,:,:] = -(0.0+1.0j) * np.dot(
-                np.dot( Sinv.astype('complex128'), Heff[i_spin,:,:] ), mo_coeffs[i_spin,:,:].transpose()
-            )
+                np.dot( Sinv.astype('complex128'), Heff[i_spin,:,:] ), mo[i_spin,:,:].transpose()
+            ).transpose()
 
         if without_trivial_phase:
-
-            # assuming that mo is phaseless
 
             for i_spin in range(n_spin):
                 for i_MO in range(self.n_MO):
@@ -298,7 +299,7 @@ class Electronic_state:
 
         new_mo_coeffs = self.propagate_without_trivial_phase(self.mo_coeffs, self.t_molecular_orbitals, self.dt)
 
-        self.mo_coeffs = new_mo_coeffs
+        self.mo_coeffs = deepcopy(new_mo_coeffs)
         
         if self.is_open_shell:
             n_spin = 2
@@ -355,35 +356,42 @@ class Electronic_state:
 
             new_mo_nophase = self.integrator.euler(
                 self.dt, self.t_molecular_orbitals, mo_nophase, self.make_mo_tderiv,
-                self.deriv_coupling, self.Sinv, True, self.init_mo_energies, inv_trivial_phase_factor
+                self.deriv_coupling, self.Sinv, True, self.init_mo_energies,
             )
         
         elif self.integmethod == 'leapfrog':
 
             new_mo_nophase = self.integrator.leapfrog(
                 self.dt, self.t_molecular_orbitals, mo_nophase, self.make_mo_tderiv,
-                self.deriv_coupling, self.Sinv, True, self.init_mo_energies, inv_trivial_phase_factor
+                self.deriv_coupling, self.Sinv, True, self.init_mo_energies,
             )
 
         elif self.integmethod == 'adams_bashforth_2':
 
             new_mo_nophase = self.integrator.adams_bashforth_2(
                 self.dt, self.t_molecular_orbitals, mo_nophase, self.make_mo_tderiv,
-                self.deriv_coupling, self.Sinv, True, self.init_mo_energies, inv_trivial_phase_factor
+                self.deriv_coupling, self.Sinv, True, self.init_mo_energies,
             )
 
         elif self.integmethod == 'adams_bashforth_4':
 
             new_mo_nophase = self.integrator.adams_bashforth_4(
                 self.dt, self.t_molecular_orbitals, mo_nophase, self.make_mo_tderiv,
-                self.deriv_coupling, self.Sinv, True, self.init_mo_energies, inv_trivial_phase_factor
+                self.deriv_coupling, self.Sinv, True, self.init_mo_energies,
             )
 
         elif self.integmethod == 'adams_moulton_2':
 
             new_mo_nophase = self.integrator.adams_moulton_2(
                 self.dt, self.t_molecular_orbitals, mo_nophase, self.make_mo_tderiv,
-                self.deriv_coupling, self.Sinv, True, self.init_mo_energies, inv_trivial_phase_factor
+                self.deriv_coupling, self.Sinv, True, self.init_mo_energies,
+            )
+
+        elif self.integmethod == 'adams_moulton_4':
+
+            new_mo_nophase = self.integrator.adams_moulton_4(
+                self.dt, self.t_molecular_orbitals, mo_nophase, self.make_mo_tderiv,
+                self.deriv_coupling, self.Sinv, True, self.init_mo_energies,
             )
 
         else:
@@ -610,7 +618,7 @@ class Electronic_state:
 
         force = force.reshape(3*n_atom)
 
-        print('FORCE', force) ## Debug code
+        #print('FORCE', force) ## Debug code
 
         return force
     
@@ -631,6 +639,8 @@ class Electronic_state:
             dftbplus_manager.worker.set_geometry(position_2d)
 
             dftbplus_manager.worker.update_coordinate_dependent_stuffs()
+
+            self.update_gs_density_matrix()
 
             n_spin = int(self.is_open_shell) + 1
 

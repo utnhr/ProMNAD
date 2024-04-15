@@ -12,7 +12,8 @@ include_ground_state: False
 
 calctype: config-aimc
 
-integrator: leapfrog
+integrator: adams_moulton_2
+#integrator: leapfrog
 
 mo_type: restricted
 
