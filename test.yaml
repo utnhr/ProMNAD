@@ -19,8 +19,6 @@ mo_type: restricted
 
 read_traject: False
 
-print_xyz_interval: 100
-
 active_occ_mos:
   - 8
   - 7
@@ -45,9 +43,10 @@ active_vir_mos:
 initial_estate: 1
 n_step: 100000
 
-dt: 0.02
+dt: 0.1
+print_xyz_interval: 100
 
-dt_deriv: 0.01
+dt_deriv: 1.0
 
 #reconst_interval: 100
 

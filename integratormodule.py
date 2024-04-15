@@ -140,7 +140,7 @@ class Integrator:
 
             self.update_history(y, f)
 
-            #print('AM2 ITER', i_iter) ## Debug code
+            print('AM2 ITER', i_iter) ## Debug code
         
         return y_new
 
