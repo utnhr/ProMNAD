@@ -5,6 +5,7 @@ from tbfmodule import Tbf
 from constants import ATOM_MASSES_AMU, DEFAULT_GWP_WIDTH_AU, H_DIRAC, AMU2AU
 from copy import deepcopy
 from utils import stop_with_error
+from settingsmodule import load_setting
 
 class World:
     
@@ -66,19 +67,30 @@ class World:
 
         momentum = mass * AMU2AU * velocity # be careful for unit of mass
 
-        initial_e_coeffs = [ 0.0+0.0j for i in range(self.settings['n_estate']) ]
-        #initial_e_coeffs[self.settings['initial_estate']-1] = 1.0+0.0j
-        initial_e_coeffs[self.settings['initial_estate']] = 1.0+0.0j ## Debug code
-        #print('WARNING WARNING WARNING: initial state is 1st excited state') ## Debug code
-        initial_e_coeffs = np.array(initial_e_coeffs)
+        initial_estates = load_setting(self.settings, 'initial_estates')
+        initial_coeffs  = load_setting(self.settings, 'initial_coeffs')
         
-        initial_tbf = Tbf(
-            self.settings, self.atomparams, position, n_dof, self.settings['n_estate'], len(self.tbfs),
-            momentum = momentum, mass = mass, width = width, e_coeffs = initial_e_coeffs,
-            is_fixed = is_fixed,
-        )
+        # normalize initial TBF coefficients
+        initial_coeffs = np.array(initial_coeffs)
+        initial_coeffs /= np.linalg.norm(initial_coeffs)
 
-        self.add_tbf(initial_tbf, coeff = 1.0+0.0j)
+        n_tbf = len(initial_coeffs)
+        if n_tbf != len(initial_estates):
+            utils.stop_with_error('Number of initial estates and coeffs must be the same.\n')
+
+        for i_tbf in range(n_tbf):
+
+            initial_e_coeffs = [ 0.0+0.0j for i in range(self.settings['n_estate']) ]
+            initial_e_coeffs[initial_estates[i_tbf]] = 1.0+0.0j
+            initial_e_coeffs = np.array(initial_e_coeffs)
+            
+            initial_tbf = Tbf(
+                self.settings, self.atomparams, position, n_dof, self.settings['n_estate'], len(self.tbfs),
+                momentum = momentum, mass = mass, width = width, e_coeffs = initial_e_coeffs,
+                is_fixed = is_fixed,
+            )
+
+            self.add_tbf(initial_tbf, coeff = initial_coeffs[i_tbf])
 
         return
 
