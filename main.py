@@ -20,7 +20,7 @@ if __name__ == '__main__':
 
     configure_calculation(settings)
 
-    init_qc_engine(settings)
+    #init_qc_engine(settings)
     
     do_dynamics(settings)
 

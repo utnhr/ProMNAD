@@ -11,15 +11,18 @@ from constants import H_DIRAC, ANGST2AU, AU2EV, ONEOVER24
 import utils
 from settingsmodule import load_setting
 from integratormodule import Integrator
-
-from interface_dftbplus import dftbplus_manager
-
+#from interface_dftbplus import dftbplus_manager
+from calcconfig import init_qc_engine
 import struct
 
 class Electronic_state:
-
+    
+    electronic_state_count = 0
     
     def __init__(self, settings, atomparams, e_coeffs, position, velocity, dt, istep, construct_initial_gs = True):
+        
+        self.electronic_state_id = Electronic_state.electronic_state_count
+        Electronic_state.electronic_state_count += 1
 
         self.active_occ_mos      = load_setting(settings, 'active_occ_mos')
         self.active_vir_mos      = load_setting(settings, 'active_vir_mos')
@@ -79,12 +82,17 @@ class Electronic_state:
 
         self.is_edyn_initialized  = False
 
-        self.i_called_propagate_without_trivial_phase = 0
+        #self.i_called_propagate_without_trivial_phase = 0
 
-        self.mo_nophase_history        = [ None, None, None, None ]
-        self.mo_tderiv_nophase_history = [ None, None, None, None ]
+        #self.mo_nophase_history        = [ None, None, None, None ]
+        #self.mo_tderiv_nophase_history = [ None, None, None, None ]
 
         self.integrator = Integrator()
+
+        if self.qc_program == 'dftb+':
+            self.dftbplus_instance = init_qc_engine(settings, "%d" % self.electronic_state_id)
+        else:
+            utils.stop_with_error("Unknown QC program %s .\n" % self.qc_program)
 
         if construct_initial_gs:
             self.reconstruct_gs(is_initial = True)
@@ -254,7 +262,7 @@ class Electronic_state:
 
             gs_rho = get_mo_dependent_gs_density_matrix(mo_coeffs)
 
-            Htmp = dftbplus_manager.worker.return_hamiltonian(gs_rho)
+            Htmp = self.dftbplus_instance.worker.return_hamiltonian(gs_rho)
 
             H = np.zeros_like(Htmp, dtype = 'complex128')
 
@@ -488,11 +496,11 @@ class Electronic_state:
         
         if self.qc_program == 'dftb+':
             
-            overlap_twogeom_0 = dftbplus_manager.worker.return_overlap_twogeom(position_2d,     position_2d)
-            overlap_twogeom_1 = dftbplus_manager.worker.return_overlap_twogeom(position_2d, new_position_2d)
-            overlap_twogeom_2 = dftbplus_manager.worker.return_overlap_twogeom(position_2d, old_position_2d)
-            overlap_twogeom_3 = dftbplus_manager.worker.return_overlap_twogeom(new_position_2d, position_2d)
-            overlap_twogeom_4 = dftbplus_manager.worker.return_overlap_twogeom(old_position_2d, position_2d)
+            overlap_twogeom_0 = self.dftbplus_instance.worker.return_overlap_twogeom(position_2d,     position_2d)
+            overlap_twogeom_1 = self.dftbplus_instance.worker.return_overlap_twogeom(position_2d, new_position_2d)
+            overlap_twogeom_2 = self.dftbplus_instance.worker.return_overlap_twogeom(position_2d, old_position_2d)
+            overlap_twogeom_3 = self.dftbplus_instance.worker.return_overlap_twogeom(new_position_2d, position_2d)
+            overlap_twogeom_4 = self.dftbplus_instance.worker.return_overlap_twogeom(old_position_2d, position_2d)
 
             #temp1 = overlap_twogeom_1 - overlap_twogeom_0
             #temp2 = overlap_twogeom_2 - overlap_twogeom_0
@@ -580,7 +588,7 @@ class Electronic_state:
         force = np.zeros_like(self.position)
 
         if not self.is_edyn_initialized:
-            dftbplus_manager.worker.init_elec_dynamics()
+            self.dftbplus_instance.worker.init_elec_dynamics()
             self.is_edyn_initialized = True
 
         if self.S is None:
@@ -601,7 +609,7 @@ class Electronic_state:
         rho_real[:,:,:] = self.rho[:,:,:]
         
         H = np.zeros_like(self.rho)
-        tmp = dftbplus_manager.worker.return_hamiltonian(rho_real)
+        tmp = self.dftbplus_instance.worker.return_hamiltonian(rho_real)
 
         if self.is_open_shell:
             n_spin = 2
@@ -611,7 +619,7 @@ class Electronic_state:
         for i_spin in range(n_spin):
             H[i_spin,:,:] = utils.hermitize(tmp[i_spin,:,:], is_upper_triangle = True)
 
-        force = dftbplus_manager.worker.get_ehrenfest_force(H, self.rho, S, Sinv)
+        force = self.dftbplus_instance.worker.get_ehrenfest_force(H, self.rho, S, Sinv)
         #force = dftbplus_manager.worker.get_ehrenfest_force(self.H, self.rho, S, Sinv)
 
         n_atom = len(self.atomparams)
@@ -632,13 +640,13 @@ class Electronic_state:
             #position_2d = utils.coord_1d_to_2d(self.position) * ANGST2AU
             position_2d = utils.coord_1d_to_2d(self.position)
 
-            n_AO = sum( dftbplus_manager.worker.get_atom_nr_basis() )
+            n_AO = sum( self.dftbplus_instance.worker.get_atom_nr_basis() )
 
-            S = dftbplus_manager.worker.return_overlap_twogeom(position_2d, position_2d)
+            S = self.dftbplus_instance.worker.return_overlap_twogeom(position_2d, position_2d)
 
-            dftbplus_manager.worker.set_geometry(position_2d)
+            self.dftbplus_instance.worker.set_geometry(position_2d)
 
-            dftbplus_manager.worker.update_coordinate_dependent_stuffs()
+            self.dftbplus_instance.worker.update_coordinate_dependent_stuffs()
 
             self.update_gs_density_matrix()
 
@@ -793,11 +801,11 @@ class Electronic_state:
 
             coords = self.position.reshape(n_atom, 3)
             
-            dftbplus_manager.worker.set_geometry(coords)
+            self.dftbplus_instance.worker.set_geometry(coords)
 
-            self.gs_energy = dftbplus_manager.worker.get_energy()
+            self.gs_energy = self.dftbplus_instance.worker.get_energy()
 
-            self.init_mo_energies, mo_coeffs_real = dftbplus_manager.worker.get_molecular_orbitals(
+            self.init_mo_energies, mo_coeffs_real = self.dftbplus_instance.worker.get_molecular_orbitals(
                 open_shell = self.is_open_shell
             )
             #print(" ##### WARNING: Initial MO energies set to zero (for debug) ##### ") ## Debug code
@@ -806,7 +814,7 @@ class Electronic_state:
             self.mo_coeffs     = mo_coeffs_real.astype('complex128')
             self.old_mo_coeffs = None
 
-            self.gs_filling = dftbplus_manager.worker.get_filling(open_shell = self.is_open_shell)
+            self.gs_filling = self.dftbplus_instance.worker.get_filling(open_shell = self.is_open_shell)
 
             self.n_elec = np.sum(self.gs_filling)
 

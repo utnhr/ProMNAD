@@ -29,3 +29,8 @@ Hamiltonian:
             Separator: '"-"'
             Suffix: '".skf"'
       ForceEvaluation: '"traditional"'
+
+Options:
+  is_named_dict: True
+  values:
+    WriteDetailedOut: 'No'
