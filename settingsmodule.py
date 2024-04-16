@@ -7,7 +7,7 @@ default = {
     'excitation': 'cis',
     'is_fixed'  : False,
     'dt_deriv'  : 0.01,
-    'reconst_interval': 0,
+    'reconst_interval': 100,
     'print_xyz_interval': 0,
     'integrator': 'adams_moulton_2',
 }

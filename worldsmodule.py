@@ -90,7 +90,7 @@ class World:
                 is_fixed = is_fixed,
             )
 
-            self.add_tbf(initial_tbf, coeff = initial_coeffs[i_tbf])
+            self.add_tbf(initial_tbf, coeff = initial_coeffs[i_tbf], normalize = False)
 
         return
 
@@ -236,6 +236,9 @@ class World:
         tbf_coeffs_tderiv = (-1.0j / H_DIRAC) * np.dot(
             np.linalg.inv(self.S_tbf), np.dot(self.H_tbf, tbf_coeffs)
         )
+
+        print('H_TBF', self.H_tbf) ## Debug code
+        #print('TBF COEFFS TDERIV', tbf_coeffs_tderiv) ## Debug code
 
         self.set_new_tbf_coeffs_tderiv(tbf_coeffs_tderiv)
 

@@ -479,7 +479,7 @@ class Tbf:
 
         self.e_part.set_next_position( self.get_position() )
         self.e_part.set_next_velocity( self.get_velocity() )
-        self.e_part.set_next_istep( self.get_istep() )
+        #self.e_part.set_next_istep( self.get_istep() )
 
         self.e_part.update_position()
         self.e_part.update_velocity()
@@ -507,7 +507,7 @@ class Tbf:
 
         #self.e_part.update_position()
         #self.e_part.update_velocity()
-        self.e_part.update_istep()
+        #self.e_part.update_istep()
 
         self.set_new_istep( self.get_istep() + 1 )
 
