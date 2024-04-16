@@ -530,8 +530,17 @@ class Electronic_state:
 
         if self.is_open_shell:
             n_spin = 2
+            utils.stop_with_error('Now, not compatible with open-shell systems.\n')
         else:
             n_spin = 1
+
+        n_occ = len(self.active_occ_mos)
+        n_vir = len(self.active_vir_mos)
+        n_act = n_occ + n_vir
+
+        cis_coeffs     = self.e_coeffs[1:].reshape(n_occ, n_vir)
+        old_cis_coeffs = self.old_e_coeffs[1:].reshape(n_occ, n_vir)
+        cis_coeffs_tderiv = (cis_coeffs - old_cis_coeffs) / self.dt
 
         if self.basis == 'configuration':
 
@@ -548,13 +557,6 @@ class Electronic_state:
 
             # MO -> determinant
 
-            n_occ = len(self.active_occ_mos)
-            n_vir = len(self.active_vir_mos)
-            n_act = n_occ + n_vir
-
-            cis_coeffs     = self.e_coeffs[1:].reshape(n_occ, n_vir)
-            old_cis_coeffs = self.old_e_coeffs[1:].reshape(n_occ, n_vir)
-            cis_coeffs_tderiv = (cis_coeffs - old_cis_coeffs) / self.dt
 
             ##
 
