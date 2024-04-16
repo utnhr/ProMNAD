@@ -290,6 +290,8 @@ class Electronic_state:
         """Update MO energies and coefficients according to TD-KS equation."""
         utils.printer.write_out('Updating MOs: Started.\n')
 
+        self.old_mo_coeffs = deepcopy(self.mo_coeffs)
+
         new_mo_coeffs = self.propagate_without_trivial_phase(self.mo_coeffs, self.t_molecular_orbitals, self.dt)
 
         self.mo_coeffs = deepcopy(new_mo_coeffs)
@@ -526,15 +528,39 @@ class Electronic_state:
         
         n_estate = self.get_n_estate()
 
+        if self.is_open_shell:
+            n_spin = 2
+        else:
+            n_spin = 1
+
         if self.basis == 'configuration':
 
             # AO -> MO
 
+            S_pq = np.zeros_like(self.mo_coeffs)
+
+            for i_spin in range(n_spin):
+
+                S_pq[i_spin,:,:] = np.dot(
+                    np.dot(self.old_mo_coeffs[i_spin,:,:], self.deriv_coupling[:,:].astype('complex128')),
+                    self.mo_coeffs[i_spin,:,:].transpose()
+                )
+
             # MO -> determinant
+
+            n_occ = len(self.active_occ_mos)
+            n_vir = len(self.active_vir_mos)
+            n_act = n_occ + n_vir
+
+            cis_coeffs     = self.e_coeffs[1:].reshape(n_occ, n_vir)
+            old_cis_coeffs = self.old_e_coeffs[1:].reshape(n_occ, n_vir)
+            cis_coeffs_tderiv = (cis_coeffs - old_cis_coeffs) / self.dt
+
+            ##
 
             # determinant -> CSF
 
-            pass
+            ##
 
         else:
 
@@ -785,7 +811,7 @@ class Electronic_state:
             )
 
             self.mo_coeffs     = mo_coeffs_real.astype('complex128')
-            self.old_mo_coeffs = None
+            #self.old_mo_coeffs = None
 
             self.gs_filling = self.dftbplus_instance.worker.get_filling(open_shell = self.is_open_shell)
 
