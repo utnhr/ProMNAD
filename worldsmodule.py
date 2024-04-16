@@ -118,6 +118,8 @@ class World:
         self.update_electronic_part()
         self.update_nuclear_part()
 
+        print('TBF COEFFS', self.tbf_coeffs) ## Debug code
+
         return
     
 

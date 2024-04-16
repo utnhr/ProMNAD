@@ -51,7 +51,7 @@ class dftbplus_manager:
 
     def go_to_workdir(self):
 
-        self.home = os.cwd()
+        self.home = os.getcwd()
 
         os.chdir(self.working_directory)
 

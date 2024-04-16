@@ -261,8 +261,10 @@ class Electronic_state:
             # mo_coeffs can either phase-containing or phaseless MOs
 
             gs_rho = get_mo_dependent_gs_density_matrix(mo_coeffs)
-
+            
+            self.dftbplus_instance.go_to_workdir()
             Htmp = self.dftbplus_instance.worker.return_hamiltonian(gs_rho)
+            self.dftbplus_instance.return_from_workdir()
 
             H = np.zeros_like(Htmp, dtype = 'complex128')
 
@@ -496,11 +498,13 @@ class Electronic_state:
         
         if self.qc_program == 'dftb+':
             
+            self.dftbplus_instance.go_to_workdir()
             overlap_twogeom_0 = self.dftbplus_instance.worker.return_overlap_twogeom(position_2d,     position_2d)
             overlap_twogeom_1 = self.dftbplus_instance.worker.return_overlap_twogeom(position_2d, new_position_2d)
             overlap_twogeom_2 = self.dftbplus_instance.worker.return_overlap_twogeom(position_2d, old_position_2d)
             overlap_twogeom_3 = self.dftbplus_instance.worker.return_overlap_twogeom(new_position_2d, position_2d)
             overlap_twogeom_4 = self.dftbplus_instance.worker.return_overlap_twogeom(old_position_2d, position_2d)
+            self.dftbplus_instance.return_from_workdir()
 
             #temp1 = overlap_twogeom_1 - overlap_twogeom_0
             #temp2 = overlap_twogeom_2 - overlap_twogeom_0
@@ -588,7 +592,10 @@ class Electronic_state:
         force = np.zeros_like(self.position)
 
         if not self.is_edyn_initialized:
+            print('EDYN INITIALIZATION', self.electronic_state_id) ## Debug code
+            self.dftbplus_instance.go_to_workdir()
             self.dftbplus_instance.worker.init_elec_dynamics()
+            self.dftbplus_instance.return_from_workdir()
             self.is_edyn_initialized = True
 
         if self.S is None:
@@ -609,7 +616,9 @@ class Electronic_state:
         rho_real[:,:,:] = self.rho[:,:,:]
         
         H = np.zeros_like(self.rho)
+        self.dftbplus_instance.go_to_workdir()
         tmp = self.dftbplus_instance.worker.return_hamiltonian(rho_real)
+        self.dftbplus_instance.return_from_workdir()
 
         if self.is_open_shell:
             n_spin = 2
@@ -619,8 +628,10 @@ class Electronic_state:
         for i_spin in range(n_spin):
             H[i_spin,:,:] = utils.hermitize(tmp[i_spin,:,:], is_upper_triangle = True)
 
+        self.dftbplus_instance.go_to_workdir()
         force = self.dftbplus_instance.worker.get_ehrenfest_force(H, self.rho, S, Sinv)
         #force = dftbplus_manager.worker.get_ehrenfest_force(self.H, self.rho, S, Sinv)
+        self.dftbplus_instance.return_from_workdir()
 
         n_atom = len(self.atomparams)
 
@@ -640,6 +651,8 @@ class Electronic_state:
             #position_2d = utils.coord_1d_to_2d(self.position) * ANGST2AU
             position_2d = utils.coord_1d_to_2d(self.position)
 
+            self.dftbplus_instance.go_to_workdir()
+
             n_AO = sum( self.dftbplus_instance.worker.get_atom_nr_basis() )
 
             S = self.dftbplus_instance.worker.return_overlap_twogeom(position_2d, position_2d)
@@ -647,6 +660,8 @@ class Electronic_state:
             self.dftbplus_instance.worker.set_geometry(position_2d)
 
             self.dftbplus_instance.worker.update_coordinate_dependent_stuffs()
+
+            self.dftbplus_instance.return_from_workdir()
 
             self.update_gs_density_matrix()
 
@@ -800,6 +815,8 @@ class Electronic_state:
             n_atom = len(self.atomparams)
 
             coords = self.position.reshape(n_atom, 3)
+
+            self.dftbplus_instance.go_to_workdir()
             
             self.dftbplus_instance.worker.set_geometry(coords)
 
@@ -815,6 +832,8 @@ class Electronic_state:
             self.old_mo_coeffs = None
 
             self.gs_filling = self.dftbplus_instance.worker.get_filling(open_shell = self.is_open_shell)
+
+            self.dftbplus_instance.return_from_workdir()
 
             self.n_elec = np.sum(self.gs_filling)
 
