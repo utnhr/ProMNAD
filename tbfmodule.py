@@ -496,6 +496,8 @@ class Tbf:
 
         self.e_part.update_matrices()
 
+        self.e_part.update_estate_energies()
+
         estate_energies = self.e_part.get_estate_energies()
 
         self.e_part.update_tdnac()

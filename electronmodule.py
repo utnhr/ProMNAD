@@ -412,7 +412,7 @@ class Electronic_state:
         return trivial_phase
 
     
-    def get_estate_energies(self, return_1d = True): ## placeholder
+    def update_estate_energies(self):
         """Get energy of each 'electronic state', which is i->a excitation configuration. Approximate state energy as MO energy difference."""
 
         #return np.zeros_like(self.e_coeffs)
@@ -454,7 +454,12 @@ class Electronic_state:
 
             utils.printer.write_out('Updating electronic state energies: Done.\n')
             
-            return deepcopy(self.estate_energies)
+            return
+
+
+    def get_estate_energies(self):
+        
+        return deepcopy(self.estate_energies)
 
 
     def update_derivative_coupling(self):
