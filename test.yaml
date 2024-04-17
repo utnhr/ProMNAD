@@ -42,7 +42,9 @@ active_vir_mos:
 
 initial_estates:
   - 1
+  - 2
 initial_coeffs:
+  - 1.0
   - 1.0
 n_step: 100000
 
@@ -51,6 +53,6 @@ print_xyz_interval: 100
 
 dt_deriv: 1.0
 
-#reconst_interval: 100
+reconst_interval: -1
 
 is_fixed: False

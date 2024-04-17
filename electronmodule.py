@@ -76,7 +76,7 @@ class Electronic_state:
 
         self.is_edyn_initialized  = False
 
-        self.integrator = Integrator()
+        self.integrator = Integrator(self.integmethod)
 
         if self.qc_program == 'dftb+':
             self.dftbplus_instance = init_qc_engine(settings, "%d" % self.electronic_state_id)
@@ -189,12 +189,12 @@ class Electronic_state:
         return deepcopy(self.S)
 
 
-    def get_molecular_orbitals(self):
-        """Solve F * C = S * C * e ; get MO energies and coefficients."""    
+    #def get_molecular_orbitals(self):
+    #    """Solve F * C = S * C * e ; get MO energies and coefficients."""    
 
-        self.update_molecular_orbitals()
+    #    self.update_molecular_orbitals()
 
-        return deepcopy(self.mo_energies), deepcopy(self.mo_coeffs)
+    #    return deepcopy(self.mo_energies), deepcopy(self.mo_coeffs)
 
 
     def construct_initial_molecular_orbitals(self):
@@ -287,21 +287,53 @@ class Electronic_state:
         return mo_tderiv
 
 
-    def update_molecular_orbitals(self, is_before_initial = False):
+    def update_molecular_orbitals(self, is_before_initial = False, calc_mo_tdnac = True):
         """Update MO energies and coefficients according to TD-KS equation."""
         utils.printer.write_out('Updating MOs: Started.\n')
 
-        self.old_mo_coeffs = deepcopy(self.mo_coeffs)
-
-        new_mo_coeffs = self.propagate_without_trivial_phase(self.mo_coeffs, self.t_molecular_orbitals, self.dt)
-
-        self.mo_coeffs = deepcopy(new_mo_coeffs)
-        
         if self.is_open_shell:
             n_spin = 2
         else:
             n_spin = 1
 
+        self.old_mo_coeffs = deepcopy(self.mo_coeffs)
+
+        new_mo_coeffs = self.propagate_without_trivial_phase(self.mo_coeffs, self.t_molecular_orbitals, self.dt)
+
+        if calc_mo_tdnac:
+
+            # (1/2) * <\psi(t-dt)|\psi(t+dt)>
+
+            #position_2d = utils.coord_1d_to_2d(self.position)
+            #velocity_2d = utils.coord_1d_to_2d(self.velocity)
+
+            #old_position_2d = position_2d - self.dt * velocity_2d
+            #new_position_2d = position_2d + self.dt * velocity_2d
+        
+            #if self.qc_program == 'dftb+':
+            #    
+            #    self.dftbplus_instance.go_to_workdir()
+            #    overlap_twogeom_1 = self.dftbplus_instance.worker.return_overlap_twogeom(old_position_2d, new_position_2d)
+            #    overlap_twogeom_2 = self.dftbplus_instance.worker.return_overlap_twogeom(new_position_2d, old_position_2d)
+            #    self.dftbplus_instance.return_from_workdir()
+
+            #    S = np.triu(overlap_twogeom_1) + np.triu(overlap_twogeom_2).transpose() - np.diag(np.diag(overlap_twogeom_1))
+
+            #else:
+
+            #    utils.stop_with_error("MO TDNAC calculation is not compatible with QC program %s .\n" % self.qc_program)
+
+            self.mo_tdnac = np.zeros_like(self.mo_coeffs)
+
+            for i_spin in range(n_spin):
+
+                self.mo_tdnac[i_spin,:,:] = 0.5 * np.dot(
+                    np.dot(np.conj(self.old_mo_coeffs[i_spin,:,:]), self.deriv_coupling.astype('complex128')),
+                    new_mo_coeffs[i_spin,:,:].transpose()
+                )
+
+        self.mo_coeffs = deepcopy(new_mo_coeffs)
+        
         for i_spin in range(n_spin):
 
             mo_midstep = deepcopy(self.mo_coeffs[i_spin,:,:])
@@ -348,52 +380,11 @@ class Electronic_state:
 
         mo_nophase = mo * inv_trivial_phase_factor
 
-        if self.integmethod == 'euler':
-
-            new_mo_nophase = self.integrator.euler(
-                self.dt, self.t_molecular_orbitals, mo_nophase, self.make_mo_tderiv,
-                self.deriv_coupling, self.Sinv, True, self.init_mo_energies,
-            )
+        new_mo_nophase = self.integrator.engine(
+            self.dt, self.t_molecular_orbitals, mo_nophase, self.make_mo_tderiv,
+            self.deriv_coupling, self.Sinv, True, self.init_mo_energies,
+        )
         
-        elif self.integmethod == 'leapfrog':
-
-            new_mo_nophase = self.integrator.leapfrog(
-                self.dt, self.t_molecular_orbitals, mo_nophase, self.make_mo_tderiv,
-                self.deriv_coupling, self.Sinv, True, self.init_mo_energies,
-            )
-
-        elif self.integmethod == 'adams_bashforth_2':
-
-            new_mo_nophase = self.integrator.adams_bashforth_2(
-                self.dt, self.t_molecular_orbitals, mo_nophase, self.make_mo_tderiv,
-                self.deriv_coupling, self.Sinv, True, self.init_mo_energies,
-            )
-
-        elif self.integmethod == 'adams_bashforth_4':
-
-            new_mo_nophase = self.integrator.adams_bashforth_4(
-                self.dt, self.t_molecular_orbitals, mo_nophase, self.make_mo_tderiv,
-                self.deriv_coupling, self.Sinv, True, self.init_mo_energies,
-            )
-
-        elif self.integmethod == 'adams_moulton_2':
-
-            new_mo_nophase = self.integrator.adams_moulton_2(
-                self.dt, self.t_molecular_orbitals, mo_nophase, self.make_mo_tderiv,
-                self.deriv_coupling, self.Sinv, True, self.init_mo_energies,
-            )
-
-        elif self.integmethod == 'adams_moulton_4':
-
-            new_mo_nophase = self.integrator.adams_moulton_4(
-                self.dt, self.t_molecular_orbitals, mo_nophase, self.make_mo_tderiv,
-                self.deriv_coupling, self.Sinv, True, self.init_mo_energies,
-            )
-
-        else:
-
-            utils.stop_with_error("Unknown integrator type %s .\n" % self.integmethod)
-
         new_mo = new_mo_nophase * self.get_trivial_phase_factor(self.init_mo_energies, t+dt, invert = False)
 
         return new_mo
@@ -527,7 +518,7 @@ class Electronic_state:
         return
 
 
-    def get_tdnac(self): ## placeholder
+    def update_tdnac(self): # TDNAC at t-(1/2)dt
         
         n_estate = self.get_n_estate()
 
@@ -550,19 +541,13 @@ class Electronic_state:
 
             # AO -> MO
 
-            S_pq = np.zeros_like(self.mo_coeffs)
             S_occ = np.zeros( (n_spin, n_occ, n_occ), dtype = 'complex128' ) # for active occ. MOs
             S_vir = np.zeros( (n_spin, n_vir, n_vir), dtype = 'complex128' ) # for active vir. MOs
 
             for i_spin in range(n_spin):
 
-                S_pq[i_spin,:,:] = np.dot(
-                    np.dot(np.conj(self.old_mo_coeffs[i_spin,:,:]), self.deriv_coupling[:,:].astype('complex128')),
-                    self.mo_coeffs[i_spin,:,:].transpose()
-                )
-
-                S_occ[i_spin,:,:] = S_pq[i_spin,self.active_occ_mos,:][:,self.active_occ_mos]
-                S_vir[i_spin,:,:] = S_pq[i_spin,self.active_vir_mos,:][:,self.active_vir_mos]
+                S_occ[i_spin,:,:] = self.mo_tdnac[i_spin,self.active_occ_mos,:][:,self.active_occ_mos]
+                S_vir[i_spin,:,:] = self.mo_tdnac[i_spin,self.active_vir_mos,:][:,self.active_vir_mos]
 
             # here, a state is an excitation configuration
             # (currently, assuming closed-shell systems)
@@ -613,8 +598,15 @@ class Electronic_state:
         else:
 
             utils.stop_with_error("Unknown electronic-state basis %s; TDNAC calculation failed.\n" % self.basis)
+
+        self.tdnac = tdnac
         
-        return tdnac
+        return
+
+
+    def get_tdnac(self):
+
+        return self.tdnac
 
     
     def get_force(self):
@@ -694,7 +686,7 @@ class Electronic_state:
 
             self.update_gs_hamiltonian_and_molevels()
             
-            if self.i_step % self.reconst_interval == 0:
+            if self.i_step % self.reconst_interval == 0 and self.reconst_interval > 0:
                 self.reconstruct_gs(energy_only = True)
 
             n_spin = int(self.is_open_shell) + 1

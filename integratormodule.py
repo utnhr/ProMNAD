@@ -10,7 +10,7 @@ import utils
 
 class Integrator:
     
-    def __init__(self):
+    def __init__(self, method):
 
         self.n_hist = 5
 
@@ -21,6 +21,10 @@ class Integrator:
         self.mix_alpha = 1.0
         
         self.i_called = 0
+
+        function_name = 'self.' + method
+
+        self.engine = eval(function_name) # integrator engine (euler, leapfrog, etc.)
 
         return
 

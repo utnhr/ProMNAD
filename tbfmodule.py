@@ -12,6 +12,7 @@ import utils
 from interface_dftbplus import dftbplus_manager
 from electronmodule import Electronic_state
 from settingsmodule import load_setting
+from integratormodule import Integrator
 #from worldsmodule import World
 
 class Tbf:
@@ -251,6 +252,8 @@ class Tbf:
 
         self.print_xyz_interval = load_setting(settings, 'print_xyz_interval')
 
+        self.integmethod = load_setting(settings, 'integrator')
+
         if self.read_traject:
 
             given_geoms      = load_setting(settings, 'given_geoms')
@@ -290,6 +293,8 @@ class Tbf:
 
         self.Epot = 0.0
         self.Ekin = 0.0
+
+        self.integrator = Integrator(self.integmethod)
 
         return
 
@@ -462,22 +467,23 @@ class Tbf:
         return
 
 
+    def make_e_coeffs_tderiv(self, t, e_coeffs, H_el):
+
+        e_coeffs_tderiv = (-1.0j / H_DIRAC) * np.dot(H_el, e_coeffs)
+
+        return e_coeffs_tderiv
+
+
     def update_electronic_part(self, dt):
 
         # update electronic coeffs (leapfrog)
         
-        old_e_coeffs    = self.e_part.get_old_e_coeffs()
-        e_coeffs_tderiv = self.e_part.get_e_coeffs_tderiv()
+        #old_e_coeffs    = self.e_part.get_old_e_coeffs()
+        #e_coeffs_tderiv = self.e_part.get_e_coeffs_tderiv()
 
-        e_coeffs = old_e_coeffs + 2.0 * e_coeffs_tderiv * dt
-
-        print('E_COEFF', e_coeffs) ## Debug code
-
-        self.e_part.set_new_e_coeffs(e_coeffs)
+        #e_coeffs = old_e_coeffs + 2.0 * e_coeffs_tderiv * dt
 
         # update position and velocity for electronic part
-
-        istep = self.get_istep()
 
         self.e_part.set_next_position( self.get_position() )
         self.e_part.set_next_velocity( self.get_velocity() )
@@ -492,7 +498,11 @@ class Tbf:
 
         estate_energies = self.e_part.get_estate_energies()
 
+        self.e_part.update_tdnac()
+
         tdnac = self.e_part.get_tdnac()
+
+        print('TDNAC', tdnac) ## Debug code
         
         # construct electronic Hamiltonian
         # and update time derivative of electronic coeffs
@@ -503,7 +513,19 @@ class Tbf:
         for i_estate in range(n_estate):
             H_el[i_estate,i_estate] += estate_energies[i_estate]
 
-        e_coeffs_tderiv = (-1.0j / H_DIRAC) * np.dot(H_el, e_coeffs)
+        e_coeffs = self.e_part.get_e_coeffs()
+
+        t = dt * self.get_istep()
+
+        e_coeffs = self.integrator.engine(dt, t, e_coeffs, self.make_e_coeffs_tderiv, H_el)
+
+        #print('E_COEFF', e_coeffs) ## Debug code
+        #print('E POPUL', np.abs(e_coeffs)) ## Debug code
+        #print('|E_COEFF|', np.linalg.norm(e_coeffs)) ## Debug code
+
+        self.e_part.set_new_e_coeffs(e_coeffs)
+
+        e_coeffs_tderiv = self.make_e_coeffs_tderiv(t, e_coeffs, H_el)
 
         self.e_part.set_new_e_coeffs_tderiv(e_coeffs_tderiv)
 
