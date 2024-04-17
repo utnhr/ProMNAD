@@ -466,10 +466,12 @@ class Tbf:
 
         # update electronic coeffs (leapfrog)
         
-        old_e_coeffs        = self.e_part.get_old_e_coeffs()
-        e_coeffs_tderiv     = self.e_part.get_e_coeffs_tderiv()
+        old_e_coeffs    = self.e_part.get_old_e_coeffs()
+        e_coeffs_tderiv = self.e_part.get_e_coeffs_tderiv()
 
         e_coeffs = old_e_coeffs + 2.0 * e_coeffs_tderiv * dt
+
+        print('E_COEFF', e_coeffs) ## Debug code
 
         self.e_part.set_new_e_coeffs(e_coeffs)
 

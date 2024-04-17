@@ -95,6 +95,7 @@ class Electronic_state:
             self.n_MO             = None
             self.n_AO             = None
             self.gs_rho           = None
+            self.initial_gs_energy = None
 
         return
 
@@ -455,8 +456,10 @@ class Electronic_state:
             self.old_estate_energies = deepcopy(self.estate_energies)
 
             array_1d = np.array(state_energies).flatten()
-
+            
             self.estate_energies = np.insert(array_1d, 0, self.gs_energy)
+
+            self.estate_energies -= self.initial_gs_energy # shift origin to avoid fast phase oscillation
 
             utils.printer.write_out('Updating electronic state energies: Done.\n')
             
@@ -528,9 +531,10 @@ class Electronic_state:
         
         n_estate = self.get_n_estate()
 
+        tdnac = np.zeros( (n_estate, n_estate), dtype='complex128' )
+
         if self.is_open_shell:
             n_spin = 2
-            utils.stop_with_error('Now, not compatible with open-shell systems.\n')
         else:
             n_spin = 1
 
@@ -538,37 +542,77 @@ class Electronic_state:
         n_vir = len(self.active_vir_mos)
         n_act = n_occ + n_vir
 
-        cis_coeffs     = self.e_coeffs[1:].reshape(n_occ, n_vir)
-        old_cis_coeffs = self.old_e_coeffs[1:].reshape(n_occ, n_vir)
-        cis_coeffs_tderiv = (cis_coeffs - old_cis_coeffs) / self.dt
+        #cis_coeffs     = self.e_coeffs[1:].reshape(n_occ, n_vir)
+        #old_cis_coeffs = self.old_e_coeffs[1:].reshape(n_occ, n_vir)
+        #cis_coeffs_tderiv = (cis_coeffs - old_cis_coeffs) / self.dt
 
         if self.basis == 'configuration':
 
             # AO -> MO
 
             S_pq = np.zeros_like(self.mo_coeffs)
+            S_occ = np.zeros( (n_spin, n_occ, n_occ), dtype = 'complex128' ) # for active occ. MOs
+            S_vir = np.zeros( (n_spin, n_vir, n_vir), dtype = 'complex128' ) # for active vir. MOs
 
             for i_spin in range(n_spin):
 
                 S_pq[i_spin,:,:] = np.dot(
-                    np.dot(self.old_mo_coeffs[i_spin,:,:], self.deriv_coupling[:,:].astype('complex128')),
+                    np.dot(np.conj(self.old_mo_coeffs[i_spin,:,:]), self.deriv_coupling[:,:].astype('complex128')),
                     self.mo_coeffs[i_spin,:,:].transpose()
                 )
 
-            # MO -> determinant
+                S_occ[i_spin,:,:] = S_pq[i_spin,self.active_occ_mos,:][:,self.active_occ_mos]
+                S_vir[i_spin,:,:] = S_pq[i_spin,self.active_vir_mos,:][:,self.active_vir_mos]
 
+            # here, a state is an excitation configuration
+            # (currently, assuming closed-shell systems)
+            
+            if self.is_open_shell:
+                utils.stop_with_error('Now, not compatible with open-shell systems.\n')
+            
+            P = np.array( [ [ (-1.0)**abs(j-i) for j in range(n_occ) ] for i in range(n_occ) ] )
+            nac_occ = P * S_occ[i_spin,:,:]
+            nac_vir = S_vir[i_spin,:,:]
 
-            ##
+            for k_estate in range(n_estate):
 
-            # determinant -> CSF
+                # be careful that ground state is included
+                
+                i_occ_k = (k_estate-1) // n_vir
+                i_vir_k = (k_estate-1) % n_vir
+                    
+                for j_estate in range(k_estate, n_estate):
 
-            ##
+                    if k_estate * j_estate == 0: # gound-excited (and ground-ground) TDNACs are zero
+                        
+                        val = 0.0
+
+                    elif k_estate == j_estate: # TDNACs between the same states are zero
+                        
+                        val = 0.0
+
+                    else:
+
+                        i_occ_j = (j_estate-1) // n_vir
+                        i_vir_j = (j_estate-1) % n_vir
+
+                        if i_occ_k == i_occ_j:
+
+                            val = nac_vir[i_vir_k, i_vir_j]
+
+                        elif i_vir_k == i_vir_j:
+                            
+                            val = nac_occ[i_occ_k, i_occ_j]
+
+                    tdnac[k_estate, j_estate] = val
+                    tdnac[j_estate, k_estate] = -val
+
+            #for i_occ in range(n_occ):
+            #        tdnac[ 1 + i_occ * n_vir : , 1 + i_occ * n_vir : ] = nac_vir[:, :]
 
         else:
 
             utils.stop_with_error("Unknown electronic-state basis %s; TDNAC calculation failed.\n" % self.basis)
-
-        tdnac = np.zeros( (n_estate, n_estate), dtype='float64' ) ## placeholder
         
         return tdnac
 
@@ -828,6 +872,7 @@ class Electronic_state:
             
             if is_initial:
                 self.rho = self.gs_rho.astype('complex128')
+                self.initial_gs_energy = self.gs_energy
 
             #self.construct_initial_molecular_orbitals()
 
