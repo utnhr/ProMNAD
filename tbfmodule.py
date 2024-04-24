@@ -28,8 +28,10 @@ class Tbf:
         mom1 = tbf1.get_momentum()
         mom2 = tbf2.get_momentum()
 
-        delta_pos   = tbf2.position - tbf1.position
-        delta_mom   = tbf2.momentum - tbf2.momentum
+        #delta_pos   = tbf2.position - tbf1.position
+        #delta_mom   = tbf2.momentum - tbf1.momentum
+        delta_pos   = pos2 - pos1
+        delta_mom   = mom2 - mom1
         delta_phase = tbf2.get_phase() - tbf1.get_phase()
 
         mid_pos   = 0.5 * (pos1 + pos2)
@@ -52,6 +54,8 @@ class Tbf:
             val *= exp( (1j/H_DIRAC)*delta_phase[i_dof] )
 
             vals.append(val)
+
+        #print('VALS', vals) ## Debug code
 
         return np.array(vals)
 
@@ -88,7 +92,7 @@ class Tbf:
         """Calculate overlap matrix between two TBFs."""
         s_gw = gaussian_overlap
         return s_gw.prod() * np.dot(
-            tbf1.e_part.get_e_coeffs(), tbf2.e_part.get_e_coeffs()
+            np.conj(tbf1.e_part.get_e_coeffs()), tbf2.e_part.get_e_coeffs()
         )
 
     
@@ -115,8 +119,8 @@ class Tbf:
         if each_degree:
             return kin
         else:
-            return kin.prod()
-    
+            #$return kin.prod()
+            return kin.sum()
     
     @classmethod
     def get_gaussian_potential_term(cls, tbf1, tbf2, gaussian_overlap):
@@ -156,12 +160,17 @@ class Tbf:
         potentials = cls.get_gaussian_potential_term(tbf1, tbf2, gaussian_overlap)
         tdnacs     = cls.get_gaussian_NAcoupling_term(tbf1, tbf2, gaussian_overlap)
 
-        vals = [ [ 0.0j for i_estate in range(n_estates[0]) ] for j_estate in range(n_estates[1]) ]
+        #vals = [ [ 0.0j for i_estate in range(n_estates[0]) ] for j_estate in range(n_estates[1]) ]
+
+        #print('KINE', kinE) ## Debug code
+        #print('POTENTIALS', potentials) ## Debug code
+
+        H_mn = 0.0j
 
         for i_estate in range(n_estates[0]):
             for j_estate in range(n_estates[1]):
 
-                fac = e_coeffs[0][i_estate] * e_coeffs[1][j_estate]
+                fac = e_coeffs[0][i_estate].conj() * e_coeffs[1][j_estate]
 
                 val = 0.0j
 
@@ -172,7 +181,9 @@ class Tbf:
 
                 val += tdnacs[i_estate, j_estate]
 
-        return fac * val
+                H_mn += fac * val
+
+        return H_mn
 
 
     @classmethod
@@ -295,6 +306,7 @@ class Tbf:
         self.Ekin = 0.0
 
         self.integrator = Integrator(self.integmethod)
+        self.phase_integrator = Integrator('adams_bashforth_2')
 
         return
 
@@ -503,8 +515,6 @@ class Tbf:
         self.e_part.update_tdnac()
 
         tdnac = self.e_part.get_tdnac()
-
-        print('TDNAC', tdnac) ## Debug code
         
         # construct electronic Hamiltonian
         # and update time derivative of electronic coeffs
@@ -540,6 +550,14 @@ class Tbf:
         return
 
 
+    def dgdt(self, t, phase): # dgamma/dt; time-dependence of phase
+
+        momentum = self.get_momentum()
+        velocity = self.get_velocity()
+        
+        return 0.5 * np.dot(momentum, velocity)
+
+
     def update_position_and_velocity(self, dt):
         
         old_position = self.get_old_position()
@@ -567,6 +585,8 @@ class Tbf:
 
             #momentum = old_momentum + 2.0 * force * dt
             momentum = self.get_momentum() + 0.5 * (self.old_force + self.force) * dt
+
+        self.phase = self.phase_integrator.engine(dt, 0, self.phase, self.dgdt)
 
         if self.is_fixed:
             position = old_position

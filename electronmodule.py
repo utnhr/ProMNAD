@@ -453,7 +453,7 @@ class Electronic_state:
             self.estate_energies -= self.initial_gs_energy # shift origin to avoid fast phase oscillation
 
             utils.printer.write_out('Updating electronic state energies: Done.\n')
-            
+
             return
 
 

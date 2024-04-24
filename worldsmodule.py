@@ -30,6 +30,8 @@ class World:
         self.S_tbf = None
         self.H_tbf = None
 
+        self.H_tbf_diag_origin = None
+
         self.world_id = len(World.worlds)
 
         World.worlds.append(self)
@@ -118,7 +120,8 @@ class World:
         self.update_electronic_part()
         self.update_nuclear_part()
 
-        print('TBF COEFFS', self.tbf_coeffs) ## Debug code
+        #print('TBF COEFFS', self.tbf_coeffs) ## Debug code
+        print('TBF COEFFS NORM', np.linalg.norm(self.tbf_coeffs)) ## Debug code
 
         return
     
@@ -225,20 +228,28 @@ class World:
                 self.S_tbf[i,j] = val
                 self.S_tbf[j,i] = val
 
-                val = 0.5 * ( self.H_tbf[i,j] + np.conjugate(self.H_tbf[j,i]) )
-                self.H_tbf[i,j] = val
-                self.H_tbf[j,i] = np.conjugate(val)
+                #val = 0.5 * ( self.H_tbf[i,j] + np.conjugate(self.H_tbf[j,i]) )
+                #self.H_tbf[i,j] = val
+                #self.H_tbf[j,i] = np.conjugate(val)
+
+        # subtract energy origin
+
+        if self.H_tbf_diag_origin is None:
+            self.H_tbf_diag_origin = np.diag( np.diag(self.H_tbf) )
+
+        self.H_tbf -= self.H_tbf_diag_origin
         
         # time derivative of TBF coeffs
         
         tbf_coeffs = self.get_tbf_coeffs()
 
         tbf_coeffs_tderiv = (-1.0j / H_DIRAC) * np.dot(
-            np.linalg.inv(self.S_tbf), np.dot(self.H_tbf, tbf_coeffs)
-        )
+            np.linalg.inv(self.S_tbf), np.dot(self.H_tbf, tbf_coeffs.transpose())
+        ).transpose()
 
         print('H_TBF', self.H_tbf) ## Debug code
-        #print('TBF COEFFS TDERIV', tbf_coeffs_tderiv) ## Debug code
+        print('S_TBF', self.S_tbf) ## Debug code
+        print('TBF COEFFS TDERIV', tbf_coeffs_tderiv) ## Debug code
 
         self.set_new_tbf_coeffs_tderiv(tbf_coeffs_tderiv)
 
@@ -264,7 +275,7 @@ class World:
 
     def set_new_tbf_coeffs(self, new_tbf_coeffs):
         
-        self.old_tbf_coeffs = self.tbf_coeffs
+        self.old_tbf_coeffs = deepcopy(self.tbf_coeffs)
         self.tbf_coeffs     = new_tbf_coeffs
 
         return
@@ -272,7 +283,7 @@ class World:
 
     def set_new_tbf_coeffs_tderiv(self, new_tbf_coeffs_tderiv):
         
-        self.old_tbf_coeffs_tderiv = self.tbf_coeffs_tderiv
-        self.tbf_coeffs_tderiv     = self.tbf_coeffs_tderiv
+        self.old_tbf_coeffs_tderiv = deepcopy(self.tbf_coeffs_tderiv)
+        self.tbf_coeffs_tderiv     = new_tbf_coeffs_tderiv
 
         return
