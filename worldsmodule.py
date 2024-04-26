@@ -6,6 +6,7 @@ from constants import ATOM_MASSES_AMU, DEFAULT_GWP_WIDTH_AU, H_DIRAC, AMU2AU
 from copy import deepcopy
 from utils import stop_with_error
 from settingsmodule import load_setting
+from integratormodule import Integrator
 
 class World:
     
@@ -36,7 +37,10 @@ class World:
 
         self.world_id = len(World.worlds)
 
-        self.integrator = Integrator(
+        #self.integmethod = load_setting(settings, 'integrator')
+
+        #self.integrator = Integrator(self.integmethod)
+        self.integrator = Integrator('adams_moulton_2')
 
         World.worlds.append(self)
         
@@ -89,7 +93,7 @@ class World:
             initial_e_coeffs = [ 0.0+0.0j for i in range(self.settings['n_estate']) ]
             initial_e_coeffs[initial_estates[i_tbf]] = 1.0+0.0j
             initial_e_coeffs = np.array(initial_e_coeffs)
-            
+
             initial_tbf = Tbf(
                 self.settings, self.atomparams, position, n_dof, self.settings['n_estate'], len(self.tbfs),
                 momentum = momentum, mass = mass, width = width, e_coeffs = initial_e_coeffs,
@@ -174,18 +178,6 @@ class World:
 
     def update_nuclear_part(self):
 
-        # update TBF coeffs (leapfrog)
-
-        old_tbf_coeffs      = self.get_old_tbf_coeffs()
-        tbf_coeffs_tderiv   = self.get_tbf_coeffs_tderiv()
-        
-        if old_tbf_coeffs is None:
-            tbf_coeffs = self.get_tbf_coeffs() + 1.0 * tbf_coeffs_tderiv * self.dt
-        else:
-            tbf_coeffs = old_tbf_coeffs + 2.0 * tbf_coeffs_tderiv * self.dt
-
-        self.set_new_tbf_coeffs(tbf_coeffs)
-        
         # construct TBF Hamiltonian
 
         n_tbf = self.get_total_tbf_count()
@@ -265,19 +257,23 @@ class World:
         for i in range(n_tbf):
             self.H_tbf[i,i] -= self.H_tbf_diag_origin
         
-        # time derivative of TBF coeffs
+        # propagation of TBF coeffs
         
         tbf_coeffs = self.get_tbf_coeffs()
+
+        new_tbf_coeffs = self.integrator.engine(
+            self.dt, 0.0, tbf_coeffs, self.make_tbf_coeffs_tderiv
+        )
 
         #tbf_coeffs_tderiv = (-1.0j / H_DIRAC) * np.dot(
         #    np.linalg.inv(self.S_tbf), np.dot(self.H_tbf, tbf_coeffs.transpose())
         #).transpose()
 
-        print('H_TBF', self.H_tbf) ## Debug code
-        print('S_TBF', self.S_tbf) ## Debug code
-        print('TBF COEFFS TDERIV', tbf_coeffs_tderiv) ## Debug code
+        #print('H_TBF', self.H_tbf) ## Debug code
+        #print('S_TBF', self.S_tbf) ## Debug code
+        #print('TBF COEFFS TDERIV', tbf_coeffs_tderiv) ## Debug code
 
-        self.set_new_tbf_coeffs_tderiv(tbf_coeffs_tderiv)
+        self.set_new_tbf_coeffs(new_tbf_coeffs)
 
         return
     
