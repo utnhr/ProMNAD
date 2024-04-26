@@ -36,6 +36,8 @@ class World:
 
         self.world_id = len(World.worlds)
 
+        self.integrator = Integrator(
+
         World.worlds.append(self)
         
         return
@@ -161,6 +163,15 @@ class World:
         return
 
 
+    def make_tbf_coeffs_tderiv(self, t, tbf_coeffs):
+        
+        tbf_coeffs_tderiv = (-1.0j / H_DIRAC) * np.dot(
+            np.linalg.inv(self.S_tbf), np.dot(self.H_tbf, tbf_coeffs.transpose())
+        ).transpose()
+
+        return tbf_coeffs_tderiv
+
+
     def update_nuclear_part(self):
 
         # update TBF coeffs (leapfrog)
@@ -258,9 +269,9 @@ class World:
         
         tbf_coeffs = self.get_tbf_coeffs()
 
-        tbf_coeffs_tderiv = (-1.0j / H_DIRAC) * np.dot(
-            np.linalg.inv(self.S_tbf), np.dot(self.H_tbf, tbf_coeffs.transpose())
-        ).transpose()
+        #tbf_coeffs_tderiv = (-1.0j / H_DIRAC) * np.dot(
+        #    np.linalg.inv(self.S_tbf), np.dot(self.H_tbf, tbf_coeffs.transpose())
+        #).transpose()
 
         print('H_TBF', self.H_tbf) ## Debug code
         print('S_TBF', self.S_tbf) ## Debug code
