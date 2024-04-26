@@ -22,8 +22,10 @@ class World:
         self.tbfs                  = []
         self.tbf_coeffs            = np.array([], dtype='complex128')
         self.tbf_coeffs_tderiv     = np.zeros_like(self.tbf_coeffs)
-        self.old_tbf_coeffs        = np.zeros_like(self.tbf_coeffs)
-        self.old_tbf_coeffs_tderiv = np.zeros_like(self.tbf_coeffs)
+        #self.old_tbf_coeffs        = np.zeros_like(self.tbf_coeffs)
+        #self.old_tbf_coeffs_tderiv = np.zeros_like(self.tbf_coeffs)
+        self.old_tbf_coeffs        = None
+        self.old_tbf_coeffs_tderiv = None
 
         self.dt = settings['dt']
 
@@ -103,8 +105,9 @@ class World:
 
         self.tbf_coeffs        = np.append(self.tbf_coeffs, coeff)
         self.tbf_coeffs_tderiv = np.append(self.tbf_coeffs_tderiv, 0.0+0.0j)
-        self.old_tbf_coeffs    = np.append(self.old_tbf_coeffs, coeff)
-        self.old_tbf_coeffs_tderiv = np.append(self.old_tbf_coeffs_tderiv, 0.0+0.0j)
+        if self.old_tbf_coeffs is not None:
+            self.old_tbf_coeffs    = np.append(self.old_tbf_coeffs, coeff)
+            self.old_tbf_coeffs_tderiv = np.append(self.old_tbf_coeffs_tderiv, 0.0+0.0j)
 
         if normalize:
 
@@ -121,7 +124,8 @@ class World:
         self.update_nuclear_part()
 
         #print('TBF COEFFS', self.tbf_coeffs) ## Debug code
-        print('TBF COEFFS NORM', np.linalg.norm(self.tbf_coeffs)) ## Debug code
+        #print('TBF COEFFS NORM', np.linalg.norm(self.tbf_coeffs)) ## Debug code
+        print('TBF COEFFS ABS', np.abs(self.tbf_coeffs)**2) ## Debug code
 
         return
     
@@ -161,10 +165,13 @@ class World:
 
         # update TBF coeffs (leapfrog)
 
-        old_tbf_coeffs      = self.get_tbf_coeffs()
+        old_tbf_coeffs      = self.get_old_tbf_coeffs()
         tbf_coeffs_tderiv   = self.get_tbf_coeffs_tderiv()
-
-        tbf_coeffs = old_tbf_coeffs + 2.0 * tbf_coeffs_tderiv * self.dt
+        
+        if old_tbf_coeffs is None:
+            tbf_coeffs = self.get_tbf_coeffs() + 1.0 * tbf_coeffs_tderiv * self.dt
+        else:
+            tbf_coeffs = old_tbf_coeffs + 2.0 * tbf_coeffs_tderiv * self.dt
 
         self.set_new_tbf_coeffs(tbf_coeffs)
         
@@ -182,7 +189,8 @@ class World:
             if not guy_i.is_alive:
                 continue
 
-            for j_tbf in range(n_tbf):
+            #for j_tbf in range(n_tbf):
+            for j_tbf in range(i_tbf,n_tbf):
 
                 guy_j = self.tbfs[j_tbf]
 
@@ -193,9 +201,13 @@ class World:
 
                 S_ij = Tbf.get_wf_overlap(guy_i, guy_j, gaussian_overlap = g_ij)
                 H_ij = Tbf.get_tbf_hamiltonian_element_BAT(guy_i, guy_j, gaussian_overlap = g_ij)
+                #H_ij = 0.0 ## Debug code
 
                 self.S_tbf[i_tbf,j_tbf] = S_ij
                 self.H_tbf[i_tbf,j_tbf] = H_ij
+
+                self.S_tbf[j_tbf,i_tbf] = S_ij
+                self.H_tbf[j_tbf,i_tbf] = np.conj(H_ij)
 
         # < \psi_m | d/dt | \psi_n >
 
@@ -206,7 +218,8 @@ class World:
             if not guy_i.is_alive:
                 continue
 
-            for j_tbf in range(n_tbf):
+            #for j_tbf in range(n_tbf):
+            for j_tbf in range(i_tbf,n_tbf):
 
                 guy_j = self.tbfs[j_tbf]
 
@@ -217,7 +230,8 @@ class World:
 
                 val = Tbf.get_tbf_derivative_coupling(guy_i, guy_j, g_ij)
 
-                self.H_tbf[i_tbf,j_tbf] -= val
+                self.H_tbf[i_tbf,j_tbf] -= 1.0j * H_DIRAC * val
+                self.H_tbf[j_tbf,i_tbf] += 1.0j * H_DIRAC * val
 
         # symmetrize S & hermitize H
 
@@ -235,9 +249,10 @@ class World:
         # subtract energy origin
 
         if self.H_tbf_diag_origin is None:
-            self.H_tbf_diag_origin = np.diag( np.diag(self.H_tbf) )
-
-        self.H_tbf -= self.H_tbf_diag_origin
+            self.H_tbf_diag_origin = np.diag(self.H_tbf)[0]
+        
+        for i in range(n_tbf):
+            self.H_tbf[i,i] -= self.H_tbf_diag_origin
         
         # time derivative of TBF coeffs
         
@@ -271,6 +286,10 @@ class World:
 
     def get_tbf_coeffs_tderiv(self):
         return deepcopy(self.tbf_coeffs_tderiv)
+
+
+    def get_old_tbf_coeffs(self):
+        return deepcopy(self.old_tbf_coeffs)
 
 
     def set_new_tbf_coeffs(self, new_tbf_coeffs):

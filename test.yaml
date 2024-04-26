@@ -46,9 +46,9 @@ initial_estates:
 initial_coeffs:
   - 1.0
   - 1.0
-n_step: 100
+n_step: 10000
 
-dt: 0.1
+dt: 0.01
 print_xyz_interval: 100
 
 dt_deriv: 1.0

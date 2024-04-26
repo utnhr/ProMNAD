@@ -78,6 +78,8 @@ class Electronic_state:
 
         self.integrator = Integrator(self.integmethod)
 
+        self.initial_estate_energies = None
+
         if self.qc_program == 'dftb+':
             self.dftbplus_instance = init_qc_engine(settings, "%d" % self.electronic_state_id)
         else:
