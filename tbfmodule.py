@@ -92,9 +92,9 @@ class Tbf:
         """Calculate overlap matrix between two TBFs."""
         s_gw = gaussian_overlap
         
-        #print('OVERLAP_GWP_PART',s_gw.prod()) ## Debug code
+        print('OVERLAP_GWP_PART',s_gw.prod()) ## Debug code
         #print('OVERLAP_E_PART', np.dot(np.conj(tbf1.e_part.get_e_coeffs()), tbf2.e_part.get_e_coeffs()) ) ## Debug code
-        
+
         return s_gw.prod() * np.dot(
             np.conj(tbf1.e_part.get_e_coeffs()), tbf2.e_part.get_e_coeffs()
         )
@@ -515,13 +515,19 @@ class Tbf:
         self.e_part.update_estate_energies()
 
         estate_energies = self.e_part.get_estate_energies()
-
+        
         # origin of electronic state energies
 
         if self.e_part.initial_estate_energies is None:
-            self.e_part.initial_estate_energies= deepcopy(estate_energies)
+            self.e_part.initial_estate_energies = [ estate_energies[0] for i_state in range( len(estate_energies) ) ]
 
         estate_energies -= self.e_part.initial_estate_energies
+
+        ### Debug code
+        #print('ESTATE 0', estate_energies[0])
+        #print('ESTATE 1', estate_energies[1])
+        #print('ESTATE 2', estate_energies[2])
+        ### End Debug code
 
         self.e_part.update_tdnac()
 

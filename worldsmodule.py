@@ -41,6 +41,8 @@ class World:
 
         #self.integrator = Integrator(self.integmethod)
         self.integrator = Integrator('adams_moulton_2')
+        #print('WARNING: TBF coeffs integrated with leapfrog method.') ## Debug code
+        #self.integrator = Integrator('leapfrog') ## Debug code
 
         World.worlds.append(self)
         
@@ -92,6 +94,12 @@ class World:
 
             initial_e_coeffs = [ 0.0+0.0j for i in range(self.settings['n_estate']) ]
             initial_e_coeffs[initial_estates[i_tbf]] = 1.0+0.0j
+            ### Debug code
+            #print('WARNING: INITIAL STATE NOT CORRECT')
+            #initial_e_coeffs[1] = 1.0
+            #initial_e_coeffs[2] = 1.0
+            #initial_e_coeffs /= np.linalg.norm(initial_e_coeffs)
+            ### End Debug code
             initial_e_coeffs = np.array(initial_e_coeffs)
 
             initial_tbf = Tbf(
@@ -274,6 +282,13 @@ class World:
         #print('TBF COEFFS TDERIV', tbf_coeffs_tderiv) ## Debug code
 
         self.set_new_tbf_coeffs(new_tbf_coeffs)
+        
+        ### Debug code
+        #coh = self.tbfs[0].e_part.get_e_coeffs()[1].conj() * self.tbfs[1].e_part.get_e_coeffs()[2]
+        #print('RHO 1,2', coh, abs(coh))
+        ##print('E_COEFF 1', self.tbfs[0].e_part.get_e_coeffs()[1])
+        ##print('E_COEFF 2', self.tbfs[1].e_part.get_e_coeffs()[2])
+        ### End Debug code
 
         return
     
