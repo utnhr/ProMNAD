@@ -306,33 +306,35 @@ class Electronic_state:
 
             # (1/2) * <\psi(t-dt)|\psi(t+dt)>
 
-            #position_2d = utils.coord_1d_to_2d(self.position)
-            #velocity_2d = utils.coord_1d_to_2d(self.velocity)
+            position_2d = utils.coord_1d_to_2d(self.position)
+            velocity_2d = utils.coord_1d_to_2d(self.velocity)
 
             #old_position_2d = position_2d - self.dt * velocity_2d
+            old_position_2d = position_2d - 2.0 * self.dt * velocity_2d
             #new_position_2d = position_2d + self.dt * velocity_2d
         
-            #if self.qc_program == 'dftb+':
-            #    
-            #    self.dftbplus_instance.go_to_workdir()
-            #    overlap_twogeom_1 = self.dftbplus_instance.worker.return_overlap_twogeom(old_position_2d, new_position_2d)
-            #    overlap_twogeom_2 = self.dftbplus_instance.worker.return_overlap_twogeom(new_position_2d, old_position_2d)
-            #    self.dftbplus_instance.return_from_workdir()
+            if self.qc_program == 'dftb+':
+                
+                self.dftbplus_instance.go_to_workdir()
+                overlap_twogeom = self.dftbplus_instance.worker.return_overlap_twogeom(old_position_2d, position_2d)
+                #overlap_twogeom_1 = self.dftbplus_instance.worker.return_overlap_twogeom(old_position_2d, new_position_2d)
+                #overlap_twogeom_2 = self.dftbplus_instance.worker.return_overlap_twogeom(new_position_2d, old_position_2d)
+                self.dftbplus_instance.return_from_workdir()
 
-            #    S = np.triu(overlap_twogeom_1) + np.triu(overlap_twogeom_2).transpose() - np.diag(np.diag(overlap_twogeom_1))
+                #S = np.triu(overlap_twogeom_1) + np.triu(overlap_twogeom_2).transpose() - np.diag(np.diag(overlap_twogeom_1))
 
-            #else:
+            else:
 
-            #    utils.stop_with_error("MO TDNAC calculation is not compatible with QC program %s .\n" % self.qc_program)
+                utils.stop_with_error("MO TDNAC calculation is not compatible with QC program %s .\n" % self.qc_program)
 
             self.mo_tdnac = np.zeros_like(self.mo_coeffs)
 
             for i_spin in range(n_spin):
 
                 self.mo_tdnac[i_spin,:,:] = 0.5 * np.dot(
-                    np.dot(np.conj(self.old_mo_coeffs[i_spin,:,:]), self.deriv_coupling.astype('complex128')),
+                    np.dot(np.conj(self.old_mo_coeffs[i_spin,:,:]), overlap_twogeom.astype('complex128')),
                     new_mo_coeffs[i_spin,:,:].transpose()
-                )
+                ) / self.dt
 
         self.mo_coeffs = deepcopy(new_mo_coeffs)
         
@@ -597,7 +599,12 @@ class Electronic_state:
                             val = nac_occ[i_occ_k, i_occ_j]
 
                     tdnac[k_estate, j_estate] = val
-                    tdnac[j_estate, k_estate] = -val
+                    tdnac[j_estate, k_estate] = -np.conj(val)
+                
+                    ## Debug code
+                    if k_estate == 1 and j_estate == 9:
+                        print('TDNAC between 1/9:', val)
+                    ## End Debug code
 
             #for i_occ in range(n_occ):
             #        tdnac[ 1 + i_occ * n_vir : , 1 + i_occ * n_vir : ] = nac_vir[:, :]
@@ -774,6 +781,8 @@ class Electronic_state:
                 active_mos[n_occ+i_vir,:] = self.mo_coeffs[0,active_vir_imo,:]
 
             cis_coeffs = self.e_coeffs[1:].reshape(n_occ, n_vir) # MO basis
+
+            print('CIS_COEFFS', cis_coeffs) ## Debug code
 
             rho_oo_mo = -np.dot( cis_coeffs.conjugate(), cis_coeffs.transpose() )
             rho_vv_mo = np.dot( cis_coeffs.transpose().conjugate(), cis_coeffs )

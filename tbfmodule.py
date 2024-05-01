@@ -523,11 +523,11 @@ class Tbf:
 
         estate_energies -= self.e_part.initial_estate_energies
 
-        ### Debug code
-        #print('ESTATE 0', estate_energies[0])
-        #print('ESTATE 1', estate_energies[1])
-        #print('ESTATE 2', estate_energies[2])
-        ### End Debug code
+        ## Debug code
+        print('ESTATE 0', estate_energies[0])
+        print('ESTATE 1', estate_energies[1])
+        print('ESTATE 9', estate_energies[9])
+        ## End Debug code
 
         self.e_part.update_tdnac()
 
@@ -549,8 +549,8 @@ class Tbf:
         e_coeffs = self.integrator.engine(dt, t, e_coeffs, self.make_e_coeffs_tderiv, H_el)
 
         #print('E_COEFF', e_coeffs) ## Debug code
-        #print('E POPUL', np.abs(e_coeffs)) ## Debug code
-        #print('|E_COEFF|', np.linalg.norm(e_coeffs)) ## Debug code
+        print('E POPUL', np.abs(e_coeffs)**2) ## Debug code
+        print('|E_COEFF|', np.linalg.norm(e_coeffs)) ## Debug code
 
         self.e_part.set_new_e_coeffs(e_coeffs)
 

@@ -1,0 +1,50 @@
+title: test run
+
+#geom_file: sample_geom.xyz
+#geom_file: sample_geom_3.xyz
+geom_file: 0.geom.xyz
+
+engine:
+  type: dftb+
+  libpath: /home/hiroki/dftbplus-devel/hiroki/install/lib/libdftbplus.so
+  workdir: /home/hiroki/config-aimc/dftbplus_workdir
+
+include_ground_state: False
+
+calctype: config-aimc
+
+integrator: adams_moulton_2
+#integrator: leapfrog
+
+mo_type: restricted
+
+read_traject: False
+
+active_occ_mos:
+  - 23
+  - 22
+  - 21
+  - 20
+active_vir_mos:
+  - 24
+  - 25
+  - 26
+  - 27
+#active_occ_mos: []
+#active_vir_mos: []
+
+initial_estates:
+  - 1
+  #- 9
+initial_coeffs:
+  - 1.0
+n_step: 1000000
+
+dt: 0.02
+print_xyz_interval: 100
+
+dt_deriv: 1.0
+
+reconst_interval: -1
+
+is_fixed: False
