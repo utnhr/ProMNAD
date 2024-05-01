@@ -269,9 +269,15 @@ class World:
         
         tbf_coeffs = self.get_tbf_coeffs()
 
-        new_tbf_coeffs = self.integrator.engine(
-            self.dt, 0.0, tbf_coeffs, self.make_tbf_coeffs_tderiv
-        )
+        if n_tbf == 1:
+
+            new_tbf_coeffs = [ 1.0+0.0j ]
+        
+        else:
+
+            new_tbf_coeffs = self.integrator.engine(
+                self.dt, 0.0, tbf_coeffs, self.make_tbf_coeffs_tderiv
+            )
 
         #tbf_coeffs_tderiv = (-1.0j / H_DIRAC) * np.dot(
         #    np.linalg.inv(self.S_tbf), np.dot(self.H_tbf, tbf_coeffs.transpose())
