@@ -34,8 +34,8 @@ active_vir_mos:
 #active_vir_mos: []
 
 initial_estates:
-  - 1
-  #- 9
+  #- 1
+  - 9
 initial_coeffs:
   - 1.0
 n_step: 1000000

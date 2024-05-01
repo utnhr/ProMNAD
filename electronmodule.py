@@ -316,7 +316,8 @@ class Electronic_state:
             if self.qc_program == 'dftb+':
                 
                 self.dftbplus_instance.go_to_workdir()
-                overlap_twogeom = self.dftbplus_instance.worker.return_overlap_twogeom(old_position_2d, position_2d)
+                overlap_twogeom_1 = self.dftbplus_instance.worker.return_overlap_twogeom(old_position_2d, position_2d)
+                overlap_twogeom_2 = self.dftbplus_instance.worker.return_overlap_twogeom(position_2d, old_position_2d)
                 #overlap_twogeom_1 = self.dftbplus_instance.worker.return_overlap_twogeom(old_position_2d, new_position_2d)
                 #overlap_twogeom_2 = self.dftbplus_instance.worker.return_overlap_twogeom(new_position_2d, old_position_2d)
                 self.dftbplus_instance.return_from_workdir()
@@ -327,14 +328,18 @@ class Electronic_state:
 
                 utils.stop_with_error("MO TDNAC calculation is not compatible with QC program %s .\n" % self.qc_program)
 
+            temp = np.triu(overlap_twogeom_1) + np.triu(overlap_twogeom_2).transpose() - np.diag( np.diag(overlap_twogeom_2) )
+
             self.mo_tdnac = np.zeros_like(self.mo_coeffs)
 
             for i_spin in range(n_spin):
 
                 self.mo_tdnac[i_spin,:,:] = 0.5 * np.dot(
-                    np.dot(np.conj(self.old_mo_coeffs[i_spin,:,:]), overlap_twogeom.astype('complex128')),
+                    np.dot(np.conj(self.old_mo_coeffs[i_spin,:,:]), temp.astype('complex128')),
                     new_mo_coeffs[i_spin,:,:].transpose()
                 ) / self.dt
+
+            #print('MO OVERLAP TWOGEOM', self.mo_tdnac * 2.0 * self.dt) ## Debug code
 
         self.mo_coeffs = deepcopy(new_mo_coeffs)
         
@@ -601,10 +606,10 @@ class Electronic_state:
                     tdnac[k_estate, j_estate] = val
                     tdnac[j_estate, k_estate] = -np.conj(val)
                 
-                    ## Debug code
-                    if k_estate == 1 and j_estate == 9:
-                        print('TDNAC between 1/9:', val)
-                    ## End Debug code
+                    ### Debug code
+                    #if k_estate == 1 and j_estate == 9:
+                    #    print('TDNAC between 1/9:', val)
+                    ### End Debug code
 
             #for i_occ in range(n_occ):
             #        tdnac[ 1 + i_occ * n_vir : , 1 + i_occ * n_vir : ] = nac_vir[:, :]
@@ -782,7 +787,7 @@ class Electronic_state:
 
             cis_coeffs = self.e_coeffs[1:].reshape(n_occ, n_vir) # MO basis
 
-            print('CIS_COEFFS', cis_coeffs) ## Debug code
+            #print('CIS_COEFFS', cis_coeffs) ## Debug code
 
             rho_oo_mo = -np.dot( cis_coeffs.conjugate(), cis_coeffs.transpose() )
             rho_vv_mo = np.dot( cis_coeffs.transpose().conjugate(), cis_coeffs )
