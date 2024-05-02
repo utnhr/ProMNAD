@@ -7,6 +7,7 @@ from copy import deepcopy
 from utils import stop_with_error
 from settingsmodule import load_setting
 from integratormodule import Integrator
+from files import GlobalOutput
 
 class World:
     
@@ -37,14 +38,18 @@ class World:
 
         self.world_id = len(World.worlds)
 
-        #self.integmethod = load_setting(settings, 'integrator')
+        self.integmethod = load_setting(settings, 'integrator')
 
-        #self.integrator = Integrator(self.integmethod)
-        self.integrator = Integrator('adams_moulton_2')
+        self.integrator = Integrator(self.integmethod)
+        #self.integrator = Integrator('adams_moulton_2')
         #print('WARNING: TBF coeffs integrated with leapfrog method.') ## Debug code
         #self.integrator = Integrator('leapfrog') ## Debug code
 
+        self.tbf_coeffs_are_trivial = load_setting(settings, 'tbf_coeffs_are_trivial')
+
         self.print_xyz_interval = load_setting(settings, 'print_xyz_interval')
+
+        self.globalout = 
 
         World.worlds.append(self)
         
@@ -266,7 +271,7 @@ class World:
         # subtract energy origin
 
         if self.H_tbf_diag_origin is None:
-            self.H_tbf_diag_origin = np.diag(self.H_tbf)[0]
+            self.H_tbf_diag_origin = deepcopy(np.diag(self.H_tbf)[0])
         
         for i in range(n_tbf):
             self.H_tbf[i,i] -= self.H_tbf_diag_origin
@@ -275,7 +280,7 @@ class World:
         
         tbf_coeffs = self.get_tbf_coeffs()
 
-        if n_tbf == 1:
+        if n_tbf == 1 and self.tbf_coeffs_are_trivial:
 
             new_tbf_coeffs = [ 1.0+0.0j ]
         
@@ -284,10 +289,6 @@ class World:
             new_tbf_coeffs = self.integrator.engine(
                 self.dt, 0.0, tbf_coeffs, self.make_tbf_coeffs_tderiv
             )
-
-        #tbf_coeffs_tderiv = (-1.0j / H_DIRAC) * np.dot(
-        #    np.linalg.inv(self.S_tbf), np.dot(self.H_tbf, tbf_coeffs.transpose())
-        #).transpose()
 
         #print('H_TBF', self.H_tbf) ## Debug code
         #print('S_TBF', self.S_tbf) ## Debug code

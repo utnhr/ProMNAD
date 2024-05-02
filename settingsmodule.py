@@ -10,6 +10,7 @@ default = {
     'reconst_interval': 100,
     'print_xyz_interval': 0,
     'integrator': 'adams_moulton_2',
+    'tbf_coeffs_are_trivial': False,
 }
 
     

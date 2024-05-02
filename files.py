@@ -2,14 +2,21 @@
 
 
 class GlobalOutputFiles:
-    """Output files for entire job (common for all trajectories)"""
+    """Output files for each world (common for all trajectories)"""
 
-    @classmethod
-    def initialize(cls):
+    def __init__(self, index): # index specifies the world
         
-        cls.tbf_coeff = open('tbf_coeff.dat', 'w') # TBF coefficients
-        cls.tbf_popul = open('tbf_popul.dat', 'w') # TBF populations
+        self.tbf_coeff = open("tbf_coeff.world%d.dat" % index, 'w') # TBF coefficients
+        self.tbf_popul = open("tbf_popul.world%d.dat" % index, 'w') # TBF populations
         
+        return
+
+
+    def __del__(self):
+        
+        self.tbf_coeff.close()
+        self.tbf_popul.close()
+
         return
 
 
