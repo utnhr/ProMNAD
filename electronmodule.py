@@ -291,7 +291,7 @@ class Electronic_state:
 
     def update_molecular_orbitals(self, is_before_initial = False, calc_mo_tdnac = True):
         """Update MO energies and coefficients according to TD-KS equation."""
-        utils.printer.write_out('Updating MOs: Started.\n')
+        #utils.printer.write_out('Updating MOs: Started.\n')
 
         if self.is_open_shell:
             n_spin = 2
@@ -348,20 +348,12 @@ class Electronic_state:
             mo_midstep = deepcopy(self.mo_coeffs[i_spin,:,:])
 
             csc = np.dot( mo_midstep, np.dot( self.S.astype('complex128'), mo_midstep.transpose().conj() ) )
-            #print('CSC', csc)
-            real_diag = np.real(np.diag(csc))
-            print('CSC', real_diag)
-            ## End Debug code
 
-            ## Debug code
-            #H_MO = np.dot( mo_midstep, np.dot(self.H[i_spin,:,:], mo_midstep.transpose().conj() ) )
-            #E_MO = np.real(np.diag(H_MO))
-            #print( 'E GAP', (E_MO[9]-E_MO[8])*AU2EV )
-            ## End Debug code
+            self.csc = np.real(np.diag(csc))
 
         self.t_molecular_orbitals += self.dt
 
-        utils.printer.write_out('Updating MOs: Done.\n')
+        #utils.printer.write_out('Updating MOs: Done.\n')
 
         return
 
@@ -426,7 +418,7 @@ class Electronic_state:
 
         #return np.zeros_like(self.e_coeffs)
 
-        utils.printer.write_out('Updating electronic state energies: Started.\n')
+        #utils.printer.write_out('Updating electronic state energies: Started.\n')
 
         if self.is_open_shell:
 
@@ -461,7 +453,7 @@ class Electronic_state:
 
             self.estate_energies -= self.initial_gs_energy # shift origin to avoid fast phase oscillation
 
-            utils.printer.write_out('Updating electronic state energies: Done.\n')
+            #utils.printer.write_out('Updating electronic state energies: Done.\n')
 
             return
 
@@ -682,7 +674,7 @@ class Electronic_state:
 
     def update_matrices(self, is_before_initial = False):
 
-        utils.printer.write_out('Updating hamiltonian and overlap matrices: Started.\n')
+        #utils.printer.write_out('Updating hamiltonian and overlap matrices: Started.\n')
 
         if self.qc_program == 'dftb+':
             
@@ -738,7 +730,7 @@ class Electronic_state:
 
             self.i_step += 1
 
-        utils.printer.write_out('Updating hamiltonian and overlap matrices: Done.\n')
+        #utils.printer.write_out('Updating hamiltonian and overlap matrices: Done.\n')
 
         return
 
@@ -827,8 +819,6 @@ class Electronic_state:
             #            #print(count,iraw,icol)
             #            self.rho[0,iraw,icol] = tmp1 + 1.0j * tmp2
             ### End Debug code
-
-            print( 'TOTAL NELEC      ', np.trace( np.dot(self.rho[0,:,:], self.S ) ) ) ## Debug code
 
         else:
 

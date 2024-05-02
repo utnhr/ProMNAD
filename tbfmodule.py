@@ -7,12 +7,13 @@ import numpy as np
 import scipy.linalg as sp
 from copy import deepcopy
 
-from constants import H_DIRAC, AMU2AU, AU2ANGST, AU2EV, KB_EV
+from constants import H_DIRAC, AMU2AU, AU2ANGST, AU2EV, KB_EV, AU2SEC
 import utils
 from interface_dftbplus import dftbplus_manager
 from electronmodule import Electronic_state
 from settingsmodule import load_setting
 from integratormodule import Integrator
+from files import GlobalOutputFiles, LocalOutputFiles
 #from worldsmodule import World
 
 class Tbf:
@@ -263,10 +264,9 @@ class Tbf:
         self.old_momentum   = deepcopy(self.momentum)
         self.istep_momentum = istep
 
+        self.dt = load_setting(settings, 'dt')
         self.read_traject = load_setting(settings, 'read_traject')
-
         self.print_xyz_interval = load_setting(settings, 'print_xyz_interval')
-
         self.integmethod = load_setting(settings, 'integrator')
 
         if self.read_traject:
@@ -308,9 +308,12 @@ class Tbf:
 
         self.Epot = 0.0
         self.Ekin = 0.0
+        self.t    = self.dt * self.istep
 
         self.integrator = Integrator(self.integmethod)
         self.phase_integrator = Integrator('adams_bashforth_2')
+
+        self.localoutput = LocalOutputFiles(self.tbf_id)
 
         return
 
@@ -492,13 +495,6 @@ class Tbf:
 
     def update_electronic_part(self, dt):
 
-        # update electronic coeffs (leapfrog)
-        
-        #old_e_coeffs    = self.e_part.get_old_e_coeffs()
-        #e_coeffs_tderiv = self.e_part.get_e_coeffs_tderiv()
-
-        #e_coeffs = old_e_coeffs + 2.0 * e_coeffs_tderiv * dt
-
         # update position and velocity for electronic part
 
         self.e_part.set_next_position( self.get_position() )
@@ -523,12 +519,6 @@ class Tbf:
 
         estate_energies -= self.e_part.initial_estate_energies
 
-        ## Debug code
-        print('ESTATE 0', estate_energies[0])
-        print('ESTATE 1', estate_energies[1])
-        print('ESTATE 9', estate_energies[9])
-        ## End Debug code
-
         self.e_part.update_tdnac()
 
         tdnac = self.e_part.get_tdnac()
@@ -548,21 +538,17 @@ class Tbf:
 
         e_coeffs = self.integrator.engine(dt, t, e_coeffs, self.make_e_coeffs_tderiv, H_el)
 
-        #print('E_COEFF', e_coeffs) ## Debug code
-        print('E POPUL', np.abs(e_coeffs)**2) ## Debug code
-        print('|E_COEFF|', np.linalg.norm(e_coeffs)) ## Debug code
-
         self.e_part.set_new_e_coeffs(e_coeffs)
 
         e_coeffs_tderiv = self.make_e_coeffs_tderiv(t, e_coeffs, H_el)
 
         self.e_part.set_new_e_coeffs_tderiv(e_coeffs_tderiv)
 
-        #self.e_part.update_position()
-        #self.e_part.update_velocity()
-        #self.e_part.update_istep()
+        self.print_results()
 
         self.set_new_istep( self.get_istep() + 1 )
+
+        self.t += self.dt
 
         return
 
@@ -616,14 +602,7 @@ class Tbf:
         self.set_new_position(position)
         self.set_new_momentum(momentum)
 
-        #$print('MOMENTUM', momentum) ## Debug code
         veloc = self.get_velocity()
-        #print('VELOCITY', velocity[0:6]) ## Debug code
-        #print('POSITION', position) ## Debug code
-        #print('FORCE', force) ## Debug code
-
-        if self.is_print_xyz_step():
-            self.print_xyz('traject.xyz') ## Debug code
 
         print('E_POT', self.Epot) ## Debug code
         print('E_KIN', self.Ekin) ## Debug code
@@ -632,14 +611,6 @@ class Tbf:
         return
 
 
-    def is_print_xyz_step(self):
-        
-        if self.print_xyz_interval != 0 and (self.istep % self.print_xyz_interval) == 0:
-            return True
-        else:
-            return False
-
-    
     def get_temperature(self):
         
         e_kin_per_dof_ev = AU2EV * self.Ekin / np.size(self.position)
@@ -659,21 +630,85 @@ class Tbf:
         return geom, veloc
 
     
-    def print_xyz(self, filename):
+    def print_xyz(self):
 
-        with open(filename, 'a') as xyz_file:
+        xyz_file = self.localoutput.traject
+
+        n_atom = len(self.atomparams)
+
+        xyz_file.write("%d\n" % n_atom)
+
+        xyz_file.write( "T= %20.12f fs ( STEP %d ) \n" % (self.t*AU2SEC*1.0e15, self.istep) )
+
+        for i_atom in range(n_atom):
+
+            elem = self.atomparams[i_atom].elem
+            coord = self.position[3*i_atom:3*i_atom+3] * AU2ANGST
+
+            xyz_file.write("%s %20.12f %20.12f %20.12f\n" % (
+                elem, coord[0], coord[1], coord[2]
+            ) )
+
+        return
+ 
+
+    def print_estate_info(self):
         
-            n_atom = len(self.atomparams)
+        e_coeff_file = self.localoutput.e_coeff
+        e_popul_file = self.localoutput.e_popul
+        pec_file     = self.localoutput.pec
 
-            xyz_file.write("%d\n" % n_atom)
+        n_estate = self.get_n_estate()
 
-            xyz_file.write("T= %d\n" % self.istep)
+        time_str = "STEP %12d T= %20.12f fs" % (self.istep, self.t*AU2SEC*1.0e15)
 
-            for i_atom in range(n_atom):
+        e_coeff_file.write(time_str)
+        e_popul_file.write(time_str)
+        pec_file.write(time_str)
 
-                elem = self.atomparams[i_atom].elem
-                coord = self.position[3*i_atom:3*i_atom+3] * AU2ANGST
+        e_coeffs = self.e_part.get_e_coeffs()
+        estate_energies = self.e_part.get_estate_energies()
 
-                xyz_file.write("%s %20.12f %20.12f %20.12f\n" % (
-                    elem, coord[0], coord[1], coord[2]
-                ) )
+        for i_state in range(n_estate):
+            
+            e_coeff_file.write( " %20.12f+%20.12fj" % ( e_coeffs[i_state].real, e_coeffs[i_state].imag ) )
+            e_popul_file.write( " %20.12f" % ( abs(e_coeffs[i_state])**2 ) )
+            pec_file.write( " %20.12f" % estate_energies[i_state] )
+
+        e_coeff_file.write("\n")
+        e_popul_file.write("\n")
+        pec_file.write("\n")
+
+        return
+
+
+    def print_e_ortho(self):
+        
+        e_ortho_file = self.localoutput.e_ortho
+
+        n_mo = len(self.e_part.csc)
+
+        time_str = "STEP %12d T= %20.12f fs" % (self.istep, self.t*AU2SEC*1.0e15)
+
+        e_ortho_file.write(time_str)
+
+        for i_mo in range(n_mo):
+            
+            e_ortho_file.write( " %20.12f" % self.e_part.csc[i_mo] )
+
+        e_ortho_file.write( " TOTAL NELEC %20.12f\n" % np.sum(self.e_part.csc) )
+
+        return
+
+
+    def print_results(self):
+        
+        if self.print_xyz_interval != 0 and (self.istep % self.print_xyz_interval) == 0:
+
+            self.print_xyz()
+
+            self.print_estate_info()
+
+            self.print_e_ortho()
+
+        return
