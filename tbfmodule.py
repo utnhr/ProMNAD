@@ -288,6 +288,8 @@ class Tbf:
 
         self.force        = np.zeros_like(self.position)
         self.old_force    = np.zeros_like(self.position)
+        self.gs_force     = np.zeros_like(self.position)
+        self.old_gs_force = np.zeros_like(self.position)
 
         self.e_dot = np.zeros(n_estate) # dc/dt
 
@@ -468,6 +470,9 @@ class Tbf:
         
         self.old_force = self.force
         self.force     = self.e_part.get_force()
+
+        self.old_gs_force = self.gs_force
+        self.gs_force     = self.e_part.get_force(gs_force = True)
 
         return
 

@@ -53,6 +53,6 @@ print_xyz_interval: 100
 
 dt_deriv: 1.0
 
-reconst_interval: 10
+reconst_interval: -1
 
 is_fixed: False

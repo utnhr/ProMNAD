@@ -49,6 +49,9 @@ class Electronic_state:
         self.position            = deepcopy(position)
         self.velocity            = deepcopy(velocity)
 
+        self.force               = None
+        self.gs_force            = None
+
         self.H                   = None
         self.S                   = None
         self.Sinv                = None
@@ -77,6 +80,7 @@ class Electronic_state:
         self.is_edyn_initialized  = False
 
         self.integrator = Integrator(self.integmethod)
+        self.gs_energy_integrator = Integrator(self.integmethod)
 
         self.initial_estate_energies = None
 
@@ -412,11 +416,17 @@ class Electronic_state:
 
         return trivial_phase
 
+
+    def make_gs_energy_tderiv(self, t, y):
+
+        #if self.gs_force is None or self.old_velocity is None:
+        #    return 0.0
+        
+        return np.dot(self.gs_force, self.old_velocity)
+
     
     def update_estate_energies(self):
         """Get energy of each 'electronic state', which is i->a excitation configuration. Approximate state energy as MO energy difference."""
-
-        #return np.zeros_like(self.e_coeffs)
 
         #utils.printer.write_out('Updating electronic state energies: Started.\n')
 
@@ -425,6 +435,8 @@ class Electronic_state:
             utils.stop_with_error('Currently not compatible with open-shell systems.\n')
 
         else:
+
+            self.gs_energy = self.gs_energy_integrator.engine(self.dt, 0.0, self.gs_energy, self.make_gs_energy_tderiv)
         
             mo_energies = self.mo_levels[0,:]
             mo_coeffs   = self.mo_coeffs[0,:,:]
@@ -620,7 +632,7 @@ class Electronic_state:
         return self.tdnac
 
     
-    def get_force(self, gs_force = False):
+    def get_force(self, gs_force = False, do_not_update = False):
         """Get nuclear force originating from electronic states."""
 
         force = np.zeros_like(self.position)
@@ -666,7 +678,13 @@ class Electronic_state:
 
         force = force.reshape(3*n_atom)
 
-        #print('FORCE', force) ## Debug code
+        if not do_not_update:
+            
+            if gs_force:
+                self.gs_force = force
+
+            else:
+                self.force = force
 
         return force
     
