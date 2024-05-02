@@ -422,7 +422,7 @@ class Electronic_state:
         #if self.gs_force is None or self.old_velocity is None:
         #    return 0.0
         
-        return np.dot(self.gs_force, self.old_velocity)
+        return -np.dot(self.gs_force, self.old_velocity)
 
     
     def update_estate_energies(self):
