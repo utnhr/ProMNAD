@@ -620,13 +620,12 @@ class Electronic_state:
         return self.tdnac
 
     
-    def get_force(self):
+    def get_force(self, gs_force = False):
         """Get nuclear force originating from electronic states."""
 
         force = np.zeros_like(self.position)
 
         if not self.is_edyn_initialized:
-            print('EDYN INITIALIZATION', self.electronic_state_id) ## Debug code
             self.dftbplus_instance.go_to_workdir()
             self.dftbplus_instance.worker.init_elec_dynamics()
             self.dftbplus_instance.return_from_workdir()
@@ -639,11 +638,12 @@ class Electronic_state:
         Sinv = np.zeros( (1, self.n_AO, self.n_AO), dtype = 'float64' )
         S[0,:,:] = self.S[:,:]
         Sinv[0,:,:] = self.Sinv[:,:]
-
-        #print('SELF.RHO', self.rho) ## Debug code
         
-        rho_real = np.zeros_like(self.rho, dtype = 'float64')
-        rho_real[:,:,:] = self.rho[:,:,:]
+        if gs_force:
+            rho_real = self.gs_rho
+        else:
+            rho_real = np.zeros_like(self.rho, dtype = 'float64')
+            rho_real[:,:,:] = self.rho[:,:,:]
         
         H = np.zeros_like(self.rho)
         self.dftbplus_instance.go_to_workdir()
@@ -660,7 +660,6 @@ class Electronic_state:
 
         self.dftbplus_instance.go_to_workdir()
         force = self.dftbplus_instance.worker.get_ehrenfest_force(H, self.rho, S, Sinv)
-        #force = dftbplus_manager.worker.get_ehrenfest_force(self.H, self.rho, S, Sinv)
         self.dftbplus_instance.return_from_workdir()
 
         n_atom = len(self.atomparams)
