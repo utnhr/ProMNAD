@@ -80,7 +80,7 @@ class Electronic_state:
         self.is_edyn_initialized  = False
 
         self.integrator = Integrator(self.integmethod)
-        self.gs_energy_integrator = Integrator(self.integmethod)
+        #self.gs_energy_integrator = Integrator(self.integmethod)
 
         self.initial_estate_energies = None
 
@@ -417,12 +417,12 @@ class Electronic_state:
         return trivial_phase
 
 
-    def make_gs_energy_tderiv(self, t, y):
+    #def make_gs_energy_tderiv(self, t, y):
 
-        #if self.gs_force is None or self.old_velocity is None:
-        #    return 0.0
-        
-        return -np.dot(self.gs_force, self.old_velocity)
+    #    #if self.gs_force is None or self.old_velocity is None:
+    #    #    return 0.0
+    #    
+    #    return -np.dot(self.gs_force, self.old_velocity)
 
     
     def update_estate_energies(self):
@@ -436,7 +436,7 @@ class Electronic_state:
 
         else:
 
-            self.gs_energy = self.gs_energy_integrator.engine(self.dt, 0.0, self.gs_energy, self.make_gs_energy_tderiv)
+            #self.gs_energy = self.gs_energy_integrator.engine(self.dt, 0.0, self.gs_energy, self.make_gs_energy_tderiv)
         
             mo_energies = self.mo_levels[0,:]
             mo_coeffs   = self.mo_coeffs[0,:,:]
@@ -764,6 +764,14 @@ class Electronic_state:
         
         self.old_e_coeffs_tderiv = self.e_coeffs_tderiv
         self.e_coeffs_tderiv = e_coeffs_tderiv
+
+        return
+
+
+    def modify_gs_energy(self, dgs_energy):
+        
+        self.old_gs_energy = self.gs_energy
+        self.gs_energy += dgs_energy
 
         return
 

@@ -1,4 +1,4 @@
-#!-*- coding: utf-8 -*-
+ #!-*- coding: utf-8 -*-
 
 import sys
 import math
@@ -124,6 +124,9 @@ class Integrator:
             
             while True:
 
+                if i_iter > 0 and i_iter % 1000 == 0:
+                    print('AM2 ITER', i_iter)
+
                 f1p = f_func(t+dt, y1p, *fargs)
 
                 y1c = y + 0.5 * dt * (f1p + f) # corrector
@@ -143,8 +146,6 @@ class Integrator:
                     i_iter += 1
 
             self.update_history(y, f)
-
-            print('AM2 ITER', i_iter) ## Debug code
         
         return y_new
 
@@ -165,6 +166,9 @@ class Integrator:
             i_iter = 0
 
             while True:
+
+                if i_iter > 0 and i_iter % 1000 == 0:
+                    print('AM4 ITER', i_iter)
 
                 f1p = f_func(t+dt, y1p, *fargs)
 
@@ -187,8 +191,6 @@ class Integrator:
                     i_iter += 1
 
             self.update_history(y, f)
-
-            print('AM4 ITER', i_iter) ## Debug code
         
         return y_new
 

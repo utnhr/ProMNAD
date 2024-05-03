@@ -2,12 +2,12 @@
 
 import numpy as np
 from tbfmodule import Tbf
-from constants import ATOM_MASSES_AMU, DEFAULT_GWP_WIDTH_AU, H_DIRAC, AMU2AU
+from constants import ATOM_MASSES_AMU, DEFAULT_GWP_WIDTH_AU, H_DIRAC, AMU2AU, AU2SEC
 from copy import deepcopy
 from utils import stop_with_error
 from settingsmodule import load_setting
 from integratormodule import Integrator
-from files import GlobalOutput
+from files import GlobalOutputFiles
 
 class World:
     
@@ -18,14 +18,11 @@ class World:
         
         self.settings = deepcopy(settings)
 
-        #self.total_tbf_count = 0
         self.live_tbf_count  = 0
 
         self.tbfs                  = []
         self.tbf_coeffs            = np.array([], dtype='complex128')
         self.tbf_coeffs_tderiv     = np.zeros_like(self.tbf_coeffs)
-        #self.old_tbf_coeffs        = np.zeros_like(self.tbf_coeffs)
-        #self.old_tbf_coeffs_tderiv = np.zeros_like(self.tbf_coeffs)
         self.old_tbf_coeffs        = None
         self.old_tbf_coeffs_tderiv = None
 
@@ -49,7 +46,9 @@ class World:
 
         self.print_xyz_interval = load_setting(settings, 'print_xyz_interval')
 
-        self.globalout = 
+        self.globaloutput = GlobalOutputFiles(self.world_id)
+
+        self.istep = 0
 
         World.worlds.append(self)
         
@@ -144,13 +143,13 @@ class World:
     
     def propagate(self):
 
+        self.print_results()
+
         self.update_position_and_velocity()
         self.update_electronic_part()
         self.update_nuclear_part()
 
-        #print('TBF COEFFS', self.tbf_coeffs) ## Debug code
-        #print('TBF COEFFS NORM', np.linalg.norm(self.tbf_coeffs)) ## Debug code
-        print('TBF COEFFS ABS', np.abs(self.tbf_coeffs)**2) ## Debug code
+        self.istep += 1
 
         return
     
@@ -296,13 +295,6 @@ class World:
 
         self.set_new_tbf_coeffs(new_tbf_coeffs)
         
-        ### Debug code
-        #coh = self.tbfs[0].e_part.get_e_coeffs()[1].conj() * self.tbfs[1].e_part.get_e_coeffs()[2]
-        #print('RHO 1,2', coh, abs(coh))
-        ##print('E_COEFF 1', self.tbfs[0].e_part.get_e_coeffs()[1])
-        ##print('E_COEFF 2', self.tbfs[1].e_part.get_e_coeffs()[2])
-        ### End Debug code
-
         return
     
 
@@ -340,4 +332,38 @@ class World:
         self.old_tbf_coeffs_tderiv = deepcopy(self.tbf_coeffs_tderiv)
         self.tbf_coeffs_tderiv     = new_tbf_coeffs_tderiv
 
+        return
+
+
+    def print_results(self):
+
+        if self.print_xyz_interval != 0 and (self.istep % self.print_xyz_interval) == 0:
+
+            self.print_tbf_coeff_and_popul()
+
+        return
+
+
+    def print_tbf_coeff_and_popul(self):
+
+        tbf_coeff_file = self.globaloutput.tbf_coeff
+        tbf_popul_file = self.globaloutput.tbf_popul
+
+        t = self.dt * self.istep
+        
+        time_str = "STEP %12d T= %20.12f fs" % (self.istep, t*AU2SEC*1.0e15)
+        
+        tbf_coeff_file.write(time_str)
+        tbf_popul_file.write(time_str)
+
+        n_tbf = self.get_total_tbf_count()
+        
+        for i_tbf in range(n_tbf):
+
+            tbf_coeff_file.write( " %20.12f+%20.12fj" % ( self.tbf_coeffs[i_tbf].real, self.tbf_coeffs[i_tbf].imag ) )
+            tbf_popul_file.write( " %20.12f" % ( abs(self.tbf_coeffs[i_tbf])**2 ) )
+
+        tbf_coeff_file.write("\n")
+        tbf_popul_file.write("\n")
+        
         return

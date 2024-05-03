@@ -93,7 +93,7 @@ class Tbf:
         """Calculate overlap matrix between two TBFs."""
         s_gw = gaussian_overlap
         
-        print('OVERLAP_GWP_PART',s_gw.prod()) ## Debug code
+        #print('OVERLAP_GWP_PART',s_gw.prod()) ## Debug code
         #print('OVERLAP_E_PART', np.dot(np.conj(tbf1.e_part.get_e_coeffs()), tbf2.e_part.get_e_coeffs()) ) ## Debug code
 
         return s_gw.prod() * np.dot(
@@ -308,9 +308,11 @@ class Tbf:
         #self.world = World.worlds[self.world_id]
         #self.world.add_tbf(self)
 
-        self.Epot = 0.0
-        self.Ekin = 0.0
-        self.t    = self.dt * self.istep
+        self.Epot    = 0.0
+        self.EpotGS  = 0.0
+        self.dEpotGS = 0.0
+        self.Ekin    = 0.0
+        self.t       = self.dt * self.istep
 
         self.integrator = Integrator(self.integmethod)
         self.phase_integrator = Integrator('adams_bashforth_2')
@@ -601,17 +603,17 @@ class Tbf:
             momentum = old_momentum
 
         delta = 0.5 * (position - old_position)
-        self.Epot -= np.dot(delta, self.force)
-        self.Ekin  = sum( 0.5 * momentum**2 / self.get_mass_au() )
+        self.Epot   -= np.dot(delta, self.force)
+        self.dEpotGS = -np.dot(delta, self.gs_force)
+        self.Ekin    = sum( 0.5 * momentum**2 / self.get_mass_au() )
+        
+        self.EpotGS += self.dEpotGS
+        self.e_part.modify_gs_energy(self.dEpotGS)
 
         self.set_new_position(position)
         self.set_new_momentum(momentum)
 
         veloc = self.get_velocity()
-
-        print('E_POT', self.Epot) ## Debug code
-        print('E_KIN', self.Ekin) ## Debug code
-        print('TEMPERATURE: ', self.get_temperature(), 'K') ## Debug code
 
         return
 
@@ -706,6 +708,25 @@ class Tbf:
         return
 
 
+    def print_thermodynamics(self):
+        
+        energy_file = self.localoutput.energy
+
+        temperature = self.get_temperature()
+
+        time_str = "STEP %12d T= %20.12f fs" % (self.istep, self.t*AU2SEC*1.0e15)
+
+        energy_file.write(time_str)
+
+        energy_file.write(
+            "%20.12f %20.12f %20.12f %20.12f" % (temperature, self.Ekin, self.Epot, self.EpotGS)
+        )
+
+        energy_file.write("\n")
+
+        return
+
+
     def print_results(self):
         
         if self.print_xyz_interval != 0 and (self.istep % self.print_xyz_interval) == 0:
@@ -715,5 +736,7 @@ class Tbf:
             self.print_estate_info()
 
             self.print_e_ortho()
+
+            self.print_thermodynamics()
 
         return
