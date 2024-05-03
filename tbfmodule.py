@@ -267,6 +267,7 @@ class Tbf:
         self.dt = load_setting(settings, 'dt')
         self.read_traject = load_setting(settings, 'read_traject')
         self.print_xyz_interval = load_setting(settings, 'print_xyz_interval')
+        self.flush_interval = load_setting(settings, 'flush_interval')
         self.integmethod = load_setting(settings, 'integrator')
 
         if self.read_traject:
@@ -738,5 +739,9 @@ class Tbf:
             self.print_e_ortho()
 
             self.print_thermodynamics()
+
+        if self.istep > 0 and (self.istep % self.flush_interval) == 0:
+
+            self.localoutput.flush()
 
         return

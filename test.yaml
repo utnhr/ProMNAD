@@ -58,3 +58,5 @@ reconst_interval: -1
 is_fixed: False
 
 tbf_coeffs_are_trivial: True
+
+flush_interval: 1000

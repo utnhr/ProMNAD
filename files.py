@@ -6,8 +6,9 @@ class GlobalOutputFiles:
 
     def __init__(self, index): # index specifies the world
         
-        self.tbf_coeff = open("tbf_coeff.world%d.dat" % index, 'w') # TBF coefficients
-        self.tbf_popul = open("tbf_popul.world%d.dat" % index, 'w') # TBF populations
+        self.tbf_coeff         = open("tbf_coeff.world%d.dat" % index, 'w') # TBF coefficients
+        self.tbf_coeff_nophase = open("tbf_coeff_nophase.world%d.dat" % index, 'w') # TBF coefficients without phase factor
+        self.tbf_popul         = open("tbf_popul.world%d.dat" % index, 'w') # TBF populations
         
         return
 
@@ -15,7 +16,17 @@ class GlobalOutputFiles:
     def __del__(self):
         
         self.tbf_coeff.close()
+        self.tbf_coeff_nophase.close()
         self.tbf_popul.close()
+
+        return
+
+
+    def flush(self):
+        
+        self.tbf_coeff.flush()
+        self.tbf_coeff_nophase.flush()
+        self.tbf_popul.flush()
 
         return
 
@@ -45,4 +56,16 @@ class LocalOutputFiles:
         self.e_coeff.close()
         self.e_ortho.close()
 
+        return
+
+
+    def flush(self):
+        
+        self.traject.flush()
+        self.velocity.flush()
+        self.energy.flush()
+        self.pec.flush()
+        self.e_coeff.flush()
+        self.e_ortho.flush()
+        
         return

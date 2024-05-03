@@ -22,11 +22,13 @@ class World:
 
         self.tbfs                  = []
         self.tbf_coeffs            = np.array([], dtype='complex128')
-        self.tbf_coeffs_tderiv     = np.zeros_like(self.tbf_coeffs)
+        self.tbf_coeffs_nophase    = np.array([], dtype='complex128')
+        self.e_int                 = np.array([], dtype='complex128') # phase factor = exp(-i/\hbar * e_int)
+        #self.tbf_coeffs_tderiv     = np.zeros_like(self.tbf_coeffs)
         self.old_tbf_coeffs        = None
-        self.old_tbf_coeffs_tderiv = None
+        #self.old_tbf_coeffs_tderiv = None
 
-        self.dt = settings['dt']
+        self.dt = load_setting(settings, 'dt')
 
         self.S_tbf = None
         self.H_tbf = None
@@ -37,14 +39,14 @@ class World:
 
         self.integmethod = load_setting(settings, 'integrator')
 
-        self.integrator = Integrator(self.integmethod)
-        #self.integrator = Integrator('adams_moulton_2')
-        #print('WARNING: TBF coeffs integrated with leapfrog method.') ## Debug code
-        #self.integrator = Integrator('leapfrog') ## Debug code
+        self.tbf_coeffs_nophase_integrator = Integrator(self.integmethod)
+        self.e_int_integrator              = Integrator(self.integmethod)
 
         self.tbf_coeffs_are_trivial = load_setting(settings, 'tbf_coeffs_are_trivial')
 
         self.print_xyz_interval = load_setting(settings, 'print_xyz_interval')
+
+        self.flush_interval = load_setting(settings, 'flush_interval')
 
         self.globaloutput = GlobalOutputFiles(self.world_id)
 
@@ -118,23 +120,27 @@ class World:
             is_fixed = is_fixed,
         )
 
-        self.add_tbf(initial_tbf, coeff = 1.0+0.0j, normalize = False)
+        self.add_tbf(initial_tbf, coeff_nophase = 1.0+0.0j, normalize = False)
 
         return
 
 
-    def add_tbf(self, tbf, coeff = 0.0+0.0j, normalize = True):
+    def add_tbf(self, tbf, coeff_nophase=0.0+0.0j, e_int=0.0+0.0j, normalize = True):
 
         self.tbfs.append(tbf)
 
-        self.tbf_coeffs        = np.append(self.tbf_coeffs, coeff)
-        self.tbf_coeffs_tderiv = np.append(self.tbf_coeffs_tderiv, 0.0+0.0j)
+        coeff = coeff_nophase * np.exp( (-1.0j/H_DIRAC) * e_int )
+
+        self.tbf_coeffs_nophase = np.append(self.tbf_coeffs_nophase, coeff_nophase)
+        self.tbf_coeffs         = np.append(self.tbf_coeffs, coeff)
+        self.e_int              = np.append(self.e_int, e_int)
+
         if self.old_tbf_coeffs is not None:
             self.old_tbf_coeffs    = np.append(self.old_tbf_coeffs, coeff)
-            self.old_tbf_coeffs_tderiv = np.append(self.old_tbf_coeffs_tderiv, 0.0+0.0j)
 
         if normalize:
-
+            
+            self.tbf_coeffs_nophase /= np.linalg.norm(self.tbf_coeffs_nophase)
             self.tbf_coeffs /= np.linalg.norm(self.tbf_coeffs)
             self.old_tbf_coeffs /= np.linalg.norm(self.old_tbf_coeffs) # OK?
 
@@ -185,13 +191,33 @@ class World:
         return
 
 
-    def make_tbf_coeffs_tderiv(self, t, tbf_coeffs):
+    def make_tbf_coeffs_nophase_tderiv(self, t, tbf_coeffs_nophase):
+
+        n_tbf = self.get_total_tbf_count()
+
+        H_tbf_nophase = deepcopy(self.H_tbf)
+
+        for i_tbf in range(n_tbf):
+            H_tbf_nophase[i_tbf, i_tbf] = 0.0+0.0j
         
-        tbf_coeffs_tderiv = (-1.0j / H_DIRAC) * np.dot(
-            np.linalg.inv(self.S_tbf), np.dot(self.H_tbf, tbf_coeffs.transpose())
+        tbf_coeffs_nophase_tderiv = (-1.0j / H_DIRAC) * np.dot(
+            np.linalg.inv(self.S_tbf), np.dot(H_tbf_nophase, tbf_coeffs_nophase.transpose())
         ).transpose()
 
-        return tbf_coeffs_tderiv
+        return tbf_coeffs_nophase_tderiv
+
+
+    def make_e_int_tderiv(self, t, e_int):
+        
+        n_tbf = self.get_total_tbf_count()
+
+        e_int_tderiv = np.zeros_like(e_int)
+
+        for i_tbf in range(n_tbf):
+
+            e_int_tderiv[i_tbf] = self.H_tbf[i_tbf,i_tbf]
+
+        return e_int_tderiv
 
 
     def update_nuclear_part(self):
@@ -277,7 +303,7 @@ class World:
         
         # propagation of TBF coeffs
         
-        tbf_coeffs = self.get_tbf_coeffs()
+        tbf_coeffs_nophase = self.get_tbf_coeffs_nophase()
 
         if n_tbf == 1 and self.tbf_coeffs_are_trivial:
 
@@ -285,15 +311,22 @@ class World:
         
         else:
 
-            new_tbf_coeffs = self.integrator.engine(
-                self.dt, 0.0, tbf_coeffs, self.make_tbf_coeffs_tderiv
+            new_tbf_coeffs_nophase = self.tbf_coeffs_nophase_integrator.engine(
+                self.dt, 0.0, tbf_coeffs_nophase, self.make_tbf_coeffs_nophase_tderiv,
             )
 
-        #print('H_TBF', self.H_tbf) ## Debug code
-        #print('S_TBF', self.S_tbf) ## Debug code
-        #print('TBF COEFFS TDERIV', tbf_coeffs_tderiv) ## Debug code
+            new_e_int = self.e_int_integrator.engine(
+                self.dt, 0.0, self.e_int, self.make_e_int_tderiv,
+            )
+
+            self.e_int = new_e_int
+
+            phase_factor = np.exp( (-1.0j/H_DIRAC) * new_e_int )
+
+            new_tbf_coeffs = new_tbf_coeffs_nophase * phase_factor
 
         self.set_new_tbf_coeffs(new_tbf_coeffs)
+        self.set_new_tbf_coeffs_nophase(new_tbf_coeffs_nophase)
         
         return
     
@@ -311,8 +344,12 @@ class World:
         return deepcopy(self.tbf_coeffs)
 
 
-    def get_tbf_coeffs_tderiv(self):
-        return deepcopy(self.tbf_coeffs_tderiv)
+    def get_tbf_coeffs_nophase(self):
+        return deepcopy(self.tbf_coeffs_nophase)
+
+
+    #def get_tbf_coeffs_tderiv(self):
+    #    return deepcopy(self.tbf_coeffs_tderiv)
 
 
     def get_old_tbf_coeffs(self):
@@ -327,12 +364,20 @@ class World:
         return
 
 
-    def set_new_tbf_coeffs_tderiv(self, new_tbf_coeffs_tderiv):
+    def set_new_tbf_coeffs_nophase(self, new_tbf_coeffs_nophase):
         
-        self.old_tbf_coeffs_tderiv = deepcopy(self.tbf_coeffs_tderiv)
-        self.tbf_coeffs_tderiv     = new_tbf_coeffs_tderiv
+        self.old_tbf_coeffs_nophase = deepcopy(self.tbf_coeffs_nophase)
+        self.tbf_coeffs_nophase     = new_tbf_coeffs_nophase
 
         return
+
+
+    #def set_new_tbf_coeffs_tderiv(self, new_tbf_coeffs_tderiv):
+    #    
+    #    self.old_tbf_coeffs_tderiv = deepcopy(self.tbf_coeffs_tderiv)
+    #    self.tbf_coeffs_tderiv     = new_tbf_coeffs_tderiv
+
+    #    return
 
 
     def print_results(self):
@@ -341,12 +386,17 @@ class World:
 
             self.print_tbf_coeff_and_popul()
 
+        if self.istep > 0 and (self.istep % self.flush_interval) == 0:
+
+            self.globaloutput.flush()
+
         return
 
 
     def print_tbf_coeff_and_popul(self):
 
         tbf_coeff_file = self.globaloutput.tbf_coeff
+        tbf_coeff_nophase_file = self.globaloutput.tbf_coeff_nophase
         tbf_popul_file = self.globaloutput.tbf_popul
 
         t = self.dt * self.istep
@@ -354,6 +404,7 @@ class World:
         time_str = "STEP %12d T= %20.12f fs" % (self.istep, t*AU2SEC*1.0e15)
         
         tbf_coeff_file.write(time_str)
+        tbf_coeff_nophase_file.write(time_str)
         tbf_popul_file.write(time_str)
 
         n_tbf = self.get_total_tbf_count()
@@ -361,9 +412,11 @@ class World:
         for i_tbf in range(n_tbf):
 
             tbf_coeff_file.write( " %20.12f+%20.12fj" % ( self.tbf_coeffs[i_tbf].real, self.tbf_coeffs[i_tbf].imag ) )
+            tbf_coeff_nophase_file.write( " %20.12f" % ( self.tbf_coeffs_nophase[i_tbf] ) )
             tbf_popul_file.write( " %20.12f" % ( abs(self.tbf_coeffs[i_tbf])**2 ) )
 
         tbf_coeff_file.write("\n")
+        tbf_coeff_nophase_file.write("\n")
         tbf_popul_file.write("\n")
         
         return
