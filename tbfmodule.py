@@ -56,8 +56,6 @@ class Tbf:
 
             vals.append(val)
 
-        #print('VALS', vals) ## Debug code
-
         return np.array(vals)
 
     
@@ -93,9 +91,6 @@ class Tbf:
         """Calculate overlap matrix between two TBFs."""
         s_gw = gaussian_overlap
         
-        #print('OVERLAP_GWP_PART',s_gw.prod()) ## Debug code
-        #print('OVERLAP_E_PART', np.dot(np.conj(tbf1.e_part.get_e_coeffs()), tbf2.e_part.get_e_coeffs()) ) ## Debug code
-
         return s_gw.prod() * np.dot(
             np.conj(tbf1.e_part.get_e_coeffs()), tbf2.e_part.get_e_coeffs()
         )
@@ -165,11 +160,6 @@ class Tbf:
         potentials = cls.get_gaussian_potential_term(tbf1, tbf2, gaussian_overlap)
         tdnacs     = cls.get_gaussian_NAcoupling_term(tbf1, tbf2, gaussian_overlap)
 
-        #vals = [ [ 0.0j for i_estate in range(n_estates[0]) ] for j_estate in range(n_estates[1]) ]
-
-        #print('KINE', kinE) ## Debug code
-        #print('POTENTIALS', potentials) ## Debug code
-
         H_mn = 0.0j
 
         for i_estate in range(n_estates[0]):
@@ -227,8 +217,8 @@ class Tbf:
 
     def __init__(
         self, settings, atomparams, position, n_dof, n_estate, tbf_id,
-        momentum=None, mass=None, width=None, phase=None, e_coeffs=None, initial_gs_energy=None, istep=0,
-        is_fixed=False,
+        momentum=None, mass=None, width=None, phase=None, e_coeffs_nophase=None,
+        e_coeffs_e_int=None, initial_gs_energy=None, istep=0, is_fixed=False,
         ):
 
         self.atomparams    = atomparams        # dictionary { 'elems': array, 'angmom_table': array (optional, for DFTB+) }
@@ -295,19 +285,20 @@ class Tbf:
         self.e_dot = np.zeros(n_estate) # dc/dt
 
         #self.tbf_id = world.total_tbf_count + 1
-        
+
+        if e_coeffs_nophase is not None:
+            self.e_coeffs_nophase = deepcopy(e_coeffs_nophase)
+            self.e_coeffs_e_int   = deepcopy(e_coeffs_e_int)
+            e_coeffs = self.e_coeffs_nophase * np.exp(
+                (-1.0j/H_DIRAC) * self.e_coeffs_e_int
+            )
+            
         self.e_part = Electronic_state(
             settings, atomparams, e_coeffs, self.get_position(), self.get_velocity(), settings['dt'], self.istep,
             construct_initial_gs = True,
         )
-        #self.e_part.set_new_position_velocity_time(
-        #    self.get_position(), self.get_velocity(), self.get_t()
-        #)
 
         self.is_alive = True
-
-        #self.world = World.worlds[self.world_id]
-        #self.world.add_tbf(self)
 
         self.Epot    = 0.0
         self.EpotGS  = 0.0
@@ -315,8 +306,9 @@ class Tbf:
         self.Ekin    = 0.0
         self.t       = self.dt * self.istep
 
-        self.integrator = Integrator(self.integmethod)
-        self.phase_integrator = Integrator('adams_bashforth_2')
+        self.e_coeffs_nophase_integrator = Integrator(self.integmethod)
+        self.e_coeffs_e_int_integrator = Integrator(self.integmethod)
+        self.phase_integrator = Integrator(self.integmethod)
 
         self.localoutput = LocalOutputFiles(self.tbf_id)
 
@@ -428,18 +420,6 @@ class Tbf:
         return val
 
 
-    #def propagate_indivisual_tbf(self):
-
-    #    ## placeholder
-    #    propagate_tbf(self)
-
-    #    self.e_part.update_position_velocity_time(
-    #        self.get_position(), self.get_velocity(), self.get_t()
-    #    )
-    #    
-    #    return
-
-    
     def spawn(self):
         
         ## placeholder
@@ -494,11 +474,18 @@ class Tbf:
         return
 
 
-    def make_e_coeffs_tderiv(self, t, e_coeffs, H_el):
+    def make_e_coeffs_nophase_tderiv(self, t, e_coeffs_nophase, H_el_ndiag):
 
-        e_coeffs_tderiv = (-1.0j / H_DIRAC) * np.dot(H_el, e_coeffs)
+        e_coeffs_nophase_tderiv = (-1.0j / H_DIRAC) * np.dot(
+            H_el_ndiag, e_coeffs_nophase
+        )
 
-        return e_coeffs_tderiv
+        return e_coeffs_nophase_tderiv
+
+
+    def make_e_coeffs_e_int_tderiv(self, t, e_coeffs_e_int, H_el_diag):
+
+        return deepcopy(H_el_diag) # 1d array of state energies
 
 
     def update_electronic_part(self, dt):
@@ -536,21 +523,40 @@ class Tbf:
 
         n_estate = self.e_part.get_n_estate()
 
-        H_el = -1.0j * H_DIRAC * tdnac
-        for i_estate in range(n_estate):
-            H_el[i_estate,i_estate] += estate_energies[i_estate]
-
-        e_coeffs = self.e_part.get_e_coeffs()
+        H_el_ndiag = -1.0j * H_DIRAC * tdnac
+        H_el_diag  = estate_energies
 
         t = dt * self.get_istep()
 
-        e_coeffs = self.integrator.engine(dt, t, e_coeffs, self.make_e_coeffs_tderiv, H_el)
+        # here e_coeffs_tderiv is not directly used for integration of e_coeffs;
+        # just for reuse for update of TBF coefficients
+
+        term1 = self.make_e_coeffs_nophase_tderiv(
+            self.t, self.e_coeffs_nophase, H_el_ndiag,
+        ) * np.exp( (-1.0j/H_DIRAC) * self.e_coeffs_e_int )
+        term2 = self.e_coeffs_nophase * (-1.0j/H_DIRAC) * estate_energies
+
+        e_coeffs_tderiv = term1 + term2
+
+        # integrate electronic state coeffcients
+
+        self.e_coeffs_nophase = self.e_coeffs_nophase_integrator.engine(
+            dt, t, self.e_coeffs_nophase,
+            self.make_e_coeffs_nophase_tderiv, H_el_ndiag,
+        )
+        self.e_coeffs_e_int = self.e_coeffs_e_int_integrator.engine(
+            dt, t, self.e_coeffs_e_int,
+            self.make_e_coeffs_e_int_tderiv, H_el_diag,
+        )
+
+        e_coeffs = self.e_coeffs_nophase * np.exp(
+            ( (-1.0j)/H_DIRAC ) * self.e_coeffs_e_int
+        )
 
         self.e_part.set_new_e_coeffs(e_coeffs)
-
-        e_coeffs_tderiv = self.make_e_coeffs_tderiv(t, e_coeffs, H_el)
-
         self.e_part.set_new_e_coeffs_tderiv(e_coeffs_tderiv)
+
+        # sum up
 
         self.print_results()
 
@@ -684,7 +690,7 @@ class Tbf:
             pec_file.write( " %20.12f" % estate_energies[i_state] )
 
         e_coeff_file.write("\n")
-        e_popul_file.write("\n")
+        e_popul_file.write( " TOTAL %20.12f \n" % np.linalg.norm(e_coeffs) )
         pec_file.write("\n")
 
         return

@@ -98,25 +98,24 @@ class World:
         if n_coeff != len(initial_estates):
             utils.stop_with_error('Number of initial estates and coeffs must be the same.\n')
 
-        initial_e_coeffs = [ 0.0+0.0j for i in range(self.settings['n_estate']) ]
+        initial_e_coeffs_nophase = [ 0.0+0.0j for i in range(self.settings['n_estate']) ]
+        initial_e_coeffs_e_int   = [ 0.0+0.0j for i in range(self.settings['n_estate']) ]
 
         for i_coeff in range(n_coeff):
 
-            initial_e_coeffs[initial_estates[i_coeff]] = 1.0+0.0j
-            ### Debug code
-            #print('WARNING: INITIAL STATE NOT CORRECT')
-            #initial_e_coeffs[1] = 1.0
-            #initial_e_coeffs[2] = 1.0
-            #initial_e_coeffs /= np.linalg.norm(initial_e_coeffs)
-            ### End Debug code
+            initial_e_coeffs_nophase[initial_estates[i_coeff]] = 1.0+0.0j
 
-        initial_e_coeffs = np.array(initial_e_coeffs) 
+        initial_e_coeffs_nophase = np.array(initial_e_coeffs_nophase) 
+        initial_e_coeffs_e_int   = np.array(initial_e_coeffs_e_int) 
 
-        initial_e_coeffs /= np.linalg.norm(initial_e_coeffs) # normalize
+        initial_e_coeffs_nophase /= np.linalg.norm(initial_e_coeffs_nophase) # normalize
 
         initial_tbf = Tbf(
-            self.settings, self.atomparams, position, n_dof, self.settings['n_estate'], len(self.tbfs),
-            momentum = momentum, mass = mass, width = width, e_coeffs = initial_e_coeffs,
+            self.settings, self.atomparams, position, n_dof,
+            self.settings['n_estate'], len(self.tbfs),
+            momentum = momentum, mass = mass, width = width,
+            e_coeffs_nophase = initial_e_coeffs_nophase,
+            e_coeffs_e_int = initial_e_coeffs_e_int,
             is_fixed = is_fixed,
         )
 
