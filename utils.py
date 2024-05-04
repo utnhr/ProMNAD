@@ -4,11 +4,62 @@ import sys
 import os
 import inspect
 import numpy as np
+import time
 
 import constants
 
 
-class printer:
+class Timer:
+    
+    checkpoint_times = {}
+    
+    @classmethod
+    def set_checkpoint_time(cls, name, return_laptime = False):
+        
+        current_time = time.perf_counter()
+
+        try:
+
+            previous_time = cls.checkpoint_times[name]
+
+        except KeyError:
+            
+            previous_time = current_time
+
+        cls.checkpoint_times[name] = current_time
+
+        if return_laptime:
+            
+            return current_time - previous_time
+
+        else:
+
+            return current_time
+
+
+    @classmethod
+    def get_checkpoint_time(cls, name, create_if_absent = False):
+
+        try:
+
+            checkpoint_time = cls.checkpoint_times[name]
+
+        except KeyError:
+
+            cls.set_checkpoint_time(name)
+
+            checkpoint_time = cls.checkpoint_times[name]
+        
+        return checkpoint_time
+
+
+    @classmethod
+    def get_time(cls):
+        
+        return time.perf_counter()
+
+
+class Printer:
 
     outfile = sys.stdout
     errfile = sys.stderr

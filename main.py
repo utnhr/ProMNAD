@@ -4,13 +4,15 @@ import sys
 import os
 import numpy as np
 
-from utils import stop_with_error
+from utils import stop_with_error, Timer
 import inout
 import sample
 from calcconfig import fill_default_settings, configure_calculation, init_qc_engine
 from dynamics import do_dynamics
 
 if __name__ == '__main__':
+
+    Timer.set_checkpoint_time('program_start')
 
     input_filename = sys.argv[1]
 

@@ -4,7 +4,7 @@ import numpy as np
 from tbfmodule import Tbf
 from constants import ATOM_MASSES_AMU, DEFAULT_GWP_WIDTH_AU, H_DIRAC, AMU2AU, AU2SEC
 from copy import deepcopy
-from utils import stop_with_error
+from utils import stop_with_error, Timer
 from settingsmodule import load_setting
 from integratormodule import Integrator
 from files import GlobalOutputFiles
@@ -385,6 +385,8 @@ class World:
 
             self.print_tbf_coeff_and_popul()
 
+            self.print_timing_info()
+
         if self.istep > 0 and (self.istep % self.flush_interval) == 0:
 
             self.globaloutput.flush()
@@ -418,4 +420,27 @@ class World:
         tbf_coeff_nophase_file.write("\n")
         tbf_popul_file.write("\n")
         
+        return
+
+
+    def print_timing_info(self):
+
+        lap_time = Timer.set_checkpoint_time(
+            'world_print', return_laptime = True
+        )
+        
+        elapsed_time = Timer.get_checkpoint_time('world_print') - Timer.get_checkpoint_time('program_start')
+
+        time_file = self.globaloutput.time
+
+        t = self.dt * self.istep
+        
+        time_str = "STEP %12d T= %20.12f fs" % (self.istep, t*AU2SEC*1.0e15)
+        
+        time_file.write(time_str)
+
+        time_file.write( " %20.6f sec %20.6f sec" % (elapsed_time, lap_time) )
+
+        time_file.write("\n")
+
         return

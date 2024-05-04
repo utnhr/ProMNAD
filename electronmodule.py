@@ -243,6 +243,8 @@ class Electronic_state:
                 rho = np.dot( np.transpose(mo_coeffs[i_spin,:,:]).conjugate(), scaled_mo_coeffs )
 
                 gs_rho[i_spin, :, :] = np.real(rho[:, :])
+
+            print('RHO 0 4', gs_rho[0,0,4]) ## Debug code
             
             return gs_rho
         
@@ -295,7 +297,7 @@ class Electronic_state:
 
     def update_molecular_orbitals(self, is_before_initial = False, calc_mo_tdnac = True):
         """Update MO energies and coefficients according to TD-KS equation."""
-        #utils.printer.write_out('Updating MOs: Started.\n')
+        #utils.Printer.write_out('Updating MOs: Started.\n')
 
         if self.is_open_shell:
             n_spin = 2
@@ -357,7 +359,7 @@ class Electronic_state:
 
         self.t_molecular_orbitals += self.dt
 
-        #utils.printer.write_out('Updating MOs: Done.\n')
+        #utils.Printer.write_out('Updating MOs: Done.\n')
 
         return
 
@@ -428,7 +430,7 @@ class Electronic_state:
     def update_estate_energies(self):
         """Get energy of each 'electronic state', which is i->a excitation configuration. Approximate state energy as MO energy difference."""
 
-        #utils.printer.write_out('Updating electronic state energies: Started.\n')
+        #utils.Printer.write_out('Updating electronic state energies: Started.\n')
 
         if self.is_open_shell:
 
@@ -465,7 +467,7 @@ class Electronic_state:
 
             self.estate_energies -= self.initial_gs_energy # shift origin to avoid fast phase oscillation
 
-            #utils.printer.write_out('Updating electronic state energies: Done.\n')
+            #utils.Printer.write_out('Updating electronic state energies: Done.\n')
 
             return
 
@@ -691,7 +693,7 @@ class Electronic_state:
 
     def update_matrices(self, is_before_initial = False):
 
-        #utils.printer.write_out('Updating hamiltonian and overlap matrices: Started.\n')
+        #utils.Printer.write_out('Updating hamiltonian and overlap matrices: Started.\n')
 
         if self.qc_program == 'dftb+':
             
@@ -747,7 +749,7 @@ class Electronic_state:
 
             self.i_step += 1
 
-        #utils.printer.write_out('Updating hamiltonian and overlap matrices: Done.\n')
+        #utils.Printer.write_out('Updating hamiltonian and overlap matrices: Done.\n')
 
         return
 
@@ -957,7 +959,9 @@ class Electronic_state:
             self.H[i_spin,:,:] = utils.hermitize(Htmp[i_spin,:,:], is_upper_triangle = True)
         
             H_MO = np.dot(
-                self.mo_coeffs[i_spin,:,:], np.dot(self.H[i_spin,:,:], self.mo_coeffs[i_spin,:,:].transpose().conj())
+                self.mo_coeffs[i_spin,:,:].conj(), np.dot(self.H[i_spin,:,:], self.mo_coeffs[i_spin,:,:].transpose())
             )
 
             self.mo_levels[i_spin,:] = np.real(np.diag(H_MO))
+        
+        return

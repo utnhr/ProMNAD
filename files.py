@@ -9,6 +9,7 @@ class GlobalOutputFiles:
         self.tbf_coeff         = open("tbf_coeff.world%d.dat" % index, 'w') # TBF coefficients
         self.tbf_coeff_nophase = open("tbf_coeff_nophase.world%d.dat" % index, 'w') # TBF coefficients without phase factor
         self.tbf_popul         = open("tbf_popul.world%d.dat" % index, 'w') # TBF populations
+        self.time              = open("time.world%d.dat" % index, 'w') # elapsed time from step 0
         
         return
 
@@ -18,6 +19,7 @@ class GlobalOutputFiles:
         self.tbf_coeff.close()
         self.tbf_coeff_nophase.close()
         self.tbf_popul.close()
+        self.time.close()
 
         return
 
@@ -27,6 +29,7 @@ class GlobalOutputFiles:
         self.tbf_coeff.flush()
         self.tbf_coeff_nophase.flush()
         self.tbf_popul.flush()
+        self.time.flush()
 
         return
 

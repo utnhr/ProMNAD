@@ -12,11 +12,11 @@ def do_dynamics(settings, is_restarted = False):
 
     init_dynamics(settings, is_restarted = is_restarted)
 
-    utils.printer.write_out('Time propagation started.\n')
+    utils.Printer.write_out('Time propagation started.\n')
     
     for i_step in range(settings['n_step']):
         
-        utils.printer.write_out("STEP %8d ...\n" % i_step)
+        utils.Printer.write_out("STEP %8d ...\n" % i_step)
 
         worlds = World.worlds
 
@@ -24,7 +24,7 @@ def do_dynamics(settings, is_restarted = False):
     
             world.propagate()
 
-    utils.printer.write_out('Time propagation finished.\n')
+    utils.Printer.write_out('Time propagation finished.\n')
 
 
 def init_dynamics(settings, is_restarted = False):
