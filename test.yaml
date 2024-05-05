@@ -5,8 +5,10 @@ geom_file: sample_geom.xyz
 
 engine:
   type: dftb+
-  libpath: /home/hiroki/dftbplus-devel/hiroki/install/lib/libdftbplus.so
-  workdir: /home/hiroki/config-aimc/dftbplus_workdir
+  #libpath: /home/hiroki/dftbplus-devel/hiroki/install/lib/libdftbplus.so
+  libpath: /home/uratani/dftbplus-devel/install/lib64/libdftbplus.so
+  #workdir: /home/hiroki/config-aimc/dftbplus_workdir
+  workdir: /home/uratani/config-aimc/dftbplus_workdir
 
 include_ground_state: False
 
@@ -57,6 +59,6 @@ reconst_interval: -1
 
 is_fixed: False
 
-tbf_coeffs_are_trivial: True
+tbf_coeffs_are_trivial: False
 
 flush_interval: 1000

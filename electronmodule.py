@@ -244,7 +244,7 @@ class Electronic_state:
 
                 gs_rho[i_spin, :, :] = np.real(rho[:, :])
 
-            print('RHO 0 4', gs_rho[0,0,4]) ## Debug code
+            #print('RHO 0 4', gs_rho[0,0,4]) ## Debug code
             
             return gs_rho
         
