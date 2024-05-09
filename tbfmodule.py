@@ -556,6 +556,11 @@ class Tbf:
         self.e_part.set_new_e_coeffs(e_coeffs)
         self.e_part.set_new_e_coeffs_tderiv(e_coeffs_tderiv)
 
+        # Ehrenfest energy: E = <\Psi|H|\Psi>
+        # Here H assumed to be diagonal, so E is just a weighted average
+
+        self.e_part.update_ehrenfest_energy()
+
         # sum up
 
         self.print_results()

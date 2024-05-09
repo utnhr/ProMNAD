@@ -12,6 +12,8 @@ default = {
     'integrator': 'adams_moulton_2',
     'tbf_coeffs_are_trivial': False,
     'flush_interval':  2000,
+    'cloning_rule': 'energy',
+    'cloning_parameters': { 'popul_threshold': 0.1, 'e_threshold': 0.01, },
 }
 
     

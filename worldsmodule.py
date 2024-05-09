@@ -48,6 +48,9 @@ class World:
 
         self.flush_interval = load_setting(settings, 'flush_interval')
 
+        self.cloning_rule = load_setting(settings, 'cloning_rule')
+        self.cloning_parameters = load_setting(settings, 'cloning_parameters')
+
         self.globaloutput = GlobalOutputFiles(self.world_id)
 
         self.istep = 0
@@ -219,6 +222,73 @@ class World:
         return e_int_tderiv
 
 
+    def cloning(self, i_tbf):
+        
+        tbf = self.tbfs[i_tbf]
+
+        clone = False
+
+        if self.cloning_rule == 'nstate': # placeholder
+            
+            utils.stop_with_error("Cloning rule nstate under construction.") ## Debug code
+
+            e_coeffs = tbf.e_part.get_e_coeffs()
+
+            eff_n_states = 1.0 / np.sum( np.abs(e_coeffs)**4 )
+
+        elif self.cloning_rule == 'energy':
+            
+            ehrenfest_e = tbf.e_part.get_ehrenfest_energy()
+
+            e_coeffs = tbf.e_part.get_e_coeffs()
+
+            e_popul = np.abs(e_coeffs)**2
+
+            e_popul_sorted = np.sort(e_popul)[::-1]
+            e_index_sorted = np.argsort(e_popul)[::-1]
+
+            n_estate = len(e_coeffs)
+
+            estate_energies = tbf.e_part.get_estate_energies()
+
+            for k_estate in range(1, n_estate): # order of population
+                # k_estate == 0 is skipped; this is 'main' state.
+                # Only 'sub' state should be transffered to the spawned TBF
+
+                i_estate = e_index_sorted[k_estate]
+
+                # Modified Ehrenfest energy if the contribution of state i is set to zero
+
+                ehrenfest_e_without_i = 0.0
+
+                e_popul_without_i = deepcopy(e_popul)
+                e_popul_without_i[i_estate] = 0.0
+                e_popul_without_i /= np.sum(e_popul_without_i)
+
+                for j_estate in range(0, n_estate):
+
+                    ehrenfest_e_without_i += e_popul_without_i[j_estate] * estate_energies[j_estate]
+
+                delta_e = ehrenfest_e_without_i - ehrenfest_e
+
+                if abs(delta_e) > self.cloning_parameters['e_threshold']:
+
+                    clone = True
+                    clone_state = i_estate
+        else:
+
+            utils.stop_with_error(
+                "Unknown cloning rule %s ." % self.cloning_rule
+            )
+
+
+        if clone:
+            print('CLONE', i_estate) ## Debug code
+
+
+        return
+
+
     def update_nuclear_part(self):
 
         # construct TBF Hamiltonian
@@ -326,6 +396,10 @@ class World:
 
         self.set_new_tbf_coeffs(new_tbf_coeffs)
         self.set_new_tbf_coeffs_nophase(new_tbf_coeffs_nophase)
+
+        for i in range(n_tbf):
+
+            self.cloning(i_tbf)
         
         return
     

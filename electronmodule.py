@@ -477,6 +477,26 @@ class Electronic_state:
         return deepcopy(self.estate_energies)
 
 
+    def update_ehrenfest_energy(self):
+        
+        val = 0.0
+
+        n_estate = len(self.e_coeffs)
+
+        for i_estate in range(n_estate):
+            
+            val += self.estate_energies[i_estate] * abs(self.e_coeffs[i_estate])**2
+
+        self.ehrenfest_energy = val
+
+        return
+
+
+    def get_ehrenfest_energy(self):
+        
+        return self.ehrenfest_energy
+
+
     def update_derivative_coupling(self):
 
         position_2d = utils.coord_1d_to_2d(self.position)

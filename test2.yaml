@@ -40,11 +40,16 @@ initial_estates:
   - 9
 initial_coeffs:
   - 1.0
-n_step: 10000
+n_step: 30000
 
 dt: 0.1
-print_xyz_interval: 1
-flush_interval: 100
+print_xyz_interval: 100
+flush_interval: 1000
+
+cloning_rule: energy
+cloning_parameters:
+  popul_threshold: 0.1
+  e_threshold: 0.01
 
 dt_deriv: 1.0
 
