@@ -283,8 +283,23 @@ class World:
 
 
         if clone:
-            print('CLONE', i_estate) ## Debug code
 
+            e_coeff_i = tbf.e_part.e_coeffs[i_estate]
+            e_coeff_nophase_i = tbf.e_part.e_coeffs_nophase[i_estate]
+            e_e_int_i = tbf.e_part.e_int[i_estate]
+            
+            baby = tbf.spawn( i_estate, len(self.tbfs) )
+
+            self.tbfs.append(baby)
+
+            c_i = self.tbf_coeffs[i_tbf]
+            c_nophase_i = self.tbf_coeffs_nophase[i_tbf]
+
+            self.tbf_coeffs[i_tbf] = 
+            self.tbf_coeffs.append(e_coeff_i)
+
+            self.tbf_coeffs_nophase_integrator.reset()
+            self.e_int.reset()
 
         return
 
@@ -400,7 +415,7 @@ class World:
         for i in range(n_tbf):
 
             self.cloning(i_tbf)
-        
+
         return
     
 

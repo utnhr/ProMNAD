@@ -216,11 +216,14 @@ class Tbf:
 
 
     def __init__(
-        self, settings, atomparams, position, n_dof, n_estate, tbf_id,
-        momentum=None, mass=None, width=None, phase=None, e_coeffs_nophase=None,
-        e_coeffs_e_int=None, initial_gs_energy=None, istep=0, is_fixed=False,
+            self, settings, atomparams, position, n_dof, n_estate, tbf_id,
+            momentum=None, mass=None, width=None, phase=None,
+            e_coeffs_nophase=None, e_coeffs_e_int=None, initial_gs_energy=None,
+            istep=0, is_fixed=False,
+            gene = None,
         ):
-
+        
+        self.settings      = settings
         self.atomparams    = atomparams        # dictionary { 'elems': array, 'angmom_table': array (optional, for DFTB+) }
         self.n_dof         = n_dof             # integer
         self.n_estate      = n_estate          # integer
@@ -294,7 +297,8 @@ class Tbf:
             )
             
         self.e_part = Electronic_state(
-            settings, atomparams, e_coeffs, self.get_position(), self.get_velocity(), settings['dt'], self.istep,
+            settings, atomparams, e_coeffs, self.get_position(),
+            self.get_velocity(), self.dt, self.istep,
             construct_initial_gs = True,
         )
 
@@ -307,8 +311,10 @@ class Tbf:
         self.t       = self.dt * self.istep
 
         self.e_coeffs_nophase_integrator = Integrator(self.integmethod)
-        self.e_coeffs_e_int_integrator = Integrator(self.integmethod)
-        self.phase_integrator = Integrator(self.integmethod)
+        self.e_coeffs_e_int_integrator   = Integrator(self.integmethod)
+        self.phase_integrator            = Integrator(self.integmethod)
+
+        self.childs = []
 
         self.localoutput = LocalOutputFiles(self.tbf_id)
 
@@ -420,11 +426,46 @@ class Tbf:
         return val
 
 
-    def spawn(self):
+    def spawn(self, i_state, tbf_id):
+
+        baby = Tbf(
+            settings         = deepcopy(self.settings),
+            atomparams       = deepcopy(self.atomparams),
+            position         = deepcopy(self.position),
+            momentum         = deepcopy(self.momentum),
+            width            = deepcopy(self.width),
+            n_dof            = self.n_dof,
+            n_estate         = self.n_estate,
+            e_coeffs_nophase = deepcopy(self.e_coeffs_nophase),
+            e_coeffs_e_int   = deepcopy(self.e_coeffs_e_int),
+            mass             = deepcopy(self.mass),
+            tbf_id           = tbf_id,
+        )
         
-        ## placeholder
+        #instance_vars = vars(self)
+
+        # |c_i|^2 = 1 and c_j = 0 (j =/= i) for baby TBF
+
+        c_i = self.e_part.e_coeffs[i_state]
+
+        baby.e_part.e_coeffs[:] = 0.0+0.0j
+        baby.e_part.e_coeffs[i_state] = c_i
+
+        # c_i = 0 and c_j (j =/= i) rescaled for parent TBF
+
+        self.e_part.e_coeffs[i_state] = 0.0+0.0j
+        self.e_part.e_coeffs[:] /= np.linalg.norm(self.e_part.e_coeffs)
+
+        # reset integrators for discontinuous change in e_coeffs
+
+        baby.e_coeffs_nophase_integrator.reset()
+        self.e_coeffs_nophase_integrator.reset()
+
+        # register as a child TBF
+
+        self.childs.append(baby)
         
-        return
+        return baby
 
 
     def set_new_position(self, position, e_part_too=False):

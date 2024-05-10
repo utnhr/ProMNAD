@@ -22,9 +22,21 @@ class Integrator:
         
         self.i_called = 0
 
-        function_name = 'self.' + method
+        self.function_name = 'self.' + method
 
-        self.engine = eval(function_name) # integrator engine (euler, leapfrog, etc.)
+        self.engine = eval(self.function_name) # integrator engine (euler, leapfrog, etc.)
+
+        return
+
+
+    def reset(self):
+        
+        self.y_hist = [ None for i in range(self.n_hist) ] # new (i-1) -> old
+        self.f_hist = [ None for i in range(self.n_hist) ] # new (i-1) -> old
+
+        self.i_called = 0
+
+        self.engine = eval(self.function_name) # integrator engine (euler, leapfrog, etc.)
 
         return
 
