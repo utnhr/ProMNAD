@@ -289,14 +289,18 @@ class World:
             e_e_int_i = tbf.e_part.e_int[i_estate]
             
             baby = tbf.spawn( i_estate, len(self.tbfs) )
+            
+            tbf.e_part. ## Modification of e coeffs
 
             self.tbfs.append(baby)
 
             c_i = self.tbf_coeffs[i_tbf]
             c_nophase_i = self.tbf_coeffs_nophase[i_tbf]
 
-            self.tbf_coeffs[i_tbf] = 
-            self.tbf_coeffs.append(e_coeff_i)
+            self.tbf_coeffs.append(tbf_coeffs[i_tbf]*e_coeff_i)
+            self.tbf_coeffs[i_tbf] = tbf_coeffs[i_tbf] * np.sqrt(
+                1.0 - abs(e_coeff_i)**2
+            )
 
             self.tbf_coeffs_nophase_integrator.reset()
             self.e_int.reset()
