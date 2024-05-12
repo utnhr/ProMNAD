@@ -51,6 +51,8 @@ class World:
         self.cloning_rule = load_setting(settings, 'cloning_rule')
         self.cloning_parameters = load_setting(settings, 'cloning_parameters')
 
+        self.max_n_tbf = load_setting(settings, 'max_n_tbf')
+
         self.globaloutput = GlobalOutputFiles(self.world_id)
 
         self.istep = 0
@@ -263,7 +265,7 @@ class World:
 
                 e_popul_without_i = deepcopy(e_popul)
                 e_popul_without_i[i_estate] = 0.0
-                e_popul_without_i /= np.sum(e_popul_without_i)
+                e_popul_without_i /= ( np.sum(e_popul_without_i) / np.sum(e_popul) ) # sum of e_popul may differ from unity because of numerical errors
 
                 for j_estate in range(0, n_estate):
 
@@ -272,7 +274,7 @@ class World:
                 delta_e = ehrenfest_e_without_i - ehrenfest_e
 
                 if abs(delta_e) > self.cloning_parameters['e_threshold']:
-
+                    
                     if clone:
                         utils.stop_with_error('Current implementation cannot clone 2 or more TBFs at once.')
 
@@ -289,13 +291,13 @@ class World:
 
             print('CLONE')
 
-            e_coeff_i = tbf.e_part.e_coeffs[i_estate]
-            e_coeff_nophase_i = tbf.e_coeffs_nophase[i_estate]
-            e_e_int_i = tbf.e_coeffs_e_int[i_estate]
+            e_coeff_i = tbf.e_part.e_coeffs[clone_state]
+            e_coeff_nophase_i = tbf.e_coeffs_nophase[clone_state]
+            e_e_int_i = tbf.e_coeffs_e_int[clone_state]
             
-            baby = tbf.spawn( i_estate, len(self.tbfs) )
+            baby = tbf.spawn( clone_state, len(self.tbfs) )
             
-            tbf.e_part.deliver(i_estate) ## Modification of e coeffs
+            tbf.e_part.deliver(clone_state) ## Modification of e coeffs
 
             self.tbfs.append(baby)
 
@@ -330,9 +332,11 @@ class World:
 
         n_tbf = self.get_total_tbf_count()
 
-        for i_tbf in range(n_tbf):
+        if n_tbf < self.max_n_tbf or self.max_n_tbf < 0:
 
-            self.cloning(i_tbf)
+            for i_tbf in range(n_tbf):
+
+                self.cloning(i_tbf)
 
         # construct TBF Hamiltonian
 

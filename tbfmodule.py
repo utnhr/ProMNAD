@@ -428,6 +428,8 @@ class Tbf:
 
     def spawn(self, i_state, tbf_id):
 
+        print('I_STATE', i_state) ## Debug code
+
         baby_e_coeffs_nophase = deepcopy(self.e_coeffs_nophase)
         baby_e_coeffs_nophase[:] = 0.0+0.0j
         baby_e_coeffs_nophase[i_state] = 1.0+0.0j

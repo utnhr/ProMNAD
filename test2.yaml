@@ -53,6 +53,8 @@ cloning_parameters:
 
 dt_deriv: 1.0
 
+max_n_tbf: 5
+
 reconst_interval: -1
 
 is_fixed: False
