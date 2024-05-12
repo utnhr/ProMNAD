@@ -201,7 +201,7 @@ class World:
 
         for i_tbf in range(n_tbf):
             H_tbf_nophase[i_tbf, i_tbf] = 0.0+0.0j
-        
+
         tbf_coeffs_nophase_tderiv = (-1.0j / H_DIRAC) * np.dot(
             np.linalg.inv(self.S_tbf), np.dot(H_tbf_nophase, tbf_coeffs_nophase.transpose())
         ).transpose()
@@ -273,6 +273,9 @@ class World:
 
                 if abs(delta_e) > self.cloning_parameters['e_threshold']:
 
+                    if clone:
+                        utils.stop_with_error('Current implementation cannot clone 2 or more TBFs at once.')
+
                     clone = True
                     clone_state = i_estate
         else:
@@ -284,31 +287,54 @@ class World:
 
         if clone:
 
+            print('CLONE')
+
             e_coeff_i = tbf.e_part.e_coeffs[i_estate]
-            e_coeff_nophase_i = tbf.e_part.e_coeffs_nophase[i_estate]
-            e_e_int_i = tbf.e_part.e_int[i_estate]
+            e_coeff_nophase_i = tbf.e_coeffs_nophase[i_estate]
+            e_e_int_i = tbf.e_coeffs_e_int[i_estate]
             
             baby = tbf.spawn( i_estate, len(self.tbfs) )
             
-            tbf.e_part. ## Modification of e coeffs
+            tbf.e_part.deliver(i_estate) ## Modification of e coeffs
 
             self.tbfs.append(baby)
 
             c_i = self.tbf_coeffs[i_tbf]
             c_nophase_i = self.tbf_coeffs_nophase[i_tbf]
 
-            self.tbf_coeffs.append(tbf_coeffs[i_tbf]*e_coeff_i)
-            self.tbf_coeffs[i_tbf] = tbf_coeffs[i_tbf] * np.sqrt(
-                1.0 - abs(e_coeff_i)**2
+            self.tbf_coeffs_nophase = np.append(
+                self.tbf_coeffs_nophase, self.tbf_coeffs_nophase[i_tbf]*abs(e_coeff_i)
             )
+            self.tbf_coeffs_nophase[i_tbf] = self.tbf_coeffs_nophase[i_tbf] * np.sqrt(1.0 - abs(e_coeff_i)**2)
+
+            self.tbf_coeffs = np.append(
+                self.tbf_coeffs, self.tbf_coeffs[i_tbf]*e_coeff_i
+            )
+            self.tbf_coeffs[i_tbf] = self.tbf_coeffs[i_tbf] * np.sqrt(1.0 - abs(e_coeff_i)**2)
+
+            self.e_int = np.append(self.e_int, e_e_int_i)
 
             self.tbf_coeffs_nophase_integrator.reset()
-            self.e_int.reset()
+            self.e_int_integrator.reset()
+
+            n_tbf = self.get_total_tbf_count()
+            
+            #self.update_nuclear_part()
 
         return
 
 
     def update_nuclear_part(self):
+
+        # cloning if necessary
+
+        n_tbf = self.get_total_tbf_count()
+
+        for i_tbf in range(n_tbf):
+
+            self.cloning(i_tbf)
+
+        print('E_INT', self.e_in ## Debug code
 
         # construct TBF Hamiltonian
 
@@ -337,7 +363,7 @@ class World:
                 S_ij = Tbf.get_wf_overlap(guy_i, guy_j, gaussian_overlap = g_ij)
                 H_ij = Tbf.get_tbf_hamiltonian_element_BAT(guy_i, guy_j, gaussian_overlap = g_ij)
                 #H_ij = 0.0 ## Debug code
-
+                
                 self.S_tbf[i_tbf,j_tbf] = S_ij
                 self.H_tbf[i_tbf,j_tbf] = H_ij
 
@@ -415,10 +441,6 @@ class World:
 
         self.set_new_tbf_coeffs(new_tbf_coeffs)
         self.set_new_tbf_coeffs_nophase(new_tbf_coeffs_nophase)
-
-        for i in range(n_tbf):
-
-            self.cloning(i_tbf)
 
         return
     

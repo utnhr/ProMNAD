@@ -137,7 +137,7 @@ class Integrator:
             while True:
 
                 if i_iter > 0 and i_iter % 1000 == 0:
-                    print('AM2 ITER', i_iter)
+                    print('AM2 ITER', i_iter, f_func.__name__)
 
                 f1p = f_func(t+dt, y1p, *fargs)
 
@@ -180,7 +180,7 @@ class Integrator:
             while True:
 
                 if i_iter > 0 and i_iter % 1000 == 0:
-                    print('AM4 ITER', i_iter)
+                    print('AM4 ITER', i_iter, f_func.__name__)
 
                 f1p = f_func(t+dt, y1p, *fargs)
 

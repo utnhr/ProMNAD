@@ -90,7 +90,7 @@ class Tbf:
     def get_wf_overlap(cls, tbf1, tbf2, gaussian_overlap):
         """Calculate overlap matrix between two TBFs."""
         s_gw = gaussian_overlap
-        
+
         return s_gw.prod() * np.dot(
             np.conj(tbf1.e_part.get_e_coeffs()), tbf2.e_part.get_e_coeffs()
         )
@@ -428,6 +428,14 @@ class Tbf:
 
     def spawn(self, i_state, tbf_id):
 
+        baby_e_coeffs_nophase = deepcopy(self.e_coeffs_nophase)
+        baby_e_coeffs_nophase[:] = 0.0+0.0j
+        baby_e_coeffs_nophase[i_state] = 1.0+0.0j
+
+        baby_e_coeffs_e_int = deepcopy(self.e_coeffs_e_int)
+        baby_e_coeffs_e_int[:] = 0.0+0.0j
+        baby_e_coeffs_e_int[i_state] = self.e_coeffs_e_int[i_state]
+
         baby = Tbf(
             settings         = deepcopy(self.settings),
             atomparams       = deepcopy(self.atomparams),
@@ -436,20 +444,20 @@ class Tbf:
             width            = deepcopy(self.width),
             n_dof            = self.n_dof,
             n_estate         = self.n_estate,
-            e_coeffs_nophase = deepcopy(self.e_coeffs_nophase),
-            e_coeffs_e_int   = deepcopy(self.e_coeffs_e_int),
+            e_coeffs_nophase = baby_e_coeffs_nophase,
+            e_coeffs_e_int   = baby_e_coeffs_e_int,
             mass             = deepcopy(self.mass),
             tbf_id           = tbf_id,
         )
         
         #instance_vars = vars(self)
 
-        # |c_i|^2 = 1 and c_j = 0 (j =/= i) for baby TBF
+        ## |c_i|^2 = 1 and c_j = 0 (j =/= i) for baby TBF
 
-        c_i = self.e_part.e_coeffs[i_state]
+        #c_i = self.e_part.e_coeffs[i_state]
 
-        baby.e_part.e_coeffs[:] = 0.0+0.0j
-        baby.e_part.e_coeffs[i_state] = c_i
+        #baby.e_part.e_coeffs[:] = 0.0+0.0j
+        #baby.e_part.e_coeffs[i_state] = c_i
 
         # c_i = 0 and c_j (j =/= i) rescaled for parent TBF
 
@@ -460,6 +468,8 @@ class Tbf:
 
         baby.e_coeffs_nophase_integrator.reset()
         self.e_coeffs_nophase_integrator.reset()
+        baby.e_coeffs_e_int_integrator.reset()
+        self.e_coeffs_e_int_integrator.reset()
 
         # register as a child TBF
 

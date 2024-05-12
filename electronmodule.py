@@ -56,6 +56,7 @@ class Electronic_state:
         self.S                   = None
         self.Sinv                = None
         self.deriv_coupling      = None
+        self.tdnac               = None
 
         self.old_H               = None
         self.old_S               = None
@@ -472,7 +473,28 @@ class Electronic_state:
             return
 
 
+    def deliver(self, i_estate):
+        
+        self.e_coeffs[i_estate] = 0.0+0.0j
+        
+        new_norm = self.e_coeffs
+
+        self.e_coeffs /= np.linalg.norm(self.e_coeffs)
+
+        self.e_coeffs_tderiv[i_estate] = 0.0+0.0j
+
+        self.e_coeffs_tderiv /= new_norm
+
+        return
+
+
     def get_estate_energies(self):
+
+        if self.estate_energies is None:
+
+            self.update_gs_hamiltonian_and_molevels()
+
+            self.update_estate_energies()
         
         return deepcopy(self.estate_energies)
 
@@ -650,6 +672,12 @@ class Electronic_state:
 
 
     def get_tdnac(self):
+
+        if self.tdnac is None:
+
+            n_estate = self.get_n_estate()
+
+            self.tdnac = np.zeros( (n_estate, n_estate), dtype='complex128' )
 
         return self.tdnac
 
