@@ -19,7 +19,7 @@ class Electronic_state:
     
     electronic_state_count = 0
     
-    def __init__(self, settings, atomparams, e_coeffs, position, velocity, dt, istep, construct_initial_gs = True):
+    def __init__(self, settings, atomparams, e_coeffs, position, velocity, dt, istep, matrices = None):
         
         self.electronic_state_id = Electronic_state.electronic_state_count
         Electronic_state.electronic_state_count += 1
@@ -90,19 +90,26 @@ class Electronic_state:
         else:
             utils.stop_with_error("Unknown QC program %s .\n" % self.qc_program)
 
-        if construct_initial_gs:
-            self.reconstruct_gs(is_initial = True)
-        else:
-            self.gs_energy        = None
-            self.gs_filling       = None
-            self.init_mo_energies = None
-            self.mo_coeffs        = None
-            self.old_mo_coeffs    = None
-            self.n_elec           = None
-            self.n_MO             = None
-            self.n_AO             = None
-            self.gs_rho           = None
-            self.initial_gs_energy = None
+        self.reconstruct_gs(is_initial = True)
+
+        if matrices is not None:
+            # 'spawned' case
+            self.gs_energy           = matrices['gs_energy']
+            self.gs_filling          = matrices['gs_filling']
+            self.init_mo_energies    = matrices['init_mo_energies']
+            self.mo_coeffs           = matrices['mo_coeffs']
+            self.old_mo_coeffs       = matrices['old_mo_coeffs']
+            self.mo_levels           = matrices['mo_levels']
+            self.n_elec              = matrices['n_elec']
+            self.n_MO                = matrices['n_MO']
+            self.n_AO                = matrices['n_AO']
+            self.gs_rho              = matrices['gs_rho']
+            self.initial_gs_energy   = matrices['initial_gs_energy']
+            self.H                   = matrices['H']
+            self.S                   = matrices['S']
+            self.Sinv                = matrices['Sinv']
+            self.estate_energies     = matrices['estate_energies']
+            self.old_estate_energies = matrices['old_estate_energies']
 
         return
 
@@ -477,9 +484,9 @@ class Electronic_state:
         
         self.e_coeffs[i_estate] = 0.0+0.0j
         
-        new_norm = self.e_coeffs
+        new_norm = np.linalg.norm(self.e_coeffs)
 
-        self.e_coeffs /= np.linalg.norm(self.e_coeffs)
+        self.e_coeffs /= new_norm
 
         self.e_coeffs_tderiv[i_estate] = 0.0+0.0j
 
@@ -495,7 +502,7 @@ class Electronic_state:
             self.update_gs_hamiltonian_and_molevels()
 
             self.update_estate_energies()
-        
+
         return deepcopy(self.estate_energies)
 
 
@@ -978,7 +985,23 @@ class Electronic_state:
             scaled_mo_coeffs = np.zeros_like(self.mo_coeffs[i_spin,:,:])
 
             for i_MO in range(self.n_MO):
-
+                
+                ## Debug code
+                try:
+                    a = scaled_mo_coeffs[i_MO,:]
+                except:
+                    print('scaled_mo_coeffs')
+                try:
+                    b = self.gs_filling[i_spin][i_MO]
+                except:
+                    print('gs_filling', i_spin, i_MO)
+                    print(self.gs_filling)
+                try:
+                    c = self.mo_coeffs[i_spin,i_MO,:]
+                except:
+                    print('mo_coeffs')
+                ## End Debug code
+                
                 scaled_mo_coeffs[i_MO,:] = self.gs_filling[i_spin][i_MO] * self.mo_coeffs[i_spin,i_MO,:]
 
             rho = np.dot( np.transpose(self.mo_coeffs[i_spin,:,:]).conjugate(), scaled_mo_coeffs )
@@ -1013,3 +1036,29 @@ class Electronic_state:
             self.mo_levels[i_spin,:] = np.real(np.diag(H_MO))
         
         return
+
+
+    def dump_matrices(self):
+        
+        matrices = {
+            'gs_rho'              : deepcopy(self.gs_rho),
+            'rho'                 : deepcopy(self.rho),
+            'H'                   : deepcopy(self.H),
+            'S'                   : deepcopy(self.S),
+            'Sinv'                : deepcopy(self.Sinv),
+            'mo_coeffs'           : deepcopy(self.mo_coeffs),
+            'old_mo_coeffs'       : deepcopy(self.old_mo_coeffs),
+            'mo_levels'           : deepcopy(self.mo_levels),
+            'init_mo_energies'    : deepcopy(self.init_mo_energies),
+            'estate_energies'     : deepcopy(self.estate_energies),
+            'old_estate_energies' : deepcopy(self.old_estate_energies),
+            'deriv_coupling'      : deepcopy(self.deriv_coupling),
+            'gs_energy'           : self.gs_energy,
+            'initial_gs_energy'   : self.initial_gs_energy,
+            'gs_filling'          : deepcopy(self.gs_filling),
+            'n_MO'                : self.n_MO,
+            'n_AO'                : self.n_AO,
+            'n_elec'              : self.n_elec,
+        }
+
+        return matrices

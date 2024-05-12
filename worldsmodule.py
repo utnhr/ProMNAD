@@ -334,8 +334,6 @@ class World:
 
             self.cloning(i_tbf)
 
-        print('E_INT', self.e_in ## Debug code
-
         # construct TBF Hamiltonian
 
         n_tbf = self.get_total_tbf_count()
@@ -410,11 +408,11 @@ class World:
         # subtract energy origin
 
         if self.H_tbf_diag_origin is None:
-            self.H_tbf_diag_origin = deepcopy(np.diag(self.H_tbf)[0])
+            self.H_tbf_diag_origin = np.diag(self.H_tbf)[0]
         
         for i in range(n_tbf):
             self.H_tbf[i,i] -= self.H_tbf_diag_origin
-        
+
         # propagation of TBF coeffs
         
         tbf_coeffs_nophase = self.get_tbf_coeffs_nophase()
@@ -428,7 +426,7 @@ class World:
             new_tbf_coeffs_nophase = self.tbf_coeffs_nophase_integrator.engine(
                 self.dt, 0.0, tbf_coeffs_nophase, self.make_tbf_coeffs_nophase_tderiv,
             )
-
+            
             new_e_int = self.e_int_integrator.engine(
                 self.dt, 0.0, self.e_int, self.make_e_int_tderiv,
             )

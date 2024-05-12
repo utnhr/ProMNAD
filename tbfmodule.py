@@ -220,7 +220,7 @@ class Tbf:
             momentum=None, mass=None, width=None, phase=None,
             e_coeffs_nophase=None, e_coeffs_e_int=None, initial_gs_energy=None,
             istep=0, is_fixed=False,
-            gene = None,
+            e_part_matrices = None,
         ):
         
         self.settings      = settings
@@ -299,7 +299,7 @@ class Tbf:
         self.e_part = Electronic_state(
             settings, atomparams, e_coeffs, self.get_position(),
             self.get_velocity(), self.dt, self.istep,
-            construct_initial_gs = True,
+            matrices = e_part_matrices,
         )
 
         self.is_alive = True
@@ -436,6 +436,8 @@ class Tbf:
         baby_e_coeffs_e_int[:] = 0.0+0.0j
         baby_e_coeffs_e_int[i_state] = self.e_coeffs_e_int[i_state]
 
+        baby_e_part_matrices = self.e_part.dump_matrices()
+
         baby = Tbf(
             settings         = deepcopy(self.settings),
             atomparams       = deepcopy(self.atomparams),
@@ -448,6 +450,7 @@ class Tbf:
             e_coeffs_e_int   = baby_e_coeffs_e_int,
             mass             = deepcopy(self.mass),
             tbf_id           = tbf_id,
+            e_part_matrices  = baby_e_part_matrices,
         )
         
         #instance_vars = vars(self)
