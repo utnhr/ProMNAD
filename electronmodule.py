@@ -82,6 +82,7 @@ class Electronic_state:
 
         self.integrator = Integrator(self.integmethod)
         #self.gs_energy_integrator = Integrator(self.integmethod)
+        self.e_int_integrator = Integrator(self.integmethod)
 
         self.initial_estate_energies = None
 
@@ -98,7 +99,10 @@ class Electronic_state:
             self.gs_filling          = matrices['gs_filling']
             self.init_mo_energies    = matrices['init_mo_energies']
             self.mo_coeffs           = matrices['mo_coeffs']
+            self.mo_coeffs_nophase   = matrices['mo_coeffs_nophase']
             self.old_mo_coeffs       = matrices['old_mo_coeffs']
+            self.old_mo_coeffs_nophase = matrices['old_mo_coeffs_nophase']
+            self.mo_e_int            = matrices['mo_e_int']
             self.mo_levels           = matrices['mo_levels']
             self.n_elec              = matrices['n_elec']
             self.n_MO                = matrices['n_MO']
@@ -219,20 +223,98 @@ class Electronic_state:
         self.mo_energies, self.mo_coeffs = sp.eigh(H, S, type=1)
         #self.mo_energies, self.mo_coeffs = np.linalg.eigh(H, S)
 
+        self.mo_coeffs_nophase = deepcopy(self.mo_coeffs) # initial MOs are real
+
         #self.t_mos = self.get_istep()
 
         return
 
 
-    def make_mo_tderiv(self, t, mo_coeffs, deriv_coupling, Sinv, without_trivial_phase = True, init_mo_energies = None):
+    #def make_mo_tderiv_old(self, t, mo_coeffs, deriv_coupling, Sinv, without_trivial_phase = True, init_mo_energies = None):
+
+    #    if self.is_open_shell:
+    #        n_spin = 2
+    #    else:
+    #        n_spin = 1
+
+    #    trivial_phase_factor     = self.get_trivial_phase_factor(init_mo_energies, t, invert = False)
+    #    inv_trivial_phase_factor = self.get_trivial_phase_factor(init_mo_energies, t, invert = True)
+
+    #    def get_mo_dependent_gs_density_matrix(mo_coeffs):
+    #        
+    #        # mo_coeffs can either phase-containing or phaseless MOs
+    #        
+    #        gs_rho = np.zeros( (n_spin, self.n_AO, self.n_AO), dtype = 'float64' )
+
+    #        for i_spin in range(n_spin):
+
+    #            scaled_mo_coeffs = np.zeros_like(mo_coeffs[i_spin,:,:])
+
+    #            for i_MO in range(self.n_MO):
+
+    #                scaled_mo_coeffs[i_MO,:] = self.gs_filling[i_spin][i_MO] * mo_coeffs[i_spin,i_MO,:]
+
+    #            rho = np.dot( np.transpose(mo_coeffs[i_spin,:,:]).conjugate(), scaled_mo_coeffs )
+
+    #            gs_rho[i_spin, :, :] = np.real(rho[:, :])
+
+    #        #print('RHO 0 4', gs_rho[0,0,4]) ## Debug code
+    #        
+    #        return gs_rho
+    #    
+    #    def get_mo_dependent_hamiltonian(mo_coeffs):
+    #        
+    #        # mo_coeffs can either phase-containing or phaseless MOs
+
+    #        gs_rho = get_mo_dependent_gs_density_matrix(mo_coeffs)
+    #        
+    #        self.dftbplus_instance.go_to_workdir()
+    #        Htmp = self.dftbplus_instance.worker.return_hamiltonian(gs_rho)
+    #        self.dftbplus_instance.return_from_workdir()
+
+    #        H = np.zeros_like(Htmp, dtype = 'complex128')
+
+    #        for i_spin in range(n_spin):
+    #            H[i_spin,:,:] = utils.hermitize(Htmp[i_spin,:,:], is_upper_triangle = True)
+    #        
+    #        return H
+
+    #    if without_trivial_phase:
+    #        mo = mo_coeffs * trivial_phase_factor
+    #    else:
+    #        mo = mo_coeffs
+
+    #    H = get_mo_dependent_hamiltonian(mo)
+
+    #    Heff = np.zeros_like(H)
+
+    #    mo_tderiv = np.zeros_like(mo)
+
+    #    for i_spin in range(n_spin):
+
+    #        Heff[i_spin,:,:] = H[i_spin,:,:] - (0.0+1.0j) * deriv_coupling[:,:]
+    #    
+    #        mo_tderiv[i_spin,:,:] = -(0.0+1.0j) * np.dot(
+    #            np.dot( Sinv.astype('complex128'), Heff[i_spin,:,:] ), mo[i_spin,:,:].transpose()
+    #        ).transpose()
+
+    #    if without_trivial_phase:
+
+    #        for i_spin in range(n_spin):
+    #            for i_MO in range(self.n_MO):
+
+    #                mo_tderiv[i_spin,i_MO,:] = (0.0+1.0j) * init_mo_energies[i_spin,i_MO] * \
+    #                    mo_coeffs[i_spin,i_MO,:] + inv_trivial_phase_factor[i_spin,i_MO,:] * mo_tderiv[i_spin,i_MO,:]
+
+    #    return mo_tderiv
+
+
+    def make_mo_nophase_tderiv(self, t, mo_coeffs_nophase, deriv_coupling, Sinv, init_mo_energies = None):
 
         if self.is_open_shell:
             n_spin = 2
         else:
             n_spin = 1
-
-        trivial_phase_factor     = self.get_trivial_phase_factor(init_mo_energies, t, invert = False)
-        inv_trivial_phase_factor = self.get_trivial_phase_factor(init_mo_energies, t, invert = True)
 
         def get_mo_dependent_gs_density_matrix(mo_coeffs):
             
@@ -273,34 +355,43 @@ class Electronic_state:
             
             return H
 
-        if without_trivial_phase:
-            mo = mo_coeffs * trivial_phase_factor
-        else:
-            mo = mo_coeffs
+        H = get_mo_dependent_hamiltonian(mo_coeffs_nophase)
 
-        H = get_mo_dependent_hamiltonian(mo)
+        mo_nophase_tderiv = np.zeros_like(mo_coeffs_nophase)
 
-        Heff = np.zeros_like(H)
-
-        mo_tderiv = np.zeros_like(mo)
+        self.Heff = np.zeros_like(H)
 
         for i_spin in range(n_spin):
 
-            Heff[i_spin,:,:] = H[i_spin,:,:] - (0.0+1.0j) * deriv_coupling[:,:]
-        
-            mo_tderiv[i_spin,:,:] = -(0.0+1.0j) * np.dot(
-                np.dot( Sinv.astype('complex128'), Heff[i_spin,:,:] ), mo[i_spin,:,:].transpose()
+            self.Heff[i_spin,:,:] = H[i_spin,:,:] - (0.0+1.0j) * deriv_coupling[:,:]
+
+            Heff_nophase = deepcopy(self.Heff)
+
+            for i_MO in range(self.n_MO):
+
+                Heff_nophase[i_spin,i_MO,i_MO] = 0.0+0.0j
+
+            mo_nophase_tderiv[i_spin,:,:] = -(0.0+1.0j) * np.dot(
+                np.dot( Sinv.astype('complex128'), Heff_nophase[i_spin,:,:] ), mo_coeffs_nophase[i_spin,:,:].transpose()
             ).transpose()
 
-        if without_trivial_phase:
+        return mo_nophase_tderiv
 
-            for i_spin in range(n_spin):
-                for i_MO in range(self.n_MO):
+    
+    # call after make_mo_nophase_tderiv
+    # (to make sure that self.Heff is up to date)
+    def make_mo_e_int_tderiv(self, t, mo_e_int):
 
-                    mo_tderiv[i_spin,i_MO,:] = (0.0+1.0j) * init_mo_energies[i_spin,i_MO] * \
-                        mo_coeffs[i_spin,i_MO,:] + inv_trivial_phase_factor[i_spin,i_MO,:] * mo_tderiv[i_spin,i_MO,:]
+        if self.is_open_shell:
+            n_spin = 2
+        else:
+            n_spin = 1
 
-        return mo_tderiv
+        for i_spin in range(n_spin):
+
+            mo_e_int[i_spin,:] = np.diag(self.Heff[i_spin,:,:])
+
+        return mo_e_int
 
 
     def update_molecular_orbitals(self, is_before_initial = False, calc_mo_tdnac = True):
@@ -314,7 +405,7 @@ class Electronic_state:
 
         self.old_mo_coeffs = deepcopy(self.mo_coeffs)
 
-        new_mo_coeffs = self.propagate_without_trivial_phase(self.mo_coeffs, self.t_molecular_orbitals, self.dt)
+        new_mo_coeffs = self.propagate_without_trivial_phase(self.t_molecular_orbitals, self.dt)
 
         if calc_mo_tdnac:
 
@@ -384,23 +475,33 @@ class Electronic_state:
     #    return new_mo
 
     
-    def propagate_without_trivial_phase(self, mo, t, dt):
+    def propagate_without_trivial_phase(self, t, dt):
 
         if self.is_open_shell:
             n_spin = 2
         else:
             n_spin = 1
 
-        inv_trivial_phase_factor = self.get_trivial_phase_factor(self.init_mo_energies, t, invert = True)
+        self.old_mo_coeffs_nophase = deepcopy(self.mo_coeffs_nophase)
+        self.old_mo_e_int          = deepcopy(self.mo_e_int)
 
-        mo_nophase = mo * inv_trivial_phase_factor
-
-        new_mo_nophase = self.integrator.engine(
-            self.dt, self.t_molecular_orbitals, mo_nophase, self.make_mo_tderiv,
-            self.deriv_coupling, self.Sinv, True, self.init_mo_energies,
+        self.mo_coeffs_nophase = self.integrator.engine(
+            self.dt, self.t_molecular_orbitals, self.mo_coeffs_nophase, self.make_mo_nophase_tderiv,
+            self.deriv_coupling, self.Sinv,
         )
-        
-        new_mo = new_mo_nophase * self.get_trivial_phase_factor(self.init_mo_energies, t+dt, invert = False)
+
+        dummy = 0.0
+        self.mo_e_int = self.e_int_integrator.engine(
+            self.dt, dummy, self.mo_e_int, self.make_mo_e_int_tderiv, 
+        )
+
+        new_mo = np.zeros_like(self.mo_coeffs_nophase)
+
+        for i_spin in range(n_spin):
+
+            for i_MO in range(self.n_MO):
+                    
+                new_mo[i_spin,i_MO,:] = self.mo_coeffs_nophase[i_spin,i_MO,:] * np.exp( (-1.0j/H_DIRAC) * self.mo_e_int[i_spin,i_MO] )
 
         return new_mo
 
@@ -941,7 +1042,8 @@ class Electronic_state:
                 open_shell = self.is_open_shell
             )
 
-            self.mo_coeffs     = mo_coeffs_real.astype('complex128')
+            self.mo_coeffs         = mo_coeffs_real.astype('complex128')
+            self.mo_coeffs_nophase = mo_coeffs_real.astype('complex128')
             #self.old_mo_coeffs = None
 
             self.gs_filling = self.dftbplus_instance.worker.get_filling(open_shell = self.is_open_shell)
@@ -952,6 +1054,8 @@ class Electronic_state:
 
             self.n_MO = np.size(self.mo_coeffs, 2)
             self.n_AO = self.n_MO
+
+            self.mo_e_int = np.zeros( (2, self.n_MO), dtype = 'float64')
 
             self.update_gs_density_matrix()
             
@@ -1047,7 +1151,10 @@ class Electronic_state:
             'S'                   : deepcopy(self.S),
             'Sinv'                : deepcopy(self.Sinv),
             'mo_coeffs'           : deepcopy(self.mo_coeffs),
+            'mo_coeffs_nophase'   : deepcopy(self.mo_coeffs_nophase),
             'old_mo_coeffs'       : deepcopy(self.old_mo_coeffs),
+            'old_mo_coeffs_nophase': deepcopy(self.old_mo_coeffs_nophase),
+            'mo_e_int'            : deepcopy(self.mo_e_int),
             'mo_levels'           : deepcopy(self.mo_levels),
             'init_mo_energies'    : deepcopy(self.init_mo_energies),
             'estate_energies'     : deepcopy(self.estate_energies),
