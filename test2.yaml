@@ -42,7 +42,7 @@ initial_coeffs:
   - 1.0
 n_step: 30000
 
-dt: 1.0
+dt: 0.1
 print_xyz_interval: 10
 flush_interval: 10
 
@@ -51,9 +51,9 @@ cloning_parameters:
   popul_threshold: 0.1
   e_threshold: 0.01
 
-dt_deriv: 1.0
+dt_deriv: 0.1
 
-max_n_tbf: 5
+max_n_tbf: 2
 
 reconst_interval: -1
 

@@ -139,6 +139,7 @@ class Tbf:
     @classmethod
     def get_gaussian_NAcoupling_term(cls, tbf1, tbf2, gaussian_overlap):
         """Calculate nonadiabatic coupling matrix element between two Gaussian wave packets."""
+
         return (1j * 0.5 / H_DIRAC) * gaussian_overlap.prod() * (
             tbf1.e_part.get_tdnac() + tbf2.e_part.get_tdnac()
         )
@@ -435,8 +436,9 @@ class Tbf:
         baby_e_coeffs_nophase[i_state] = 1.0+0.0j
 
         baby_e_coeffs_e_int = deepcopy(self.e_coeffs_e_int)
-        baby_e_coeffs_e_int[:] = 0.0+0.0j
-        baby_e_coeffs_e_int[i_state] = self.e_coeffs_e_int[i_state]
+        #baby_e_coeffs_e_int[:] = 0.0+0.0j
+        #baby_e_coeffs_e_int[i_state] = self.e_coeffs_e_int[i_state]
+        baby_e_coeffs_e_int[:] = self.e_coeffs_e_int[:]
 
         baby_e_part_matrices = self.e_part.dump_matrices()
 
@@ -466,8 +468,15 @@ class Tbf:
 
         # c_i = 0 and c_j (j =/= i) rescaled for parent TBF
 
+        self.e_coeffs_nophase[i_state] = 0.0+0.0j
+        new_norm = np.linalg.norm(self.e_coeffs_nophase)
+        print('NEW_NORM', new_norm) ## Debug code
+        self.e_coeffs_nophase /= new_norm
+
         self.e_part.e_coeffs[i_state] = 0.0+0.0j
-        self.e_part.e_coeffs[:] /= np.linalg.norm(self.e_part.e_coeffs)
+        self.e_part.e_coeffs[:] /= new_norm
+        self.e_part.e_coeffs_tderiv[i_state] = 0.0+0.0j
+        self.e_part.e_coeffs_tderiv[:] /= new_norm
 
         # reset integrators for discontinuous change in e_coeffs
 

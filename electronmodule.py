@@ -380,7 +380,9 @@ class Electronic_state:
     
     # call after make_mo_nophase_tderiv
     # (to make sure that self.Heff is up to date)
-    def make_mo_e_int_tderiv(self, t, mo_e_int):
+    def make_mo_e_int_tderiv(self, t, mo_e_int, Heff):
+
+        mo_e_int_tderiv = np.zeros_like(mo_e_int)
 
         if self.is_open_shell:
             n_spin = 2
@@ -389,9 +391,9 @@ class Electronic_state:
 
         for i_spin in range(n_spin):
 
-            mo_e_int[i_spin,:] = np.diag(self.Heff[i_spin,:,:])
+            mo_e_int_tderiv[i_spin,:] = np.diag(Heff[i_spin,:,:])
 
-        return mo_e_int
+        return mo_e_int_tderiv
 
 
     def update_molecular_orbitals(self, is_before_initial = False, calc_mo_tdnac = True):
@@ -486,13 +488,13 @@ class Electronic_state:
         self.old_mo_e_int          = deepcopy(self.mo_e_int)
 
         self.mo_coeffs_nophase = self.integrator.engine(
-            self.dt, self.t_molecular_orbitals, self.mo_coeffs_nophase, self.make_mo_nophase_tderiv,
-            self.deriv_coupling, self.Sinv,
+            self.dt, self.t_molecular_orbitals, self.mo_coeffs_nophase,
+            self.make_mo_nophase_tderiv, self.deriv_coupling, self.Sinv,
         )
 
-        dummy = 0.0
         self.mo_e_int = self.e_int_integrator.engine(
-            self.dt, dummy, self.mo_e_int, self.make_mo_e_int_tderiv, 
+            self.dt, self.t_molecular_orbitals, self.mo_e_int,
+            self.make_mo_e_int_tderiv, self.Heff,
         )
 
         new_mo = np.zeros_like(self.mo_coeffs_nophase)
@@ -501,7 +503,9 @@ class Electronic_state:
 
             for i_MO in range(self.n_MO):
                     
-                new_mo[i_spin,i_MO,:] = self.mo_coeffs_nophase[i_spin,i_MO,:] * np.exp( (-1.0j/H_DIRAC) * self.mo_e_int[i_spin,i_MO] )
+                new_mo[i_spin,i_MO,:] = \
+                    self.mo_coeffs_nophase[i_spin,i_MO,:] * \
+                    np.exp( (-1.0j/H_DIRAC) * self.mo_e_int[i_spin,i_MO] )
 
         return new_mo
 
