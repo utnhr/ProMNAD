@@ -48,6 +48,7 @@ initial_estates:
 initial_coeffs:
 #  - 1.0
   - 1.0
+#n_step: 75
 n_step: 100000
 max_n_tbf: 1
 

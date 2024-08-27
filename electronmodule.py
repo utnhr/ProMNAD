@@ -1133,6 +1133,7 @@ class Electronic_state:
 
         self.dftbplus_instance.go_to_workdir()
         Htmp = self.dftbplus_instance.worker.return_hamiltonian(self.gs_rho)
+        Htmp = self.dftbplus_instance.worker.return_hamiltonian(self.gs_rho) ## Calling twice here eliminates the spikes in MO levels; why?????
         self.dftbplus_instance.return_from_workdir()
 
         self.H = np.zeros_like(Htmp, dtype = 'complex128')
@@ -1141,7 +1142,7 @@ class Electronic_state:
         for i_spin in range(n_spin):
 
             self.H[i_spin,:,:] = utils.hermitize(Htmp[i_spin,:,:], is_upper_triangle = True)
-        
+
             H_MO = np.dot(
                 self.mo_coeffs[i_spin,:,:].conj(), np.dot(self.H[i_spin,:,:], self.mo_coeffs[i_spin,:,:].transpose())
             )

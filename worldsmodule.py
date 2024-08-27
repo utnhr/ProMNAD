@@ -444,11 +444,11 @@ class World:
         self.set_new_tbf_coeffs(new_tbf_coeffs)
         self.set_new_tbf_coeffs_nophase(new_tbf_coeffs_nophase)
 
-        print('H_tbf', self.H_tbf) ## Debug code
-        print('S_tbf', self.S_tbf) ## Debug code
-        print('TBF_COEFFS_NOPHASE', self.tbf_coeffs_nophase) ## Debug code
-        print('TBF_COEFFS', self.tbf_coeffs) ## Debug code
-        print('E_COEFFS_NOPHASE1', self.tbfs[0].e_coeffs_nophase) ## Debug code
+        #print('H_tbf', self.H_tbf) ## Debug code
+        #print('S_tbf', self.S_tbf) ## Debug code
+        #print('TBF_COEFFS_NOPHASE', self.tbf_coeffs_nophase) ## Debug code
+        #print('TBF_COEFFS', self.tbf_coeffs) ## Debug code
+        #print('E_COEFFS_NOPHASE1', self.tbfs[0].e_coeffs_nophase) ## Debug code
 
         return
     
