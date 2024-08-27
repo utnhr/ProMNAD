@@ -784,6 +784,32 @@ class Tbf:
 
         return
 
+    
+    def print_mo_level(self):
+
+        if self.e_part.is_open_shell:
+            n_spin = 2
+        else:
+            n_spin = 1
+        
+        mo_level_file = self.localoutput.mo_level
+
+        n_mo = len(self.e_part.csc)
+
+        time_str = "STEP %12d T= %20.12f fs" % (self.istep, self.t*AU2SEC*1.0e15)
+
+        mo_level_file.write(time_str)
+
+        for i_spin in range(n_spin):
+
+            for i_mo in range(n_mo):
+            
+                mo_level_file.write( " %20.12f" % self.e_part.mo_levels[i_spin,i_mo] )
+
+        mo_level_file.write( "\n" % np.sum(self.e_part.csc) )
+
+        return
+
 
     def print_thermodynamics(self):
         
@@ -813,6 +839,8 @@ class Tbf:
             self.print_estate_info()
 
             self.print_e_ortho()
+
+            self.print_mo_level()
 
             self.print_thermodynamics()
 

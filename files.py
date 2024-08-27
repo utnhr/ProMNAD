@@ -46,6 +46,7 @@ class LocalOutputFiles:
         self.e_coeff  = open("e_coeff.%d.dat" % index, 'w')   # coefficients of electronic states
         self.e_popul  = open("e_popul.%d.dat" % index, 'w')   # populations of electronic states
         self.e_ortho  = open("e_ortho.%d.dat" % index, 'w')   # orthonormality of MOs, i.e., C^\dag*S*C
+        self.mo_level = open("mo_level.%d.dat" % index, 'w')  # MO levels
         
         return
 
@@ -58,6 +59,7 @@ class LocalOutputFiles:
         self.pec.close()
         self.e_coeff.close()
         self.e_ortho.close()
+        self.mo_level.close()
 
         return
 
@@ -70,5 +72,6 @@ class LocalOutputFiles:
         self.pec.flush()
         self.e_coeff.flush()
         self.e_ortho.flush()
+        self.mo_level.flush()
         
         return

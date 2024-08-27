@@ -43,15 +43,16 @@ active_vir_mos:
 #active_vir_mos: []
 
 initial_estates:
-  - 1
+#  - 1
   - 2
 initial_coeffs:
-  - 1.0
+#  - 1.0
   - 1.0
 n_step: 100000
+max_n_tbf: 1
 
 dt: 0.1
-print_xyz_interval: 100
+print_xyz_interval: 1
 
 dt_deriv: 1.0
 

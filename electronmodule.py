@@ -362,7 +362,7 @@ class Electronic_state:
         self.Heff = np.zeros_like(H)
 
         for i_spin in range(n_spin):
-
+            
             self.Heff[i_spin,:,:] = H[i_spin,:,:] - (0.0+1.0j) * deriv_coupling[:,:]
 
             Heff_nophase = deepcopy(self.Heff)
@@ -391,7 +391,12 @@ class Electronic_state:
 
         for i_spin in range(n_spin):
 
-            mo_e_int_tderiv[i_spin,:] = np.diag(Heff[i_spin,:,:])
+            mo_H = np.dot(
+                self.mo_coeffs[i_spin,:,:], np.dot( self.H[i_spin,:,:], self.mo_coeffs[i_spin,:,:].transpose().conjugate() )
+            )
+
+            #mo_e_int_tderiv[i_spin,:] = np.diag(Heff[i_spin,:,:])
+            mo_e_int_tderiv[i_spin,:] = np.diag(mo_H)
 
         return mo_e_int_tderiv
 
