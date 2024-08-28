@@ -111,15 +111,27 @@ class Tbf:
         mid_P = 0.5 * ( tbf1.get_momentum() + tbf2.get_momentum() )
         mass  = tbf1.get_mass()
 
-        kin = - 0.5 * H_DIRAC**2 * (
-            (1j/H_DIRAC) * 2.0 * width * del_R * mid_P - \
-            width + width**2 * del_R**2 - mid_P**2 / H_DIRAC**2
-        ) * s_gw / mass 
+        #kin = - 0.5 * H_DIRAC**2 * (
+        #    (1j/H_DIRAC) * 2.0 * width * del_R * mid_P - \
+        #    width + width**2 * del_R**2 - mid_P**2 / H_DIRAC**2
+        #) * s_gw / mass 
+        
+        in_sigma = - 0.5 * H_DIRAC**2 * (
+            (1j/H_DIRAC) * 2.0 * width* del_R * mid_P - \
+            width + width * del_R * width * del_R - mid_P * mid_P / H_DIRAC**2 # ?????
+        ) / mass 
+
+        kin = np.sum(in_sigma) * s_gw.prod()
+
+        #kin = - 0.5 * H_DIRAC**2 * (
+        #    (1j/H_DIRAC) * 2.0 * np.dot(width*del_R,mid_P) - \
+        #    np.sum(width) + np.dot(width*del_R,width*del_R) - np.dot(mid_P,mid_P) / H_DIRAC**2 # ?????
+        #) * s_gw.prod() / mass 
 
         if each_degree:
             return kin
         else:
-            #$return kin.prod()
+            #return kin.prod()
             return kin.sum()
     
     @classmethod
@@ -160,6 +172,13 @@ class Tbf:
         kinE       = cls.get_gaussian_kinE_term(tbf1, tbf2, gaussian_overlap, each_degree = False)
         potentials = cls.get_gaussian_potential_term(tbf1, tbf2, gaussian_overlap)
         tdnacs     = cls.get_gaussian_NAcoupling_term(tbf1, tbf2, gaussian_overlap)
+        
+        ### Debug code
+        #print('GAUSSIAN OVERLAP', gaussian_overlap.prod())
+        #print('KINE', kinE)
+        #print('POTENTIALS', potentials)
+        #print('TDNACS', tdnacs)
+        ### End Debug code
 
         H_mn = 0.0j
 

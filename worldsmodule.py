@@ -392,9 +392,10 @@ class World:
                 g_ij = Tbf.get_gaussian_overlap(guy_i, guy_j)
 
                 val = Tbf.get_tbf_derivative_coupling(guy_i, guy_j, g_ij)
+                #val = 0.0; print('DEBUG: TBF DERIV COUPLING SET TO ZERO') ## Debug code
 
                 self.H_tbf[i_tbf,j_tbf] -= 1.0j * H_DIRAC * val
-                self.H_tbf[j_tbf,i_tbf] += 1.0j * H_DIRAC * val
+                self.H_tbf[j_tbf,i_tbf] -= 1.0j * H_DIRAC * val
 
         # symmetrize S & hermitize H
 
@@ -444,8 +445,8 @@ class World:
         self.set_new_tbf_coeffs(new_tbf_coeffs)
         self.set_new_tbf_coeffs_nophase(new_tbf_coeffs_nophase)
 
-        #print('H_tbf', self.H_tbf) ## Debug code
-        #print('S_tbf', self.S_tbf) ## Debug code
+        print('H_tbf', self.H_tbf) ## Debug code
+        print('S_tbf', self.S_tbf) ## Debug code
         #print('TBF_COEFFS_NOPHASE', self.tbf_coeffs_nophase) ## Debug code
         #print('TBF_COEFFS', self.tbf_coeffs) ## Debug code
         #print('E_COEFFS_NOPHASE1', self.tbfs[0].e_coeffs_nophase) ## Debug code

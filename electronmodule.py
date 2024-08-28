@@ -364,6 +364,7 @@ class Electronic_state:
         for i_spin in range(n_spin):
             
             self.Heff[i_spin,:,:] = H[i_spin,:,:] - (0.0+1.0j) * deriv_coupling[:,:]
+            #print('DERIVCOUPL', deriv_coupling) ## Debug code
 
             Heff_nophase = deepcopy(self.Heff)
 
