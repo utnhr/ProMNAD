@@ -19,7 +19,7 @@ class Electronic_state:
     
     electronic_state_count = 0
     
-    def __init__(self, settings, atomparams, e_coeffs, position, velocity, dt, istep, matrices = None):
+    def __init__(self, settings, atomparams, e_coeffs, position, velocity, dt, t, i_step, matrices = None):
         
         self.electronic_state_id = Electronic_state.electronic_state_count
         Electronic_state.electronic_state_count += 1
@@ -73,10 +73,22 @@ class Electronic_state:
         self.e_coeffs_tderiv     = np.zeros_like(e_coeffs)
         self.old_e_coeffs_tderiv = np.zeros_like(e_coeffs)
 
-        self.i_step              = istep
+        self.i_step              = i_step
         
-        self.t_e_coeffs           = 0.0
-        self.t_molecular_orbitals = 0.0
+        # clocks
+
+        #self.t_e_coeffs           = 0.0
+        self.t_mo_coeffs          = t
+        self.t_mo_coeffs_nophase  = t
+        self.t_mo_e_int           = t
+        self.t_mo_levels          = t
+        self.t_csc                = t
+
+        self.t_H                  = t # TODO
+        self.t_S                  = t # TODO
+        #...
+
+        #
 
         self.is_edyn_initialized  = False
 
@@ -413,7 +425,7 @@ class Electronic_state:
 
         self.old_mo_coeffs = deepcopy(self.mo_coeffs)
 
-        new_mo_coeffs = self.propagate_without_trivial_phase(self.t_molecular_orbitals, self.dt)
+        new_mo_coeffs = self.propagate_without_trivial_phase(self.t_mo_coeffs, self.dt)
 
         if calc_mo_tdnac:
 
@@ -455,6 +467,7 @@ class Electronic_state:
             #print('MO OVERLAP TWOGEOM', self.mo_tdnac * 2.0 * self.dt) ## Debug code
 
         self.mo_coeffs = deepcopy(new_mo_coeffs)
+        self.t_mo_coeffs += self.dt
         
         for i_spin in range(n_spin):
 
@@ -464,7 +477,7 @@ class Electronic_state:
 
             self.csc = np.real(np.diag(csc))
 
-        self.t_molecular_orbitals += self.dt
+        self.t_csc = self.t_mo_coeffs
 
         #utils.Printer.write_out('Updating MOs: Done.\n')
 
@@ -494,12 +507,12 @@ class Electronic_state:
         self.old_mo_e_int          = deepcopy(self.mo_e_int)
 
         self.mo_coeffs_nophase = self.integrator.engine(
-            self.dt, self.t_molecular_orbitals, self.mo_coeffs_nophase,
+            self.dt, self.t_mo_coeffs_nophase, self.mo_coeffs_nophase,
             self.make_mo_nophase_tderiv, self.deriv_coupling, self.Sinv,
         )
 
         self.mo_e_int = self.e_int_integrator.engine(
-            self.dt, self.t_molecular_orbitals, self.mo_e_int,
+            self.dt, self.t_mo_e_int, self.mo_e_int,
             self.make_mo_e_int_tderiv, self.Heff,
         )
 
@@ -800,7 +813,7 @@ class Electronic_state:
         return self.tdnac
 
     
-    def get_force(self, gs_force = False, do_not_update = False):
+    def get_force(self, gs_force = False, do_not_update = False, get_time = False):
         """Get nuclear force originating from electronic states."""
 
         force = np.zeros_like(self.position)
@@ -853,8 +866,11 @@ class Electronic_state:
 
             else:
                 self.force = force
-
-        return force
+        
+        if get_time:
+            return force, 0.0 ## placeholder
+        else:
+            return force
     
 
     def update_matrices(self, is_before_initial = False):
@@ -1149,6 +1165,8 @@ class Electronic_state:
             )
 
             self.mo_levels[i_spin,:] = np.real(np.diag(H_MO))
+
+        self.t_mo_levels = self.t_mo_coeffs
         
         return
 

@@ -111,14 +111,14 @@ def stop_with_error(msg):
     sys.exit(1)
 
 
-def is_equal_scalar(a, b):
+def is_equal_scalar(a, b, eps = constants.EPS_FLOAT_EQUAL):
     
-    return abs(a-b) < constants.EPS_FLOAT_EQUAL
+    return abs(a-b) < eps
 
 
-def is_equal_ndarray(a, b):
+def is_equal_ndarray(a, b, eps = constants.EPS_FLOAT_EQUAL):
     
-    return np.max(np.abs(a-b)) < constants.EPS_FLOAT_EQUAL
+    return np.max(np.abs(a-b)) < eps
 
 
 def coord_1d_to_2d(coord_1d):

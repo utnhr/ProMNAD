@@ -243,45 +243,57 @@ class Tbf:
             e_part_matrices = None,
         ):
         
-        self.settings      = settings
+        # Global settings
+
+        self.settings = settings
+
+        # Load necessary settings
+
+        self.dt = load_setting(settings, 'dt') # For position and momentum integration
+        self.read_traject = load_setting(settings, 'read_traject')
+        self.print_xyz_interval = load_setting(settings, 'print_xyz_interval')
+        self.flush_interval = load_setting(settings, 'flush_interval')
+        self.integmethod = load_setting(settings, 'integrator')
+
+        # Time-independent values
+
         self.atomparams    = atomparams        # dictionary { 'elems': array, 'angmom_table': array (optional, for DFTB+) }
         self.n_dof         = n_dof             # integer
         self.n_estate      = n_estate          # integer
         self.init_position = position          # np.array (n_dof)
+        if momentum is not None:
+            self.init_momentum = momentum # np.array (n_dof)
+        else:
+            self.init_momentum = np.zeros(n_dof, dtype='float64')
         self.mass          = mass              # np.array (n_dof)
         self.width         = width             # np.array (n_dof)
         self.init_istep    = istep             # integer, index of step
         self.tbf_id        = tbf_id            # integer (start 0)
         self.is_fixed      = is_fixed          # logical
         #self.world_id      = world_id          # int (start 0)
+        
+        # Initial time
+        self.istep = self.init_istep # Position and momentum steps
+        t = self.istep * self.dt
 
-        if momentum is not None:
-            self.init_momentum = momentum # np.array (n_dof)
-        else:
-            self.init_momentum = np.zeros(n_dof, dtype='float64')
+        # Time-dependent values and "clocks"
 
         if phase is not None:
             self.phase = phase # np.array (n_dof)
         else:
             self.phase = np.zeros(n_dof, dtype='float64')
+        self.t_phase = t
 
-        self.gs_energy     = initial_gs_energy # None or float
-
-        self.istep = self.init_istep
+        #self.gs_energy     = initial_gs_energy # None or float
+        #self.t_gs_energy   = t
 
         self.position       = deepcopy(self.init_position)
         self.old_position   = deepcopy(self.position)
-        self.istep_position = istep
+        self.t_position     = t
 
         self.momentum       = deepcopy(self.init_momentum)
         self.old_momentum   = deepcopy(self.momentum)
-        self.istep_momentum = istep
-
-        self.dt = load_setting(settings, 'dt')
-        self.read_traject = load_setting(settings, 'read_traject')
-        self.print_xyz_interval = load_setting(settings, 'print_xyz_interval')
-        self.flush_interval = load_setting(settings, 'flush_interval')
-        self.integmethod = load_setting(settings, 'integrator')
+        self.t_momentum     = t
 
         if self.read_traject:
 
@@ -302,10 +314,13 @@ class Tbf:
 
         self.force        = np.zeros_like(self.position)
         self.old_force    = np.zeros_like(self.position)
+        self.t_force      = t
+
         self.gs_force     = np.zeros_like(self.position)
         self.old_gs_force = np.zeros_like(self.position)
+        self.t_gs_force   = t
 
-        self.e_dot = np.zeros(n_estate) # dc/dt
+        #self.e_dot = np.zeros(n_estate) # dc/dt
 
         #self.tbf_id = world.total_tbf_count + 1
 
@@ -315,28 +330,46 @@ class Tbf:
             e_coeffs = self.e_coeffs_nophase * np.exp(
                 (-1.0j/H_DIRAC) * self.e_coeffs_e_int
             )
-            
+        self.t_e_coeffs_nophase = t
+        self.t_e_coeffs         = t
+        self.t_e_coeffs_e_int   = t
+        self.t_e_coeffs_tderiv  = t
+
+        self.Epot = 0.0
+        self.t_Epot = t
+
+        self.EpotGS = 0.0
+        self.t_EpotGS = t
+
+        self.dEpotGS = 0.0
+        self.t_dEpotGS = t
+
+        self.Ekin = 0.0
+        self.t_Ekin = t
+
+        #self.t       = self.dt * self.istep
+        
+        # Electronic part instance
+
         self.e_part = Electronic_state(
             settings, atomparams, e_coeffs, self.get_position(),
-            self.get_velocity(), self.dt, self.istep,
+            self.get_velocity(), self.dt, t, self.istep,
             matrices = e_part_matrices,
         )
 
-        self.is_alive = True
-
-        self.Epot    = 0.0
-        self.EpotGS  = 0.0
-        self.dEpotGS = 0.0
-        self.Ekin    = 0.0
-        self.t       = self.dt * self.istep
+        # Integrators
 
         self.e_coeffs_nophase_integrator = Integrator(self.integmethod)
         self.e_coeffs_e_int_integrator   = Integrator(self.integmethod)
         self.phase_integrator            = Integrator(self.integmethod)
+        
+        # Status
 
+        self.is_alive = True
         self.childs = []
-
-        self.localoutput = LocalOutputFiles(self.tbf_id)
+        
+        # I/O
+        self.localoutput   = LocalOutputFiles(self.tbf_id)
 
         return
 
@@ -536,10 +569,10 @@ class Tbf:
     def update_force(self):
         
         self.old_force = self.force
-        self.force     = self.e_part.get_force()
+        self.force, self.t_force = self.e_part.get_force(get_time = True)
 
         self.old_gs_force = self.gs_force
-        self.gs_force     = self.e_part.get_force(gs_force = True)
+        self.gs_force, self.t_gs_force = self.e_part.get_force(gs_force = True, get_time = True)
 
         return
 
@@ -616,7 +649,7 @@ class Tbf:
         # just for reuse for update of TBF coefficients
 
         term1 = self.make_e_coeffs_nophase_tderiv(
-            self.t, self.e_coeffs_nophase, H_el_ndiag,
+            self.t_e_coeffs_nophase, self.e_coeffs_nophase, H_el_ndiag,
         ) * np.exp( (-1.0j/H_DIRAC) * self.e_coeffs_e_int )
         term2 = self.e_coeffs_nophase * (-1.0j/H_DIRAC) * estate_energies
 
@@ -628,17 +661,23 @@ class Tbf:
             dt, t, self.e_coeffs_nophase,
             self.make_e_coeffs_nophase_tderiv, H_el_ndiag,
         )
+        self.t_e_coeffs_nophase += dt
+
         self.e_coeffs_e_int = self.e_coeffs_e_int_integrator.engine(
             dt, t, self.e_coeffs_e_int,
             self.make_e_coeffs_e_int_tderiv, H_el_diag,
         )
+        self.t_e_coeffs_e_int += dt
 
         e_coeffs = self.e_coeffs_nophase * np.exp(
             ( (-1.0j)/H_DIRAC ) * self.e_coeffs_e_int
         )
 
         self.e_part.set_new_e_coeffs(e_coeffs)
+        self.t_e_coeffs += dt
+
         self.e_part.set_new_e_coeffs_tderiv(e_coeffs_tderiv)
+        self.t_e_coeffs_tderiv += dt
 
         # Ehrenfest energy: E = <\Psi|H|\Psi>
         # Here H assumed to be diagonal, so E is just a weighted average
@@ -651,7 +690,7 @@ class Tbf:
 
         self.set_new_istep( self.get_istep() + 1 )
 
-        self.t += self.dt
+        #self.t += self.dt
 
         return
 
@@ -670,11 +709,8 @@ class Tbf:
         velocity     = self.get_velocity()
 
         if self.read_traject:
-
             position, velocity = self.get_next_given_traject()
-
         else:
-
             #position = old_position + 2.0 * velocity * dt
             position = self.get_position() + velocity * dt + 0.5 * ( self.force / self.get_mass_au() ) * dt**2
 
@@ -682,34 +718,41 @@ class Tbf:
         
         self.update_force()
         #force = self.get_force()
+        self.t_force += dt
 
         if self.read_traject:
-                
             momentum = velocity * self.get_mass_au()
-
         else:
-
             #momentum = old_momentum + 2.0 * force * dt
             momentum = self.get_momentum() + 0.5 * (self.old_force + self.force) * dt
 
         self.phase = self.phase_integrator.engine(dt, 0, self.phase, self.dgdt)
+        self.t_phase += dt
 
         if self.is_fixed:
             position = old_position
             momentum = old_momentum
 
         delta = 0.5 * (position - old_position)
+
         self.Epot   -= np.dot(delta, self.force)
+        self.t_Epot += dt
+
         self.dEpotGS = -np.dot(delta, self.gs_force)
+        self.t_dEpotGS += dt
+
         self.Ekin    = sum( 0.5 * momentum**2 / self.get_mass_au() )
+        self.t_Ekin += dt
         
         self.EpotGS += self.dEpotGS
         self.e_part.modify_gs_energy(self.dEpotGS)
+        self.t_EpotGS += dt
 
         self.set_new_position(position)
-        self.set_new_momentum(momentum)
+        self.t_position += dt
 
-        veloc = self.get_velocity()
+        self.set_new_momentum(momentum)
+        self.t_momentum += dt
 
         return
 
@@ -741,7 +784,7 @@ class Tbf:
 
         xyz_file.write("%d\n" % n_atom)
 
-        xyz_file.write( "T= %20.12f fs ( STEP %d ) \n" % (self.t*AU2SEC*1.0e15, self.istep) )
+        xyz_file.write( "T= %20.12f fs ( STEP %d ) \n" % (self.t_position*AU2SEC*1.0e15, self.istep) )
 
         for i_atom in range(n_atom):
 
@@ -763,7 +806,7 @@ class Tbf:
 
         n_estate = self.get_n_estate()
 
-        time_str = "STEP %12d T= %20.12f fs" % (self.istep, self.t*AU2SEC*1.0e15)
+        time_str = "STEP %12d T= %20.12f fs" % (self.istep, self.t_e_coeffs*AU2SEC*1.0e15)
 
         e_coeff_file.write(time_str)
         e_popul_file.write(time_str)
@@ -791,7 +834,7 @@ class Tbf:
 
         n_mo = len(self.e_part.csc)
 
-        time_str = "STEP %12d T= %20.12f fs" % (self.istep, self.t*AU2SEC*1.0e15)
+        time_str = "STEP %12d T= %20.12f fs" % (self.istep, self.e_part.t_csc*AU2SEC*1.0e15)
 
         e_ortho_file.write(time_str)
 
@@ -815,7 +858,7 @@ class Tbf:
 
         n_mo = len(self.e_part.csc)
 
-        time_str = "STEP %12d T= %20.12f fs" % (self.istep, self.t*AU2SEC*1.0e15)
+        time_str = "STEP %12d T= %20.12f fs" % (self.istep, self.e_part.t_mo_levels*AU2SEC*1.0e15)
 
         mo_level_file.write(time_str)
 
@@ -836,7 +879,7 @@ class Tbf:
 
         temperature = self.get_temperature()
 
-        time_str = "STEP %12d T= %20.12f fs" % (self.istep, self.t*AU2SEC*1.0e15)
+        time_str = "STEP %12d T= %20.12f fs" % (self.istep, self.t_Ekin*AU2SEC*1.0e15)
 
         energy_file.write(time_str)
 
