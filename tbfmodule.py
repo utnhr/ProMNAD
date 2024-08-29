@@ -351,9 +351,14 @@ class Tbf:
         
         # Electronic part instance
 
+        # check that every clocks are consistent
+
         self.e_part = Electronic_state(
-            settings, atomparams, e_coeffs, self.get_position(),
-            self.get_velocity(), self.dt, t, self.istep,
+            settings, atomparams,
+            e_coeffs, self.t_e_coeffs,
+            self.get_position(), self.t_position,
+            self.get_velocity(), self.t_momentum,
+            self.dt, self.istep,
             matrices = e_part_matrices,
         )
 
@@ -609,8 +614,8 @@ class Tbf:
 
         # update position and velocity for electronic part
 
-        self.e_part.set_next_position( self.get_position() )
-        self.e_part.set_next_velocity( self.get_velocity() )
+        self.e_part.set_next_position( self.get_position(), self.t_position )
+        self.e_part.set_next_velocity( self.get_velocity(), self.t_momentum )
         #self.e_part.set_next_istep( self.get_istep() )
 
         self.e_part.update_position()
@@ -619,6 +624,8 @@ class Tbf:
         # update electronic wavefunc and relevant physical quantities
 
         self.e_part.update_matrices()
+
+        #self.e_part.propagate_molecular_orbitals()
 
         self.e_part.update_estate_energies()
 
@@ -631,13 +638,18 @@ class Tbf:
 
         estate_energies -= self.e_part.initial_estate_energies
 
+        # Ehrenfest energy: E = <\Psi|H|\Psi>
+        # Here H assumed to be diagonal, so E is just a weighted average
+
+        self.e_part.update_ehrenfest_energy()
+
+        # construct electronic Hamiltonian
+        # and update time derivative of electronic coeffs
+
         self.e_part.update_tdnac()
 
         tdnac = self.e_part.get_tdnac()
         
-        # construct electronic Hamiltonian
-        # and update time derivative of electronic coeffs
-
         n_estate = self.e_part.get_n_estate()
 
         H_el_ndiag = -1.0j * H_DIRAC * tdnac
@@ -654,6 +666,7 @@ class Tbf:
         term2 = self.e_coeffs_nophase * (-1.0j/H_DIRAC) * estate_energies
 
         e_coeffs_tderiv = term1 + term2
+        self.t_e_coeffs_tderiv += dt
 
         # integrate electronic state coeffcients
 
@@ -672,21 +685,19 @@ class Tbf:
         e_coeffs = self.e_coeffs_nophase * np.exp(
             ( (-1.0j)/H_DIRAC ) * self.e_coeffs_e_int
         )
-
-        self.e_part.set_new_e_coeffs(e_coeffs)
         self.t_e_coeffs += dt
 
-        self.e_part.set_new_e_coeffs_tderiv(e_coeffs_tderiv)
-        self.t_e_coeffs_tderiv += dt
+        self.e_part.set_new_e_coeffs(e_coeffs, self.t_e_coeffs)
 
-        # Ehrenfest energy: E = <\Psi|H|\Psi>
-        # Here H assumed to be diagonal, so E is just a weighted average
+        self.e_part.set_new_e_coeffs_tderiv(e_coeffs_tderiv, self.t_e_coeffs_tderiv)
 
-        self.e_part.update_ehrenfest_energy()
-
-        # sum up
+        # sum up results of current time step
 
         self.print_results()
+
+        # propagate MOs
+
+        self.e_part.propagate_molecular_orbitals()
 
         self.set_new_istep( self.get_istep() + 1 )
 
@@ -745,8 +756,8 @@ class Tbf:
         self.t_Ekin += dt
         
         self.EpotGS += self.dEpotGS
-        self.e_part.modify_gs_energy(self.dEpotGS)
         self.t_EpotGS += dt
+        self.e_part.modify_gs_energy(self.dEpotGS, self.t_EpotGS)
 
         self.set_new_position(position)
         self.t_position += dt

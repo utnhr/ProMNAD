@@ -103,12 +103,29 @@ def stop_with_error(msg):
     funcname = frame.f_code.co_name
     lineno   = frame.f_lineno
     
-    printer.write_err(
+    Printer.write_err(
         " ERROR: %s\n File    : %s\n Line no.: %d\n Function: %s\n" % (
             msg, filename, lineno, funcname
         )
     )
     sys.exit(1)
+
+
+def warn(msg):
+
+    frame = inspect.currentframe().f_back
+
+    filename = os.path.basename(frame.f_code.co_filename)
+    funcname = frame.f_code.co_name
+    lineno   = frame.f_lineno
+    
+    Printer.write_err(
+        " WARNING: %s\n File    : %s\n Line no.: %d\n Function: %s\n" % (
+            msg, filename, lineno, funcname
+        )
+    )
+
+    return
 
 
 def is_equal_scalar(a, b, eps = constants.EPS_FLOAT_EQUAL):
@@ -127,6 +144,7 @@ def coord_1d_to_2d(coord_1d):
 
     return coord_1d.reshape([natom, 3])
 
+
 def symmetrize(M, is_upper_triangle = True): ## placeholder
 
     if is_upper_triangle:
@@ -138,6 +156,7 @@ def symmetrize(M, is_upper_triangle = True): ## placeholder
     
     return res
 
+
 def hermitize(M, is_upper_triangle = True): ## placeholder
 
     if is_upper_triangle:
@@ -148,3 +167,42 @@ def hermitize(M, is_upper_triangle = True): ## placeholder
     res = temp + np.conjugate( temp.transpose() ) - np.diag(np.diag(temp))
 
     return res
+
+
+def check_time_equal(t1, t2, action = 'stop'):
+    
+    if not is_equal_scalar(t1, t2):
+
+        frame = inspect.currentframe().f_back
+
+        filename = os.path.basename(frame.f_code.co_filename)
+        funcname = frame.f_code.co_name
+        lineno   = frame.f_lineno
+
+        diff = t1 - t2
+        msg = "Two or more physical quantities, which must be at the same time points, are at different time points (t1-t2= %20.12f)." % diff
+        
+        if action == 'stop':
+
+            Printer.write_err(
+                " ERROR: %s\n File    : %s\n Line no.: %d\n Function: %s\n" % (
+                    msg, filename, lineno, funcname
+                )
+            )
+            sys.exit(1)
+
+        elif action == 'warn':
+
+            Printer.write_err(
+                " WARNING: %s\n File    : %s\n Line no.: %d\n Function: %s\n" % (
+                    msg, filename, lineno, funcname
+                )
+            )
+
+        else:
+
+            stop_with_error("Unknown action %s specified." % action)
+
+    else:
+
+        return
