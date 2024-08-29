@@ -108,9 +108,9 @@ class Electronic_state:
 
         self.is_edyn_initialized  = False
 
-        self.integrator = Integrator(self.integmethod)
+        self.integrator = Integrator(self.integmethod, mode = 'chasing')
         #self.gs_energy_integrator = Integrator(self.integmethod)
-        self.e_int_integrator = Integrator(self.integmethod)
+        self.e_int_integrator = Integrator(self.integmethod, mode = 'chasing')
 
         self.initial_estate_energies = None
 
@@ -142,6 +142,8 @@ class Electronic_state:
             self.Sinv                = matrices['Sinv']
             self.estate_energies     = matrices['estate_energies']
             self.old_estate_energies = matrices['old_estate_energies']
+
+        self.initialize_mo_integrator()
 
         return
 
@@ -412,7 +414,7 @@ class Electronic_state:
         for i_spin in range(n_spin):
 
             mo_H = np.dot(
-                self.mo_coeffs_nophase[i_spin,:,:], np.dot( self.Heff[i_spin,:,:], self.mo_coeffs_nophase[i_spin,:,:].transpose().conjugate() )
+                self.mo_coeffs_nophase[i_spin,:,:], np.dot( Heff[i_spin,:,:], self.mo_coeffs_nophase[i_spin,:,:].transpose().conjugate() )
             )
 
             #mo_e_int_tderiv[i_spin,:] = np.diag(Heff[i_spin,:,:])
@@ -579,6 +581,19 @@ class Electronic_state:
     #    new_mo = old_mo + factor * dt * mo_tderiv
 
     #    return new_mo
+
+
+    def initialize_mo_integrator(self):
+        
+        self.integrator.initialize_history(
+            self.t_mo_coeffs_nophase, self.mo_coeffs_nophase,
+            self.make_mo_nophase_tderiv, self.deriv_coupling, self.Sinv,
+        )
+
+        self.e_int_integrator.initialize_history(
+            self.t_mo_e_int, self.mo_e_int,
+            self.make_mo_e_int_tderiv, self.H,
+        )
 
     
     def propagate_without_trivial_phase(self, t, dt):
@@ -1252,9 +1267,13 @@ class Electronic_state:
                 self.initial_gs_energy = self.gs_energy
 
                 self.update_position_dependent_quantities()
+
+                self.update_mo_dependent_quantities()
+
+                self.update_e_coeffs_dependent_quantities()
                 
                 # Just to make a history for integration, not an actual propagation
-                self.propagate_molecular_orbitals(sacrificed = True)
+                #self.propagate_molecular_orbitals(sacrificed = True)
 
                 #position_2d = utils.coord_1d_to_2d(self.position)
 
