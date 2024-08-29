@@ -53,12 +53,13 @@ n_step: 20000
 max_n_tbf: 2
 
 # cloning parameters
-e_threshold: 0.001
+cloning_parameters:
+  e_threshold: 0.00001
 
 dt: 0.1
-print_xyz_interval: 2
+print_xyz_interval: 1
 
-dt_deriv: 1.0
+dt_deriv: 0.1
 
 reconst_interval: -1
 

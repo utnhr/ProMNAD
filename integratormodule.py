@@ -81,7 +81,7 @@ class Integrator:
         self.y_hist = [ None for i in range(self.max_hist) ] # new (i-1) -> old
         self.f_hist = [ None for i in range(self.max_hist) ] # new (i-1) -> old
 
-        self.i_called = 0
+        self.n_hist = 0
         
         if self.is_chasing_mode:
             self.is_history_initialized = False
