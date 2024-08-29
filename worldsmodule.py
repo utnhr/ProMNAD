@@ -155,12 +155,11 @@ class World:
 
         # ordering OK?
 
-        self.update_electronic_part()
-        self.update_nuclear_part()
-
         self.print_results()
 
         self.update_position_and_velocity()
+        self.update_electronic_part()
+        self.update_nuclear_part()
 
         self.istep += 1
 

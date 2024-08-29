@@ -412,7 +412,7 @@ class Electronic_state:
         for i_spin in range(n_spin):
 
             mo_H = np.dot(
-                self.mo_coeffs[i_spin,:,:], np.dot( self.H[i_spin,:,:], self.mo_coeffs[i_spin,:,:].transpose().conjugate() )
+                self.mo_coeffs_nophase[i_spin,:,:], np.dot( self.Heff[i_spin,:,:], self.mo_coeffs_nophase[i_spin,:,:].transpose().conjugate() )
             )
 
             #mo_e_int_tderiv[i_spin,:] = np.diag(Heff[i_spin,:,:])
@@ -497,7 +497,7 @@ class Electronic_state:
         return
 
 
-    def propagate_molecular_orbitals(self, is_before_initial = False, calc_mo_tdnac = True):
+    def propagate_molecular_orbitals(self, sacrificed = False):
         """Update MO energies and coefficients according to TD-KS equation."""
         #utils.Printer.write_out('Updating MOs: Started.\n')
 
@@ -508,7 +508,7 @@ class Electronic_state:
 
         self.old_mo_coeffs = deepcopy(self.mo_coeffs)
 
-        utils.check_time_equal(self.t_mo_coeffs, self.t_S)
+        #utils.check_time_equal(self.t_mo_coeffs, self.t_S)
 
         new_mo_coeffs = self.propagate_without_trivial_phase(self.t_mo_coeffs, self.dt)
 
@@ -559,9 +559,10 @@ class Electronic_state:
         #    self.t_mo_tdnac = self.t_mo_coeffs
 
         #    #print('MO OVERLAP TWOGEOM', self.mo_tdnac * 2.0 * self.dt) ## Debug code
-
-        self.mo_coeffs = deepcopy(new_mo_coeffs)
-        self.t_mo_coeffs += self.dt
+        
+        if not sacrificed:
+            self.mo_coeffs = deepcopy(new_mo_coeffs)
+            self.t_mo_coeffs += self.dt
         
         #utils.Printer.write_out('Updating MOs: Done.\n')
 
@@ -590,8 +591,8 @@ class Electronic_state:
         self.old_mo_coeffs_nophase = deepcopy(self.mo_coeffs_nophase)
         self.old_mo_e_int          = deepcopy(self.mo_e_int)
 
-        utils.check_time_equal(self.t_mo_coeffs_nophase, self.t_deriv_coupling)
-        utils.check_time_equal(self.t_mo_coeffs_nophase, self.t_Sinv)
+        #utils.check_time_equal(self.t_mo_coeffs_nophase, self.t_deriv_coupling)
+        #utils.check_time_equal(self.t_mo_coeffs_nophase, self.t_Sinv)
 
         self.mo_coeffs_nophase = self.integrator.engine(
             self.dt, self.t_mo_coeffs_nophase, self.mo_coeffs_nophase,
@@ -714,16 +715,19 @@ class Electronic_state:
 
     def get_estate_energies(self):
 
-        if self.estate_energies is None:
+        #if self.estate_energies is None:
 
-            self.update_gs_hamiltonian_and_molevels()
+        #    self.update_gs_hamiltonian_and_molevels()
 
-            self.update_estate_energies()
+        #    self.update_estate_energies()
 
         return deepcopy(self.estate_energies)
 
 
     def update_ehrenfest_energy(self):
+
+        # Ehrenfest energy: E = <\Psi|H|\Psi>
+        # Here H assumed to be diagonal, so E is just a weighted average
         
         val = 0.0
 
@@ -981,7 +985,9 @@ class Electronic_state:
             return force
     
 
-    def update_matrices(self):
+    def update_position_dependent_quantities(self):
+
+        # Update stuffs that depend on position and velocity, but not on MOs
 
         #utils.Printer.write_out('Updating hamiltonian and overlap matrices: Started.\n')
 
@@ -1002,12 +1008,12 @@ class Electronic_state:
 
             self.dftbplus_instance.return_from_workdir()
 
-            self.update_gs_density_matrix()
+            #self.update_gs_density_matrix()
 
-            self.update_gs_hamiltonian_and_molevels()
+            #self.update_gs_hamiltonian_and_molevels()
             
-            if self.i_step % self.reconst_interval == 0 and self.reconst_interval > 0:
-                self.reconstruct_gs(energy_only = True)
+            #if self.i_step % self.reconst_interval == 0 and self.reconst_interval > 0:
+            #    self.reconstruct_gs(energy_only = True)
 
             n_spin = int(self.is_open_shell) + 1
 
@@ -1027,13 +1033,13 @@ class Electronic_state:
             if self.old_Sinv is None:
                 self.old_Sinv = deepcopy(self.Sinv)
             
-            self.construct_density_matrix()
+            #self.construct_density_matrix()
 
             self.update_derivative_coupling()
             
-            self.update_mo_tdnac()
+            #self.update_mo_tdnac()
 
-            self.update_csc()
+            #self.update_csc()
 
             #self.propagate_molecular_orbitals()
 
@@ -1046,6 +1052,32 @@ class Electronic_state:
         #    self.i_step += 1
 
         #utils.Printer.write_out('Updating hamiltonian and overlap matrices: Done.\n')
+
+        return
+
+
+    def update_mo_dependent_quantities(self):
+        
+        self.update_gs_density_matrix()
+
+        self.update_gs_hamiltonian_and_molevels()
+
+        self.update_estate_energies()
+
+        self.update_mo_tdnac()
+
+        self.update_tdnac()
+
+        self.update_csc()
+
+        return
+
+
+    def update_e_coeffs_dependent_quantities(self):
+        
+        self.update_density_matrix()
+
+        self.update_ehrenfest_energy()
 
         return
 
@@ -1077,7 +1109,7 @@ class Electronic_state:
         return
 
 
-    def construct_density_matrix(self):
+    def update_density_matrix(self):
         
         if self.basis == 'configuration' and self.excitation == 'cis' and not self.is_open_shell:
 
@@ -1219,24 +1251,29 @@ class Electronic_state:
 
                 self.initial_gs_energy = self.gs_energy
 
-                position_2d = utils.coord_1d_to_2d(self.position)
+                self.update_position_dependent_quantities()
+                
+                # Just to make a history for integration, not an actual propagation
+                self.propagate_molecular_orbitals(sacrificed = True)
 
-                self.dftbplus_instance.go_to_workdir()
+                #position_2d = utils.coord_1d_to_2d(self.position)
 
-                S = self.dftbplus_instance.worker.return_overlap_twogeom(position_2d, position_2d)
+                #self.dftbplus_instance.go_to_workdir()
 
-                self.dftbplus_instance.return_from_workdir()
+                #S = self.dftbplus_instance.worker.return_overlap_twogeom(position_2d, position_2d)
 
-                self.S = utils.symmetrize(S, is_upper_triangle = True)
-                self.t_S = self.t_position
+                #self.dftbplus_instance.return_from_workdir()
 
-                self.Sinv = np.linalg.inv(self.S)
-                self.t_Sinv = self.t_S
+                #self.S = utils.symmetrize(S, is_upper_triangle = True)
+                #self.t_S = self.t_position
 
-                if self.old_S is None:
-                    self.old_S = deepcopy(self.S)
-                if self.old_Sinv is None:
-                    self.old_Sinv = deepcopy(self.Sinv)
+                #self.Sinv = np.linalg.inv(self.S)
+                #self.t_Sinv = self.t_S
+
+                #if self.old_S is None:
+                #    self.old_S = deepcopy(self.S)
+                #if self.old_Sinv is None:
+                #    self.old_Sinv = deepcopy(self.Sinv)
 
         else:
 

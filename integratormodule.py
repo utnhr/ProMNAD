@@ -130,6 +130,8 @@ class Integrator:
 
             f = f_func(t, y, *fargs)
 
+            #print('F_HIST & F', self.f_hist[0], f) ## Debug code
+
             y1p = y + 0.5 * dt * (3.0*self.f_hist[0] - f) # predictor: 2-step Adams-Bashforth
 
             i_iter = 0

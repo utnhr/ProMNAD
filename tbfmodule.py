@@ -623,11 +623,15 @@ class Tbf:
 
         # update electronic wavefunc and relevant physical quantities
 
-        self.e_part.update_matrices()
+        self.e_part.update_position_dependent_quantities()
 
-        #self.e_part.propagate_molecular_orbitals()
+        # propagate MOs
 
-        self.e_part.update_estate_energies()
+        self.e_part.propagate_molecular_orbitals()
+
+        # update MO-dependent quantities
+
+        self.e_part.update_mo_dependent_quantities()
 
         estate_energies = self.e_part.get_estate_energies()
         
@@ -638,15 +642,10 @@ class Tbf:
 
         estate_energies -= self.e_part.initial_estate_energies
 
-        # Ehrenfest energy: E = <\Psi|H|\Psi>
-        # Here H assumed to be diagonal, so E is just a weighted average
-
-        self.e_part.update_ehrenfest_energy()
-
         # construct electronic Hamiltonian
         # and update time derivative of electronic coeffs
 
-        self.e_part.update_tdnac()
+        #self.e_part.update_tdnac()
 
         tdnac = self.e_part.get_tdnac()
         
@@ -691,17 +690,15 @@ class Tbf:
 
         self.e_part.set_new_e_coeffs_tderiv(e_coeffs_tderiv, self.t_e_coeffs_tderiv)
 
-        # sum up results of current time step
+        # update e_coeffs_dependent stuffs
 
-        self.print_results()
-
-        # propagate MOs
-
-        self.e_part.propagate_molecular_orbitals()
+        self.e_part.update_e_coeffs_dependent_quantities()
 
         self.set_new_istep( self.get_istep() + 1 )
 
-        #self.t += self.dt
+        # sum up results of current time step
+
+        self.print_results()
 
         return
 
