@@ -364,9 +364,9 @@ class Tbf:
 
         # Integrators
 
-        self.e_coeffs_nophase_integrator = Integrator(self.integmethod)
-        self.e_coeffs_e_int_integrator   = Integrator(self.integmethod)
-        self.phase_integrator            = Integrator(self.integmethod)
+        self.e_coeffs_nophase_integrator = Integrator(self.integmethod, mode = 'chasing')
+        self.e_coeffs_e_int_integrator   = Integrator(self.integmethod, mode = 'chasing')
+        self.phase_integrator            = Integrator(self.integmethod, mode = 'chasing')
         
         # Status
 
@@ -610,7 +610,38 @@ class Tbf:
         return deepcopy(H_el_diag) # 1d array of state energies
 
 
+    def initialize_e_coeffs_integrator(self):
+
+        tdnac = self.e_part.get_tdnac()
+
+        estate_energies = self.e_part.get_estate_energies()
+        
+        if self.e_part.initial_estate_energies is None:
+            self.e_part.initial_estate_energies = [ estate_energies[0] for i_state in range( len(estate_energies) ) ]
+
+        estate_energies -= self.e_part.initial_estate_energies
+        
+        H_el_ndiag = -1.0j * H_DIRAC * tdnac
+        H_el_diag  = estate_energies
+
+        self.e_coeffs_nophase_integrator.initialize_history(
+            self.t_e_coeffs_nophase, self.e_coeffs_nophase,
+            self.make_e_coeffs_nophase_tderiv, H_el_ndiag,
+        )
+
+        self.e_coeffs_e_int_integrator.initialize_history(
+            self.t_e_coeffs_e_int, self.e_coeffs_e_int,
+            self.make_e_coeffs_e_int_tderiv, H_el_diag,
+        )
+
+        return
+
+
     def update_electronic_part(self, dt):
+
+        # (in the initial step) initialize integrators
+        if not self.e_coeffs_nophase_integrator.is_history_initialized:
+            self.initialize_e_coeffs_integrator()
 
         # update position and velocity for electronic part
 
@@ -665,18 +696,17 @@ class Tbf:
         term2 = self.e_coeffs_nophase * (-1.0j/H_DIRAC) * estate_energies
 
         e_coeffs_tderiv = term1 + term2
-        self.t_e_coeffs_tderiv += dt
 
         # integrate electronic state coeffcients
 
         self.e_coeffs_nophase = self.e_coeffs_nophase_integrator.engine(
-            dt, t, self.e_coeffs_nophase,
+            dt, self.t_e_coeffs_nophase, self.e_coeffs_nophase,
             self.make_e_coeffs_nophase_tderiv, H_el_ndiag,
         )
         self.t_e_coeffs_nophase += dt
 
         self.e_coeffs_e_int = self.e_coeffs_e_int_integrator.engine(
-            dt, t, self.e_coeffs_e_int,
+            dt, self.t_e_coeffs_e_int, self.e_coeffs_e_int,
             self.make_e_coeffs_e_int_tderiv, H_el_diag,
         )
         self.t_e_coeffs_e_int += dt
@@ -689,6 +719,7 @@ class Tbf:
         self.e_part.set_new_e_coeffs(e_coeffs, self.t_e_coeffs)
 
         self.e_part.set_new_e_coeffs_tderiv(e_coeffs_tderiv, self.t_e_coeffs_tderiv)
+        self.t_e_coeffs_tderiv += dt
 
         # update e_coeffs_dependent stuffs
 
@@ -712,6 +743,9 @@ class Tbf:
 
 
     def update_position_and_velocity(self, dt):
+
+        if not self.phase_integrator.is_history_initialized:
+            self.phase_integrator.initialize_history(self.t_phase, self.phase, self.dgdt)
         
         old_position = self.get_old_position()
         velocity     = self.get_velocity()
@@ -734,7 +768,7 @@ class Tbf:
             #momentum = old_momentum + 2.0 * force * dt
             momentum = self.get_momentum() + 0.5 * (self.old_force + self.force) * dt
 
-        self.phase = self.phase_integrator.engine(dt, 0, self.phase, self.dgdt)
+        self.phase = self.phase_integrator.engine(dt, self.t_phase, self.phase, self.dgdt)
         self.t_phase += dt
 
         if self.is_fixed:

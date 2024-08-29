@@ -63,7 +63,7 @@ class Integrator:
         #   y_hist[0] @ t, y_hist[1] @ t-Dt, ...
         #   f_hist[0] @ t, f_hist[1] @ t-Dt, ...
 
-        y_new = eval(self.function_name)(t, y, f_func, *fargs)
+        y_new = eval(self.function_name)(dt, t, f_func, *fargs)
 
         if self.is_chasing_mode:
 
@@ -92,7 +92,7 @@ class Integrator:
 
 
     def initialize_history(self, t, y, f_func, *fargs):
-        
+
         f = f_func(t, y, *fargs)
 
         self.update_history(y, f)
@@ -109,8 +109,8 @@ class Integrator:
             self.y_hist[i_hist+1] = self.y_hist[i_hist]
             self.f_hist[i_hist+1] = self.f_hist[i_hist]
 
-            self.y_hist[0] = y
-            self.f_hist[0] = f
+        self.y_hist[0] = deepcopy(y)
+        self.f_hist[0] = deepcopy(f)
 
         self.n_hist = min(self.n_hist+1, self.max_hist)
 

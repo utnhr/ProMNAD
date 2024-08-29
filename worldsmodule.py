@@ -39,8 +39,8 @@ class World:
 
         self.integmethod = load_setting(settings, 'integrator')
 
-        self.tbf_coeffs_nophase_integrator = Integrator(self.integmethod)
-        self.e_int_integrator              = Integrator(self.integmethod)
+        self.tbf_coeffs_nophase_integrator = Integrator(self.integmethod, mode = 'chasing')
+        self.e_int_integrator              = Integrator(self.integmethod, mode = 'chasing')
 
         self.tbf_coeffs_are_trivial = load_setting(settings, 'tbf_coeffs_are_trivial')
 
@@ -328,17 +328,24 @@ class World:
         return
 
 
-    def update_nuclear_part(self):
+    def initialize_tbf_coeffs_integrator(self):
 
-        # cloning if necessary
+        self.construct_tbf_hamiltonian()
 
-        n_tbf = self.get_total_tbf_count()
+        tbf_coeffs_nophase = self.get_tbf_coeffs_nophase()
+        
+        self.tbf_coeffs_nophase_integrator.initialize_history(
+            0.0, self.tbf_coeffs_nophase, self.make_tbf_coeffs_nophase_tderiv,
+        )
 
-        if n_tbf < self.max_n_tbf or self.max_n_tbf < 0:
+        self.e_int_integrator.initialize_history(
+            0.0, self.e_int, self.make_e_int_tderiv,
+        )
 
-            for i_tbf in range(n_tbf):
+        return
 
-                self.cloning(i_tbf)
+
+    def construct_tbf_hamiltonian(self):
 
         # construct TBF Hamiltonian
 
@@ -423,6 +430,110 @@ class World:
         for i in range(n_tbf):
             self.H_tbf[i,i] -= self.H_tbf_diag_origin
 
+        return
+
+
+    def update_nuclear_part(self):
+
+        # cloning if necessary
+
+        n_tbf = self.get_total_tbf_count()
+
+        if n_tbf < self.max_n_tbf or self.max_n_tbf < 0:
+
+            for i_tbf in range(n_tbf):
+
+                self.cloning(i_tbf)
+
+        # (in the initial step) initialize integrator
+        if not self.tbf_coeffs_nophase_integrator.is_history_initialized:
+            self.initialize_tbf_coeffs_integrator()
+
+        # construct TBF Hamiltonian
+
+        self.construct_tbf_hamiltonian()
+
+        #n_tbf = self.get_total_tbf_count()
+
+        #self.S_tbf = np.zeros( (n_tbf, n_tbf), dtype = 'complex128' )
+        #self.H_tbf = np.zeros( (n_tbf, n_tbf), dtype = 'complex128' )
+
+        #for i_tbf in range(n_tbf):
+        #    
+        #    guy_i = self.tbfs[i_tbf]
+
+        #    if not guy_i.is_alive:
+        #        continue
+
+        #    #for j_tbf in range(n_tbf):
+        #    for j_tbf in range(i_tbf,n_tbf):
+
+        #        guy_j = self.tbfs[j_tbf]
+
+        #        if not guy_j.is_alive:
+        #            continue
+
+        #        g_ij = Tbf.get_gaussian_overlap(guy_i, guy_j)
+
+        #        S_ij = Tbf.get_wf_overlap(guy_i, guy_j, gaussian_overlap = g_ij)
+        #        H_ij = Tbf.get_tbf_hamiltonian_element_BAT(guy_i, guy_j, gaussian_overlap = g_ij)
+        #        #H_ij = 0.0 ## Debug code
+        #        
+        #        self.S_tbf[i_tbf,j_tbf] = S_ij
+        #        self.H_tbf[i_tbf,j_tbf] = H_ij
+
+        #        self.S_tbf[j_tbf,i_tbf] = S_ij
+        #        self.H_tbf[j_tbf,i_tbf] = np.conj(H_ij)
+
+        ## < \psi_m | d/dt | \psi_n >
+
+        #for i_tbf in range(n_tbf):
+        #    
+        #    guy_i = self.tbfs[i_tbf]
+
+        #    if not guy_i.is_alive:
+        #        continue
+
+        #    #for j_tbf in range(n_tbf):
+        #    for j_tbf in range(i_tbf,n_tbf):
+
+        #        guy_j = self.tbfs[j_tbf]
+
+        #        if not guy_j.is_alive:
+        #            continue
+
+        #        g_ij = Tbf.get_gaussian_overlap(guy_i, guy_j)
+
+        #        val = Tbf.get_tbf_derivative_coupling(guy_i, guy_j, g_ij)
+        #        #val = 0.0; print('DEBUG: TBF DERIV COUPLING SET TO ZERO') ## Debug code
+
+        #        if i_tbf == j_tbf:
+        #            val = 0.0 # ?
+
+        #        self.H_tbf[i_tbf,j_tbf] -= 1.0j * H_DIRAC * val
+        #        self.H_tbf[j_tbf,i_tbf] -= 1.0j * H_DIRAC * val
+
+        ## symmetrize S & hermitize H
+
+        #for i in range(n_tbf):
+        #    for j in range(i, n_tbf):
+
+        #        val = 0.5 * (self.S_tbf[i,j] + self.S_tbf[j,i])
+        #        self.S_tbf[i,j] = val
+        #        self.S_tbf[j,i] = val
+
+        #        #val = 0.5 * ( self.H_tbf[i,j] + np.conjugate(self.H_tbf[j,i]) )
+        #        #self.H_tbf[i,j] = val
+        #        #self.H_tbf[j,i] = np.conjugate(val)
+
+        ## subtract energy origin
+
+        #if self.H_tbf_diag_origin is None:
+        #    self.H_tbf_diag_origin = np.diag(self.H_tbf)[0]
+        #
+        #for i in range(n_tbf):
+        #    self.H_tbf[i,i] -= self.H_tbf_diag_origin
+
         # propagation of TBF coeffs
         
         tbf_coeffs_nophase = self.get_tbf_coeffs_nophase()
@@ -450,8 +561,8 @@ class World:
         self.set_new_tbf_coeffs(new_tbf_coeffs)
         self.set_new_tbf_coeffs_nophase(new_tbf_coeffs_nophase)
 
-        print('H_tbf', self.H_tbf) ## Debug code
-        print('S_tbf', self.S_tbf) ## Debug code
+        #print('H_tbf', self.H_tbf) ## Debug code
+        #print('S_tbf', self.S_tbf) ## Debug code
         #print('TBF_COEFFS_NOPHASE', self.tbf_coeffs_nophase) ## Debug code
         #print('TBF_COEFFS', self.tbf_coeffs) ## Debug code
         #print('E_COEFFS_NOPHASE1', self.tbfs[0].e_coeffs_nophase) ## Debug code
