@@ -403,8 +403,8 @@ class World:
                 val = Tbf.get_tbf_derivative_coupling(guy_i, guy_j, g_ij)
                 #val = 0.0; print('DEBUG: TBF DERIV COUPLING SET TO ZERO') ## Debug code
 
-                if i_tbf == j_tbf:
-                    val = 0.0 # ?
+                #if i_tbf == j_tbf:
+                #    val = 0.0 # ?
 
                 self.H_tbf[i_tbf,j_tbf] -= 1.0j * H_DIRAC * val
                 self.H_tbf[j_tbf,i_tbf] -= 1.0j * H_DIRAC * val

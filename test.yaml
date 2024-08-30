@@ -49,15 +49,15 @@ initial_coeffs:
   - 1.0
 #  - 1.0
 #n_step: 75
-n_step: 20000
+n_step: 200000
 max_n_tbf: 2
 
 # cloning parameters
 cloning_parameters:
   e_threshold: 0.001
 
-dt: 0.05
-print_xyz_interval: 2
+dt: 0.01
+print_xyz_interval: 10
 
 dt_deriv: 0.1
 

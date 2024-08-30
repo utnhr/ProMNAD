@@ -231,7 +231,7 @@ class Tbf:
 
         term1 = gwp_derivative * np.dot( np.conjugate(e_coeffs_1), e_coeffs_2)
         term2 = gaussian_overlap.prod() * np.dot( np.conjugate(e_coeffs_1), e_coeffs_tderiv_2 )
-
+        
         return term1 + term2
 
 
@@ -687,16 +687,6 @@ class Tbf:
 
         t = dt * self.get_istep()
 
-        # here e_coeffs_tderiv is not directly used for integration of e_coeffs;
-        # just for reuse for update of TBF coefficients
-
-        term1 = self.make_e_coeffs_nophase_tderiv(
-            self.t_e_coeffs_nophase, self.e_coeffs_nophase, H_el_ndiag,
-        ) * np.exp( (-1.0j/H_DIRAC) * self.e_coeffs_e_int )
-        term2 = self.e_coeffs_nophase * (-1.0j/H_DIRAC) * estate_energies
-
-        e_coeffs_tderiv = term1 + term2
-
         # integrate electronic state coeffcients
 
         self.e_coeffs_nophase = self.e_coeffs_nophase_integrator.engine(
@@ -718,8 +708,23 @@ class Tbf:
 
         self.e_part.set_new_e_coeffs(e_coeffs, self.t_e_coeffs)
 
+        # here e_coeffs_tderiv is not directly used for integration of e_coeffs;
+        # just for reuse for update of TBF coefficients
+
+        #term1 = self.make_e_coeffs_nophase_tderiv(
+        #    self.t_e_coeffs_nophase, self.e_coeffs_nophase, H_el_ndiag,
+        #) * np.exp( (-1.0j/H_DIRAC) * self.e_coeffs_e_int )
+        #term2 = self.e_coeffs_nophase * (-1.0j/H_DIRAC) * estate_energies
+
+        #e_coeffs_tderiv = term1 + term2
+
+        H_el = H_el_ndiag + np.diag(estate_energies)
+        e_coeffs_tderiv = (-1.0j / H_DIRAC) * np.dot(
+            H_el, e_coeffs
+        )
+        self.t_e_coeffs_tderiv = self.t_e_coeffs
+
         self.e_part.set_new_e_coeffs_tderiv(e_coeffs_tderiv, self.t_e_coeffs_tderiv)
-        self.t_e_coeffs_tderiv += dt
 
         # update e_coeffs_dependent stuffs
 
