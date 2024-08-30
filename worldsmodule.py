@@ -653,7 +653,7 @@ class World:
         for i_tbf in range(n_tbf):
 
             tbf_coeff_file.write( " %20.12f+%20.12fj" % ( self.tbf_coeffs[i_tbf].real, self.tbf_coeffs[i_tbf].imag ) )
-            tbf_coeff_nophase_file.write( " %20.12f+%20.12fj" % ( self.tbf_coeffs_nophase[i_tbf].real, self.tbf_coeffs[i_tbf].imag ) )
+            tbf_coeff_nophase_file.write( " %20.12f+%20.12fj" % ( self.tbf_coeffs_nophase[i_tbf].real, self.tbf_coeffs_nophase[i_tbf].imag ) )
             tbf_popul_file.write( " %20.12f" % ( abs(self.tbf_coeffs[i_tbf])**2 ) )
 
         tbf_coeff_file.write("\n")
