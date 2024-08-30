@@ -330,6 +330,57 @@ class Electronic_state:
     #    return mo_tderiv
 
 
+    def get_mo_dependent_gs_density_matrix(self, mo_coeffs):
+
+        if self.is_open_shell:
+            n_spin = 2
+        else:
+            n_spin = 1
+        
+        # mo_coeffs can either phase-containing or phaseless MOs
+        
+        gs_rho = np.zeros( (n_spin, self.n_AO, self.n_AO), dtype = 'float64' )
+
+        for i_spin in range(n_spin):
+
+            scaled_mo_coeffs = np.zeros_like(mo_coeffs[i_spin,:,:])
+
+            for i_MO in range(self.n_MO):
+
+                scaled_mo_coeffs[i_MO,:] = self.gs_filling[i_spin][i_MO] * mo_coeffs[i_spin,i_MO,:]
+
+            rho = np.dot( np.transpose(mo_coeffs[i_spin,:,:]).conjugate(), scaled_mo_coeffs )
+
+            gs_rho[i_spin, :, :] = np.real(rho[:, :])
+
+        #print('RHO 0 4', gs_rho[0,0,4]) ## Debug code
+        
+        return gs_rho
+
+
+    def get_mo_dependent_hamiltonian(self, mo_coeffs):
+
+        if self.is_open_shell:
+            n_spin = 2
+        else:
+            n_spin = 1
+        
+        # mo_coeffs can either phase-containing or phaseless MOs
+
+        gs_rho = self.get_mo_dependent_gs_density_matrix(mo_coeffs)
+        
+        self.dftbplus_instance.go_to_workdir()
+        Htmp = self.dftbplus_instance.worker.return_hamiltonian(gs_rho)
+        self.dftbplus_instance.return_from_workdir()
+
+        H = np.zeros_like(Htmp, dtype = 'complex128')
+
+        for i_spin in range(n_spin):
+            H[i_spin,:,:] = utils.hermitize(Htmp[i_spin,:,:], is_upper_triangle = True)
+        
+        return H
+
+
     def make_mo_nophase_tderiv(self, t, mo_coeffs_nophase, deriv_coupling, Sinv, init_mo_energies = None):
 
         if self.is_open_shell:
@@ -337,46 +388,46 @@ class Electronic_state:
         else:
             n_spin = 1
 
-        def get_mo_dependent_gs_density_matrix(mo_coeffs):
-            
-            # mo_coeffs can either phase-containing or phaseless MOs
-            
-            gs_rho = np.zeros( (n_spin, self.n_AO, self.n_AO), dtype = 'float64' )
+        #def get_mo_dependent_gs_density_matrix(mo_coeffs):
+        #    
+        #    # mo_coeffs can either phase-containing or phaseless MOs
+        #    
+        #    gs_rho = np.zeros( (n_spin, self.n_AO, self.n_AO), dtype = 'float64' )
 
-            for i_spin in range(n_spin):
+        #    for i_spin in range(n_spin):
 
-                scaled_mo_coeffs = np.zeros_like(mo_coeffs[i_spin,:,:])
+        #        scaled_mo_coeffs = np.zeros_like(mo_coeffs[i_spin,:,:])
 
-                for i_MO in range(self.n_MO):
+        #        for i_MO in range(self.n_MO):
 
-                    scaled_mo_coeffs[i_MO,:] = self.gs_filling[i_spin][i_MO] * mo_coeffs[i_spin,i_MO,:]
+        #            scaled_mo_coeffs[i_MO,:] = self.gs_filling[i_spin][i_MO] * mo_coeffs[i_spin,i_MO,:]
 
-                rho = np.dot( np.transpose(mo_coeffs[i_spin,:,:]).conjugate(), scaled_mo_coeffs )
+        #        rho = np.dot( np.transpose(mo_coeffs[i_spin,:,:]).conjugate(), scaled_mo_coeffs )
 
-                gs_rho[i_spin, :, :] = np.real(rho[:, :])
+        #        gs_rho[i_spin, :, :] = np.real(rho[:, :])
 
-            #print('RHO 0 4', gs_rho[0,0,4]) ## Debug code
-            
-            return gs_rho
+        #    #print('RHO 0 4', gs_rho[0,0,4]) ## Debug code
+        #    
+        #    return gs_rho
         
-        def get_mo_dependent_hamiltonian(mo_coeffs):
-            
-            # mo_coeffs can either phase-containing or phaseless MOs
+        #def get_mo_dependent_hamiltonian(mo_coeffs):
+        #    
+        #    # mo_coeffs can either phase-containing or phaseless MOs
 
-            gs_rho = get_mo_dependent_gs_density_matrix(mo_coeffs)
-            
-            self.dftbplus_instance.go_to_workdir()
-            Htmp = self.dftbplus_instance.worker.return_hamiltonian(gs_rho)
-            self.dftbplus_instance.return_from_workdir()
+        #    gs_rho = get_mo_dependent_gs_density_matrix(mo_coeffs)
+        #    
+        #    self.dftbplus_instance.go_to_workdir()
+        #    Htmp = self.dftbplus_instance.worker.return_hamiltonian(gs_rho)
+        #    self.dftbplus_instance.return_from_workdir()
 
-            H = np.zeros_like(Htmp, dtype = 'complex128')
+        #    H = np.zeros_like(Htmp, dtype = 'complex128')
 
-            for i_spin in range(n_spin):
-                H[i_spin,:,:] = utils.hermitize(Htmp[i_spin,:,:], is_upper_triangle = True)
-            
-            return H
+        #    for i_spin in range(n_spin):
+        #        H[i_spin,:,:] = utils.hermitize(Htmp[i_spin,:,:], is_upper_triangle = True)
+        #    
+        #    return H
 
-        H = get_mo_dependent_hamiltonian(mo_coeffs_nophase)
+        H = self.get_mo_dependent_hamiltonian(mo_coeffs_nophase)
 
         mo_nophase_tderiv = np.zeros_like(mo_coeffs_nophase)
 
@@ -481,20 +532,35 @@ class Electronic_state:
 
         self.mo_tdnac = np.zeros_like(self.mo_coeffs)
 
+        H = self.get_mo_dependent_hamiltonian(self.mo_coeffs)
+
+        Heff = np.zeros_like(H)
+
         for i_spin in range(n_spin):
+
+            Heff[i_spin,:,:] = H[i_spin,:,:] - (0.0+1.0j) * self.deriv_coupling[:,:]
+            
+            # According to TDKS
+            # <p|d/dt|q> = (-i / \hbar) * <p|Heff|q>
+            # overlap matrix ??
 
             #self.mo_tdnac[i_spin,:,:] = 0.5 * np.dot(
             #    np.dot(np.conj(self.old_mo_coeffs[i_spin,:,:]), temp.astype('complex128')),
             #    new_mo_coeffs[i_spin,:,:].transpose()
             #) / self.dt
-            self.mo_tdnac[i_spin,:,:] = np.dot(
-                np.dot(np.conj(self.mo_coeffs[i_spin,:,:]), self.deriv_coupling.astype('complex128')),
+            #self.mo_tdnac[i_spin,:,:] = np.dot(
+            #    np.dot(np.conj(self.mo_coeffs[i_spin,:,:]), self.deriv_coupling.astype('complex128')),
+            #    self.mo_coeffs[i_spin,:,:].transpose()
+            #)
+            self.mo_tdnac[i_spin,:,:] = -(0.0+1.0j) * np.dot(
+                np.dot(np.conj(self.mo_coeffs[i_spin,:,:]), Heff[i_spin,:,:]),
                 self.mo_coeffs[i_spin,:,:].transpose()
             )
 
         self.t_mo_tdnac = self.t_mo_coeffs
 
         #print('MO OVERLAP TWOGEOM', self.mo_tdnac * 2.0 * self.dt) ## Debug code
+        print( np.dot( np.dot( np.conj(self.mo_coeffs[0,:,:]), H[0,:,:]), self.mo_coeffs[0,:,:].transpose() ) ) ## Debug code
 
         return
 

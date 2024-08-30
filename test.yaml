@@ -43,18 +43,18 @@ active_vir_mos:
 #active_vir_mos: []
 
 initial_estates:
-#  - 1
-  - 2
+  - 1
+#  - 2
 initial_coeffs:
-#  - 1.0
   - 1.0
+#  - 1.0
 #n_step: 75
 n_step: 20000
-max_n_tbf: 2
+max_n_tbf: 1
 
 # cloning parameters
 cloning_parameters:
-  e_threshold: 0.00001
+  e_threshold: 0.01
 
 dt: 0.1
 print_xyz_interval: 1
