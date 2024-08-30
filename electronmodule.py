@@ -437,15 +437,27 @@ class Electronic_state:
             
             self.Heff[i_spin,:,:] = H[i_spin,:,:] - (0.0+1.0j) * deriv_coupling[:,:]
             #print('DERIVCOUPL', deriv_coupling) ## Debug code
+            
+            # AO -> MO
 
-            Heff_nophase = deepcopy(self.Heff)
+            C = mo_coeffs_nophase[i_spin]
+            Heff = self.Heff[i_spin,:,:]
+            Heff_nophase_mo = np.dot( C.conjugate(), np.dot( Heff, C.transpose() ) )
 
+            # subtract MO energy
+                        
             for i_MO in range(self.n_MO):
 
-                Heff_nophase[i_spin,i_MO,i_MO] = 0.0+0.0j
+                Heff_nophase_mo[i_MO,i_MO] = 0.0+0.0j
+
+            # back to AO
+
+            SC = np.dot( self.S, C.transpose() )
+
+            Heff_nophase_ao = np.dot( SC, np.dot( Heff_nophase_mo, SC.transpose().conjugate() ) )
 
             mo_nophase_tderiv[i_spin,:,:] = -(0.0+1.0j) * np.dot(
-                np.dot( Sinv.astype('complex128'), Heff_nophase[i_spin,:,:] ), mo_coeffs_nophase[i_spin,:,:].transpose()
+                np.dot( Sinv.astype('complex128'), Heff_nophase_ao), C.transpose()
             ).transpose()
 
         return mo_nophase_tderiv
@@ -465,7 +477,7 @@ class Electronic_state:
         for i_spin in range(n_spin):
 
             mo_H = np.dot(
-                self.mo_coeffs_nophase[i_spin,:,:], np.dot( Heff[i_spin,:,:], self.mo_coeffs_nophase[i_spin,:,:].transpose().conjugate() )
+                self.mo_coeffs_nophase[i_spin,:,:].conjugate(), np.dot( Heff[i_spin,:,:], self.mo_coeffs_nophase[i_spin,:,:].transpose() )
             )
 
             #mo_e_int_tderiv[i_spin,:] = np.diag(Heff[i_spin,:,:])
@@ -560,7 +572,7 @@ class Electronic_state:
         self.t_mo_tdnac = self.t_mo_coeffs
 
         #print('MO OVERLAP TWOGEOM', self.mo_tdnac * 2.0 * self.dt) ## Debug code
-        print( np.dot( np.dot( np.conj(self.mo_coeffs[0,:,:]), H[0,:,:]), self.mo_coeffs[0,:,:].transpose() ) ) ## Debug code
+        #print( np.dot( np.dot( np.conj(self.mo_coeffs[0,:,:]), H[0,:,:]), self.mo_coeffs[0,:,:].transpose() ) ) ## Debug code
 
         return
 
