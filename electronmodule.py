@@ -427,37 +427,39 @@ class Electronic_state:
         #    
         #    return H
 
-        H = self.get_mo_dependent_hamiltonian(mo_coeffs_nophase)
+        H_full = self.get_mo_dependent_hamiltonian(mo_coeffs_nophase)
 
         mo_nophase_tderiv = np.zeros_like(mo_coeffs_nophase)
 
-        self.Heff = np.zeros_like(H)
+        self.Heff = np.zeros_like(H_full)
 
         for i_spin in range(n_spin):
             
-            self.Heff[i_spin,:,:] = H[i_spin,:,:] - (0.0+1.0j) * deriv_coupling[:,:]
             #print('DERIVCOUPL', deriv_coupling) ## Debug code
             
             # AO -> MO
 
             C = mo_coeffs_nophase[i_spin]
-            Heff = self.Heff[i_spin,:,:]
-            Heff_nophase_mo = np.dot( C.conjugate(), np.dot( Heff, C.transpose() ) )
+            H = H_full[i_spin,:,:]
+            H_nophase_mo = np.dot( C.conjugate(), np.dot( H, C.transpose() ) )
 
             # subtract MO energy
                         
             for i_MO in range(self.n_MO):
 
-                Heff_nophase_mo[i_MO,i_MO] = 0.0+0.0j
+                H_nophase_mo[i_MO,i_MO] = 0.0+0.0j
 
             # back to AO
 
             SC = np.dot( self.S, C.transpose() )
 
-            Heff_nophase_ao = np.dot( SC, np.dot( Heff_nophase_mo, SC.transpose().conjugate() ) )
+            H_nophase_ao = np.dot( SC, np.dot( H_nophase_mo, SC.transpose().conjugate() ) )
+            
+            Heff_nophase = H_nophase_ao - (0.0+1.0j) * deriv_coupling[:,:]
+            self.Heff[i_spin,:,:] = H - (0.0+1.0j) * deriv_coupling[:,:] # for reuse in the later steps
 
             mo_nophase_tderiv[i_spin,:,:] = -(0.0+1.0j) * np.dot(
-                np.dot( Sinv.astype('complex128'), Heff_nophase_ao), C.transpose()
+                np.dot( Sinv.astype('complex128'), Heff_nophase ), C.transpose()
             ).transpose()
 
         return mo_nophase_tderiv
