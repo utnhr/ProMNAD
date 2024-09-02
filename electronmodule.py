@@ -611,9 +611,9 @@ class Electronic_state:
 
         dt = self.dt / float(self.nbin_interpol)
 
-        for ibin_interpol in range(self.nbin_interpol):
+        for ibin_interpol in range(1, self.nbin_interpol+1):
 
-            if ibin_interpol == 0:
+            if ibin_interpol == 1:
                 is_first_call = True
             else:
                 is_first_call = False
@@ -1467,6 +1467,12 @@ class Electronic_state:
         self.velocity = A * self.old_velocity + B * self.new_velocity
 
         position_2d = utils.coord_1d_to_2d(self.position)
+        
+        # Update internal coordinate in DFTB+
+
+        self.dftbplus_instance.worker.set_geometry(position_2d)
+
+        self.dftbplus_instance.worker.update_coordinate_dependent_stuffs()
 
         # Exact S in the interpolated position
         

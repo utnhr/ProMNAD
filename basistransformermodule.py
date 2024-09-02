@@ -51,15 +51,26 @@ class BasisTransformer:
     
 
     @classmethod
-    def lowdin(cls, M, return_singular_values = False):
+    def lowdin(cls, M):
         
-        U, S, Vh = np.linalg.svd(M, compute_uv = True)
+        #U, S, Vh = np.linalg.svd(M, compute_uv = True)
 
-        L = np.dot(U, Vh) # L[AO,AO]
+        #L = np.dot(U, Vh) # L[AO,AO]
 
-        # make L row major to be consistent with MO coefficients
+        ## make L row major to be consistent with MO coefficients
+        #
+        #if return_singular_values:
+        #    return L.transpose(), S
+        #else:
+        #    return L.transpose()
         
-        if return_singular_values:
-            return L.transpose(), S
-        else:
-            return L.transpose()
+        # lambda = VSV
+        lmd, V = np.linalg.eig(M)
+        
+        # K = diag(1/sqrt(lambda))
+        K = np.diag( 1.0 / np.sqrt(lmd) )
+
+        # S^(-1/2) = VKV^\dag
+        Sisq = np.dot( V, np.dot( K, V.transpose().conjugate() ) )
+            
+        return Sisq.transpose()
