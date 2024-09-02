@@ -671,7 +671,8 @@ class Electronic_state:
         #utils.check_time_equal(self.t_mo_coeffs_nophase, self.t_Sinv)
 
         self.mo_coeffs_nophase = self.integrator.engine(
-            self.dt, self.t_mo_coeffs_nophase, self.mo_coeffs_nophase,
+            #self.dt, self.t_mo_coeffs_nophase, self.mo_coeffs_nophase,
+            dt, self.t_mo_coeffs_nophase, self.mo_coeffs_nophase,
             self.make_mo_nophase_tderiv, self.deriv_coupling, self.Sinv,
         )
         self.t_mo_coeffs_nophase += dt

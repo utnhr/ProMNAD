@@ -50,7 +50,7 @@ initial_coeffs:
   - 1.0
 #n_step: 75
 n_step: 20000
-max_n_tbf: 2
+max_n_tbf: 1
 
 # cloning parameters
 cloning_parameters:
@@ -59,7 +59,7 @@ cloning_parameters:
 do_interpol: True
 nbin_interpol: 100
 
-dt: 0.1
+dt: 1.0
 print_xyz_interval: 1
 
 dt_deriv: 0.1
