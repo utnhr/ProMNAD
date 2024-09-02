@@ -856,6 +856,9 @@ class Electronic_state:
 
     def update_derivative_coupling(self):
 
+        if self.derivative_coupling is not None:
+            self.old_derivative_coupling = deepcopy(self.derivative_coupling)
+
         utils.check_time_equal(self.t_position, self.t_velocity)
 
         position_2d = utils.coord_1d_to_2d(self.position)
@@ -1094,6 +1097,9 @@ class Electronic_state:
 
         #utils.Printer.write_out('Updating hamiltonian and overlap matrices: Started.\n')
 
+        self.old_position = deepcopy(self.position)
+        self.old_velocity = deepcopy(self.velocity)
+
         if self.qc_program == 'dftb+':
             
             #position_2d = utils.coord_1d_to_2d(self.position) * ANGST2AU
@@ -1124,12 +1130,16 @@ class Electronic_state:
                 self.old_S = deepcopy(self.S)
             if self.Sinv is not None:
                 self.old_Sinv = deepcopy(self.Sinv)
+            if self.L is not None:
+                self.old_L = deepcopy(self.L)
 
             self.S = utils.symmetrize(S, is_upper_triangle = True)
             self.t_S = self.t_position
 
             self.Sinv = np.linalg.inv(self.S)
             self.t_Sinv = self.t_S
+
+            self.L = BasisTransformer.lowdin(self.S)
 
             if self.old_S is None:
                 self.old_S = deepcopy(self.S)
@@ -1440,6 +1450,9 @@ class Electronic_state:
         else:
             n_spin = 1
 
+        if self.H is not None:
+            self.old_H = deepcopy(self.H)
+
         self.dftbplus_instance.go_to_workdir()
         Htmp = self.dftbplus_instance.worker.return_hamiltonian(self.gs_rho)
         Htmp = self.dftbplus_instance.worker.return_hamiltonian(self.gs_rho) ## Calling twice here eliminates the spikes in MO levels; why?????
@@ -1464,6 +1477,70 @@ class Electronic_state:
         self.t_mo_levels = self.t_mo_coeffs
         
         return
+
+
+    def interpolate_matrices_and_nuclei(self, ibin_interpol, nbin_interpol, is_first_call = False, update_deriv_coupling = False):
+        
+        # interpolate H, S, and ground-state \rho between the old and the new nuclear steps
+        #
+        # self.H/S/gs_rho will be replaced with the interpolated ones
+        # So, before that the "true" matrices of the new nuclear steps has to be saved in a new variable
+        # (self.new_H, etc.)
+        # This is done when is_first_call is True (usually, this is along with ibin_interpol = 1)
+
+        if is_first_call:
+            
+            self.old_L = deepcopy(self.new_L)
+            self.new_L = BasisTransformer.lowdin(self.S)
+            
+            self.new_H = deepcopy(self.H)
+            self.new_gs_rho = deepcopy(self.gs_rho)
+            self.new_deriv_coupling = deepcopy(self.deriv_coupling)
+
+            self.new_position = deepcopy(self.position)
+            self.new_velocity = deepcopy(self.velocity)
+        
+        A = float(ibin_interpol) / float(nbin_interpol)
+        B = 1.0 - A
+
+        self.position = A * self.old_position + B * self.new_position
+        self.velocity = A * self.old_velocity + B * self.new_velocity
+
+        position_2d = utils.coord_1d_to_2d(self.position)
+
+        # Exact S in the interpolated position
+        
+        S = self.dftbplus_instance.worker.return_overlap_twogeom(position_2d, position_2d)
+        self.S = utils.symmetrize(S, is_upper_triangle = True)
+        self.Sinv = np.linalg.inv(self.S)
+        
+        # Set lowdin orthogonalized basis at the current (interpolated) position
+
+        self.L = BasisTransformer.lowdin(self.S)
+
+        # Interpolation in the Lowdin basis
+
+        self.H = self.interpolate_in_orthogonal_basis(self.old_H, self.new_H, A)
+        self.gs_rho = self.interpolate_in_orthogonal_basis(self.old_gs_rho, self.new_gs_rho, A)
+
+        if update_deriv_coupling or self.new_deriv_coupling is None or self.old_deriv_coupling is None:
+            self.update_derivative_coupling()
+        else:
+            self.deriv_coupling = self.interpolate_in_orthogonal_basis(self.old_derivative_coupling, self.new_derivative_coupling, A)
+
+        return
+
+
+    def interpolate_in_orthogonal_basis(old_M, new_M, A):
+        
+        old_M_in_L = BasisTransformer.ao2mo(old_M, self.old_L)
+        new_M_in_L = BasisTransformer.ao2mo(new_M, self.new_L)
+
+        M_in_L = A * old_M_in_L + (1.0 - A) * new_M_in_L
+
+        M_in_AO = BasisTransformer.mo2ao(M_in_L, self.S, self.L)
+
+        return M_in_AO
 
 
     def dump_matrices(self):
