@@ -1460,8 +1460,8 @@ class Electronic_state:
             self.new_position = deepcopy(self.position)
             self.new_velocity = deepcopy(self.velocity)
         
-        A = float(ibin_interpol) / float(nbin_interpol)
-        B = 1.0 - A
+        B = float(ibin_interpol) / float(nbin_interpol)
+        A = 1.0 - B
 
         self.position = A * self.old_position + B * self.new_position
         self.velocity = A * self.old_velocity + B * self.new_velocity
@@ -1488,8 +1488,10 @@ class Electronic_state:
             ## Debug code
             if ibin_interpol == 0:
                 print('INTERPOL TEST')
-                print(self.old_H[i_spin,:,:])
-                print(self.H[i_spin,:,:])
+                #print(self.old_H[i_spin,:,:])
+                #print(self.H[i_spin,:,:])
+                print(self.old_L[:,:])
+                print(self.L[:,:])
             ## End Debug code
 
         if update_deriv_coupling or self.new_deriv_coupling is None or self.old_deriv_coupling is None:
