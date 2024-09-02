@@ -12,7 +12,7 @@ class BasisTransformer:
 
 
     @classmethod
-    def ao2mo(cls, M, C, is_C_columnmajor = True):
+    def ao2mo(cls, M, C, is_C_columnmajor = False):
         
         # M: target matrix in AO
         # C: set of orthonormal orbitals
@@ -23,15 +23,15 @@ class BasisTransformer:
         #   each row contains a set of ...
 
         if is_C_columnmajor:
-            basis = C.transpose()
-        else:
             basis = C
+        else:
+            basis = C.transpose()
 
         return np.dot( basis.transpose().conjugate(), np.dot(M, basis) )
 
 
     @classmethod
-    def mo2ao(cls, M, S, C, is_C_columnmajor = True):
+    def mo2ao(cls, M, S, C, is_C_columnmajor = False):
         
         # M: target matrix in MO (C)
         # S: AO overlap matrix
@@ -43,21 +43,34 @@ class BasisTransformer:
         #   each row contains a set of ...
 
         if is_C_columnmajor:
-            SC = np.dot(S, C)
-        else:
             SC = np.dot( S, C.transpose() )
+        else:
+            SC = np.dot(S, C)
 
         return np.dot( SC.transpose().conjugate(), np.dot(M, SC) )
     
 
     @classmethod
-    def lowdin(cls, M, return_singular_values = False):
+    def lowdin(cls, M):
         
-        U, S, Vh = np.linalg.svd(M, compute_uv = True)
+        #U, S, Vh = np.linalg.svd(M, compute_uv = True)
 
-        L = np.dot(U, Vh) # L[AO,AO]
+        #L = np.dot(U, Vh) # L[AO,AO]
+
+        ## make L row major to be consistent with MO coefficients
+        #
+        #if return_singular_values:
+        #    return L.transpose(), S
+        #else:
+        #    return L.transpose()
         
-        if return_singular_values:
-            return L, S
-        else:
-            return L
+        # lambda = VSV
+        lmd, V = np.linalg.eig(M)
+        
+        # K = diag(1/sqrt(lambda))
+        K = np.diag( 1.0 / np.sqrt(lmd) )
+
+        # S^(-1/2) = VKV^\dag
+        Sisq = np.dot( V, np.dot( K, V.transpose().conjugate() ) )
+            
+        return Sisq.transpose()
