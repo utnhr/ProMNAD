@@ -8,6 +8,7 @@ default = {
     'is_fixed'  : False,
     'dt_deriv'  : 0.01,
     'dt': 0.1,
+    'do_interpol': True,
     'nbin_interpol': 10,
     'reconst_interval': -1,
     'print_xyz_interval': 0,
