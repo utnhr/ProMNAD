@@ -13,6 +13,7 @@ from settingsmodule import load_setting
 from integratormodule import Integrator
 #from interface_dftbplus import dftbplus_manager
 from calcconfig import init_qc_engine
+from basistransformermodule import BasisTransformer
 import struct
 
 class Electronic_state:
@@ -426,6 +427,13 @@ class Electronic_state:
         #        H[i_spin,:,:] = utils.hermitize(Htmp[i_spin,:,:], is_upper_triangle = True)
         #    
         #    return H
+
+        ## Debug code
+        print("SVD TEST")
+        P = BasisTransformer.in_new_basis(self.S, mo_coeffs_nophase[0])
+        print(P)
+        sys.exit()
+        ## End Debug code
 
         H_full = self.get_mo_dependent_hamiltonian(mo_coeffs_nophase)
 
