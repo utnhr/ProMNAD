@@ -73,6 +73,9 @@ class Electronic_state:
         self.old_Sinv            = None
         self.t_Sinv              = None
 
+        self.L                   = None
+        self.old_L               = None
+
         self.deriv_coupling      = None
         self.t_deriv_coupling    = None
 
@@ -80,6 +83,8 @@ class Electronic_state:
         self.t_tdnac             = None
 
         self.dt_deriv            = load_setting(settings, 'dt_deriv')
+
+        self.nbin_interpol       = load_setting(settings, 'nbin_interpol')
 
         self.atomparams          = deepcopy(atomparams)
 
@@ -428,12 +433,12 @@ class Electronic_state:
         #    
         #    return H
 
-        ## Debug code
-        print("SVD TEST")
-        P = BasisTransformer.in_new_basis(self.S, mo_coeffs_nophase[0])
-        print(P)
-        sys.exit()
-        ## End Debug code
+        ### Debug code
+        #print("SVD TEST")
+        #P = BasisTransformer.in_new_basis(self.S, mo_coeffs_nophase[0])
+        #print(P)
+        #sys.exit()
+        ### End Debug code
 
         H_full = self.get_mo_dependent_hamiltonian(mo_coeffs_nophase)
 
@@ -600,59 +605,21 @@ class Electronic_state:
 
         #utils.check_time_equal(self.t_mo_coeffs, self.t_S)
 
-        new_mo_coeffs = self.propagate_without_trivial_phase(self.t_mo_coeffs, self.dt)
+        dt = self.dt / float(self.nbin_interpol)
 
-        #if calc_mo_tdnac:
+        for ibin_interpol in range(self.nbin_interpol):
 
-        #    utils.check_time_equal(self.t_mo_coeffs, self.t_position)
-        #    utils.check_time_equal(self.t_mo_coeffs, self.t_velocity)
+            if ibin_interpol == 0:
+                is_first_call = True
+            else:
+                is_first_call = False
 
-        #    # (1/2) * <\psi(t-dt)|\psi(t+dt)>
+            self.interpolate_matrices_and_nuclei(ibin_interpol, self.nbin_interpol, is_first_call)
 
-        #    position_2d = utils.coord_1d_to_2d(self.position)
-        #    velocity_2d = utils.coord_1d_to_2d(self.velocity)
+            new_mo_coeffs = self.propagate_without_trivial_phase(self.t_mo_coeffs, dt)
 
-        #    #old_position_2d = position_2d - self.dt * velocity_2d
-        #    old_position_2d = position_2d - 2.0 * self.dt * velocity_2d
-        #    #new_position_2d = position_2d + self.dt * velocity_2d
-        #
-        #    if self.qc_program == 'dftb+':
-        #        
-        #        self.dftbplus_instance.go_to_workdir()
-        #        overlap_twogeom_1 = self.dftbplus_instance.worker.return_overlap_twogeom(old_position_2d, position_2d)
-        #        overlap_twogeom_2 = self.dftbplus_instance.worker.return_overlap_twogeom(position_2d, old_position_2d)
-        #        #overlap_twogeom_1 = self.dftbplus_instance.worker.return_overlap_twogeom(old_position_2d, new_position_2d)
-        #        #overlap_twogeom_2 = self.dftbplus_instance.worker.return_overlap_twogeom(new_position_2d, old_position_2d)
-        #        self.dftbplus_instance.return_from_workdir()
-
-        #        #S = np.triu(overlap_twogeom_1) + np.triu(overlap_twogeom_2).transpose() - np.diag(np.diag(overlap_twogeom_1))
-
-        #    else:
-
-        #        utils.stop_with_error("MO TDNAC calculation is not compatible with QC program %s .\n" % self.qc_program)
-
-        #    temp = np.triu(overlap_twogeom_1) + np.triu(overlap_twogeom_2).transpose() - np.diag( np.diag(overlap_twogeom_2) )
-
-        #    self.mo_tdnac = np.zeros_like(self.mo_coeffs)
-
-        #    for i_spin in range(n_spin):
-
-        #        #self.mo_tdnac[i_spin,:,:] = 0.5 * np.dot(
-        #        #    np.dot(np.conj(self.old_mo_coeffs[i_spin,:,:]), temp.astype('complex128')),
-        #        #    new_mo_coeffs[i_spin,:,:].transpose()
-        #        #) / self.dt
-        #        self.mo_tdnac[i_spin,:,:] = np.dot(
-        #            np.dot(np.conj(self.mo_coeffs[i_spin,:,:]), self.deriv_coupling.astype('complex128')),
-        #            self.mo_coeffs[i_spin,:,:].transpose()
-        #        )
-
-        #    self.t_mo_tdnac = self.t_mo_coeffs
-
-        #    #print('MO OVERLAP TWOGEOM', self.mo_tdnac * 2.0 * self.dt) ## Debug code
-        
-        if not sacrificed:
             self.mo_coeffs = deepcopy(new_mo_coeffs)
-            self.t_mo_coeffs += self.dt
+            self.t_mo_coeffs += dt
         
         #utils.Printer.write_out('Updating MOs: Done.\n')
 
@@ -856,8 +823,8 @@ class Electronic_state:
 
     def update_derivative_coupling(self):
 
-        if self.derivative_coupling is not None:
-            self.old_derivative_coupling = deepcopy(self.derivative_coupling)
+        if self.deriv_coupling is not None:
+            self.old_deriv_coupling = deepcopy(self.deriv_coupling)
 
         utils.check_time_equal(self.t_position, self.t_velocity)
 
@@ -1490,7 +1457,6 @@ class Electronic_state:
 
         if is_first_call:
             
-            self.old_L = deepcopy(self.new_L)
             self.new_L = BasisTransformer.lowdin(self.S)
             
             self.new_H = deepcopy(self.H)
@@ -1531,8 +1497,8 @@ class Electronic_state:
         return
 
 
-    def interpolate_in_orthogonal_basis(old_M, new_M, A):
-        
+    def interpolate_in_orthogonal_basis(self, old_M, new_M, A):
+
         old_M_in_L = BasisTransformer.ao2mo(old_M, self.old_L)
         new_M_in_L = BasisTransformer.ao2mo(new_M, self.new_L)
 
