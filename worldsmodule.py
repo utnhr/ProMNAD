@@ -7,6 +7,7 @@ from copy import deepcopy
 from utils import stop_with_error, Timer
 from settingsmodule import load_setting
 from integratormodule import Integrator
+from basistransformermodule import BasisTransformer
 from files import GlobalOutputFiles
 
 class World:
@@ -32,6 +33,7 @@ class World:
 
         self.S_tbf = None
         self.H_tbf = None
+        self.L_tbf = None
 
         self.H_tbf_diag_origin = None
 
@@ -52,6 +54,15 @@ class World:
         self.cloning_parameters = load_setting(settings, 'cloning_parameters')
 
         self.max_n_tbf = load_setting(settings, 'max_n_tbf')
+
+        self.do_interpol = load_setting(settings, 'do_interpol')
+
+        if self.do_interpol:
+            self.nbin_interpol = load_setting(settings, 'nbin_interpol')
+        else:
+            self.nbin_interpol = 1
+
+        self.dt = load_setting(settings, 'dt') # in interpolation, dt = self.dt / nbin
 
         self.globaloutput = GlobalOutputFiles(self.world_id)
 
@@ -125,6 +136,8 @@ class World:
         )
 
         self.add_tbf(initial_tbf, coeff_nophase = 1.0+0.0j, normalize = False)
+
+        self.construct_tbf_hamiltonian()
 
         return
 
@@ -345,13 +358,62 @@ class World:
         return
 
 
+    def update_tbf_overlap(self):
+
+        n_tbf = self.get_total_tbf_count()
+
+        if self.S_tbf is not None:
+            self.old_S_tbf = deepcopy(self.S_tbf)
+        if self.L_tbf is not None:
+            self.old_L_tbf = deepcopy(self.L_tbf)
+
+        self.S_tbf = np.zeros( (n_tbf, n_tbf), dtype = 'complex128' )
+
+        for i_tbf in range(n_tbf):
+            
+            guy_i = self.tbfs[i_tbf]
+
+            if not guy_i.is_alive:
+                continue
+
+            for j_tbf in range(i_tbf,n_tbf):
+
+                guy_j = self.tbfs[j_tbf]
+
+                if not guy_j.is_alive:
+                    continue
+
+                g_ij = Tbf.get_gaussian_overlap(guy_i, guy_j)
+
+                S_ij = Tbf.get_wf_overlap(guy_i, guy_j, gaussian_overlap = g_ij)
+                
+                self.S_tbf[i_tbf,j_tbf] = S_ij
+                self.S_tbf[j_tbf,i_tbf] = S_ij
+
+        # lowdin orghogonalization
+
+        self.L_tbf = BasisTransformer.lowdin(self.S_tbf)
+
+        return
+
+
     def construct_tbf_hamiltonian(self):
+
+        # update overlap
+        self.update_tbf_overlap()
 
         # construct TBF Hamiltonian
 
         n_tbf = self.get_total_tbf_count()
 
-        self.S_tbf = np.zeros( (n_tbf, n_tbf), dtype = 'complex128' )
+        #if self.S_tbf is not None:
+        #    self.old_S_tbf = deepcopy(self.S_tbf)
+        if self.H_tbf is not None:
+            self.old_H_tbf = deepcopy(self.H_tbf)
+        #if self.L_tbf is not None:
+        #    self.old_L_tbf = deepcopy(self.L_tbf)
+
+        #self.S_tbf = np.zeros( (n_tbf, n_tbf), dtype = 'complex128' )
         self.H_tbf = np.zeros( (n_tbf, n_tbf), dtype = 'complex128' )
 
         for i_tbf in range(n_tbf):
@@ -371,14 +433,14 @@ class World:
 
                 g_ij = Tbf.get_gaussian_overlap(guy_i, guy_j)
 
-                S_ij = Tbf.get_wf_overlap(guy_i, guy_j, gaussian_overlap = g_ij)
+                #S_ij = Tbf.get_wf_overlap(guy_i, guy_j, gaussian_overlap = g_ij)
                 H_ij = Tbf.get_tbf_hamiltonian_element_BAT(guy_i, guy_j, gaussian_overlap = g_ij)
                 #H_ij = 0.0 ## Debug code
                 
-                self.S_tbf[i_tbf,j_tbf] = S_ij
+                #self.S_tbf[i_tbf,j_tbf] = S_ij
                 self.H_tbf[i_tbf,j_tbf] = H_ij
 
-                self.S_tbf[j_tbf,i_tbf] = S_ij
+                #self.S_tbf[j_tbf,i_tbf] = S_ij
                 self.H_tbf[j_tbf,i_tbf] = np.conj(H_ij)
 
         # < \psi_m | d/dt | \psi_n >
@@ -409,18 +471,22 @@ class World:
                 self.H_tbf[i_tbf,j_tbf] -= 1.0j * H_DIRAC * val
                 self.H_tbf[j_tbf,i_tbf] -= 1.0j * H_DIRAC * val
 
-        # symmetrize S & hermitize H
+        ## symmetrize S
 
-        for i in range(n_tbf):
-            for j in range(i, n_tbf):
+        #for i in range(n_tbf):
+        #    for j in range(i, n_tbf):
 
-                val = 0.5 * (self.S_tbf[i,j] + self.S_tbf[j,i])
-                self.S_tbf[i,j] = val
-                self.S_tbf[j,i] = val
+        #        val = 0.5 * (self.S_tbf[i,j] + self.S_tbf[j,i])
+        #        self.S_tbf[i,j] = val
+        #        self.S_tbf[j,i] = val
 
-                #val = 0.5 * ( self.H_tbf[i,j] + np.conjugate(self.H_tbf[j,i]) )
-                #self.H_tbf[i,j] = val
-                #self.H_tbf[j,i] = np.conjugate(val)
+        #        #val = 0.5 * ( self.H_tbf[i,j] + np.conjugate(self.H_tbf[j,i]) )
+        #        #self.H_tbf[i,j] = val
+        #        #self.H_tbf[j,i] = np.conjugate(val)
+
+        ## lowdin orghogonalization
+
+        #self.L = BasisTransformer.lowdin(self.S_tbf)
 
         # subtract energy origin
 
@@ -449,125 +515,133 @@ class World:
         if not self.tbf_coeffs_nophase_integrator.is_history_initialized:
             self.initialize_tbf_coeffs_integrator()
 
+        dt = self.dt / float(self.nbin_interpol)
+
         # construct TBF Hamiltonian
 
         self.construct_tbf_hamiltonian()
 
-        #n_tbf = self.get_total_tbf_count()
+        # Time propagation on interpolation
 
-        #self.S_tbf = np.zeros( (n_tbf, n_tbf), dtype = 'complex128' )
-        #self.H_tbf = np.zeros( (n_tbf, n_tbf), dtype = 'complex128' )
+        for ibin_interpol in range(1, self.nbin_interpol+1):
 
-        #for i_tbf in range(n_tbf):
-        #    
-        #    guy_i = self.tbfs[i_tbf]
+            if ibin_interpol == 1:
+                is_first_call = True
+            else:
+                is_first_call = False
 
-        #    if not guy_i.is_alive:
-        #        continue
+            self.interpolate_matrices_and_nuclei(ibin_interpol, self.nbin_interpol, is_first_call)            
 
-        #    #for j_tbf in range(n_tbf):
-        #    for j_tbf in range(i_tbf,n_tbf):
-
-        #        guy_j = self.tbfs[j_tbf]
-
-        #        if not guy_j.is_alive:
-        #            continue
-
-        #        g_ij = Tbf.get_gaussian_overlap(guy_i, guy_j)
-
-        #        S_ij = Tbf.get_wf_overlap(guy_i, guy_j, gaussian_overlap = g_ij)
-        #        H_ij = Tbf.get_tbf_hamiltonian_element_BAT(guy_i, guy_j, gaussian_overlap = g_ij)
-        #        #H_ij = 0.0 ## Debug code
-        #        
-        #        self.S_tbf[i_tbf,j_tbf] = S_ij
-        #        self.H_tbf[i_tbf,j_tbf] = H_ij
-
-        #        self.S_tbf[j_tbf,i_tbf] = S_ij
-        #        self.H_tbf[j_tbf,i_tbf] = np.conj(H_ij)
-
-        ## < \psi_m | d/dt | \psi_n >
-
-        #for i_tbf in range(n_tbf):
-        #    
-        #    guy_i = self.tbfs[i_tbf]
-
-        #    if not guy_i.is_alive:
-        #        continue
-
-        #    #for j_tbf in range(n_tbf):
-        #    for j_tbf in range(i_tbf,n_tbf):
-
-        #        guy_j = self.tbfs[j_tbf]
-
-        #        if not guy_j.is_alive:
-        #            continue
-
-        #        g_ij = Tbf.get_gaussian_overlap(guy_i, guy_j)
-
-        #        val = Tbf.get_tbf_derivative_coupling(guy_i, guy_j, g_ij)
-        #        #val = 0.0; print('DEBUG: TBF DERIV COUPLING SET TO ZERO') ## Debug code
-
-        #        if i_tbf == j_tbf:
-        #            val = 0.0 # ?
-
-        #        self.H_tbf[i_tbf,j_tbf] -= 1.0j * H_DIRAC * val
-        #        self.H_tbf[j_tbf,i_tbf] -= 1.0j * H_DIRAC * val
-
-        ## symmetrize S & hermitize H
-
-        #for i in range(n_tbf):
-        #    for j in range(i, n_tbf):
-
-        #        val = 0.5 * (self.S_tbf[i,j] + self.S_tbf[j,i])
-        #        self.S_tbf[i,j] = val
-        #        self.S_tbf[j,i] = val
-
-        #        #val = 0.5 * ( self.H_tbf[i,j] + np.conjugate(self.H_tbf[j,i]) )
-        #        #self.H_tbf[i,j] = val
-        #        #self.H_tbf[j,i] = np.conjugate(val)
-
-        ## subtract energy origin
-
-        #if self.H_tbf_diag_origin is None:
-        #    self.H_tbf_diag_origin = np.diag(self.H_tbf)[0]
-        #
-        #for i in range(n_tbf):
-        #    self.H_tbf[i,i] -= self.H_tbf_diag_origin
-
-        # propagation of TBF coeffs
-        
-        tbf_coeffs_nophase = self.get_tbf_coeffs_nophase()
-
-        if n_tbf == 1 and self.tbf_coeffs_are_trivial:
-
-            new_tbf_coeffs = [ 1.0+0.0j ]
-        
-        else:
-
-            new_tbf_coeffs_nophase = self.tbf_coeffs_nophase_integrator.engine(
-                self.dt, 0.0, tbf_coeffs_nophase, self.make_tbf_coeffs_nophase_tderiv,
-            )
+            # propagation of TBF coeffs
             
-            new_e_int = self.e_int_integrator.engine(
-                self.dt, 0.0, self.e_int, self.make_e_int_tderiv,
-            )
+            tbf_coeffs_nophase = self.get_tbf_coeffs_nophase()
 
-            self.e_int = new_e_int
+            if n_tbf == 1 and self.tbf_coeffs_are_trivial:
 
-            phase_factor = np.exp( (-1.0j/H_DIRAC) * new_e_int )
+                new_tbf_coeffs = [ 1.0+0.0j ]
+            
+            else:
 
-            new_tbf_coeffs = new_tbf_coeffs_nophase * phase_factor
+                new_tbf_coeffs_nophase = self.tbf_coeffs_nophase_integrator.engine(
+                    dt, 0.0, tbf_coeffs_nophase, self.make_tbf_coeffs_nophase_tderiv,
+                )
+                
+                new_e_int = self.e_int_integrator.engine(
+                    dt, 0.0, self.e_int, self.make_e_int_tderiv,
+                )
 
-        self.set_new_tbf_coeffs(new_tbf_coeffs)
-        self.set_new_tbf_coeffs_nophase(new_tbf_coeffs_nophase)
+                self.e_int = new_e_int
 
-        #print('H_tbf', self.H_tbf) ## Debug code
-        #print('S_tbf', self.S_tbf) ## Debug code
-        #print('TBF_COEFFS_NOPHASE', self.tbf_coeffs_nophase) ## Debug code
-        #print('TBF_COEFFS', self.tbf_coeffs) ## Debug code
-        #print('E_COEFFS_NOPHASE1', self.tbfs[0].e_coeffs_nophase) ## Debug code
+                phase_factor = np.exp( (-1.0j/H_DIRAC) * new_e_int )
+
+                new_tbf_coeffs = new_tbf_coeffs_nophase * phase_factor
+
+            self.set_new_tbf_coeffs(new_tbf_coeffs)
+            self.set_new_tbf_coeffs_nophase(new_tbf_coeffs_nophase)
+
+            #print('H_tbf', self.H_tbf) ## Debug code
+            #print('S_tbf', self.S_tbf) ## Debug code
+            #print('TBF_COEFFS_NOPHASE', self.tbf_coeffs_nophase) ## Debug code
+            #print('TBF_COEFFS', self.tbf_coeffs) ## Debug code
+            #print('E_COEFFS_NOPHASE1', self.tbfs[0].e_coeffs_nophase) ## Debug code
 
         return
+
+
+    def interpolate_matrices_and_nuclei(self, ibin_interpol, nbin_interpol, is_first_call = False):
+
+        n_tbf = self.get_total_tbf_count()
+        
+        if is_first_call:
+            
+            self.new_L_tbf = BasisTransformer.lowdin(self.S_tbf)
+
+            self.new_H_tbf = deepcopy(self.H_tbf)
+
+            self.old_positions = []
+            self.new_positions = []
+            self.old_momenta = []
+            self.new_momenta = []
+
+            for i_tbf in range(n_tbf):
+                
+                tbf = self.tbfs[i_tbf]
+
+                self.old_positions.append( deepcopy(tbf.old_position) )
+                self.new_positions.append( deepcopy(tbf.position) )
+                self.old_momenta.append( deepcopy(tbf.old_momentum) )
+                self.new_momenta.append( deepcopy(tbf.momentum) )
+
+            self.old_positions = np.array(self.old_positions)
+            self.new_positions = np.array(self.new_positions)
+            self.old_momenta = np.array(self.old_momenta)
+            self.new_momenta = np.array(self.new_momenta)
+
+        B = float(ibin_interpol) / float(nbin_interpol)
+        A = 1.0 - B
+
+        self.positions = A * self.old_positions + B * self.new_positions
+        self.momenta   = A * self.old_momenta   + B * self.new_momenta
+
+        # set interpolated positions and momenta to TBFs (to update S_tbf)
+
+        for i_tbf in range(n_tbf):
+
+            tbf = self.tbfs[i_tbf]
+
+            tbf.position = self.positions[i_tbf]
+            tbf.momenta  = self.momenta[i_tbf]
+
+        # update S_tbf
+
+        self.update_tbf_overlap()
+
+        # reset interpolated positions and momenta of TBFs
+
+        for i_tbf in range(n_tbf):
+
+            tbf = self.tbfs[i_tbf]
+
+            tbf.position = self.new_positions[i_tbf]
+            tbf.momenta  = self.new_momenta[i_tbf]
+
+        # interpolate H_tbf
+
+        self.H_tbf = self.interpolate_in_orthonormal_basis(self.old_H_tbf, self.new_H_tbf, A)
+
+        return
+
+
+    def interpolate_in_orthonormal_basis(self, old_M, new_M, A):
+        
+        old_M_in_L = BasisTransformer.ao2mo(old_M, self.old_L_tbf)
+        new_M_in_L = BasisTransformer.ao2mo(new_M, self.new_L_tbf)
+
+        M_in_L = A * old_M_in_L + (1.0 - A) * new_M_in_L
+
+        M_in_TBF = BasisTransformer.mo2ao(M_in_L, self.S_tbf, self.L_tbf)
+
+        return M_in_TBF
     
 
     def get_total_tbf_count(self):

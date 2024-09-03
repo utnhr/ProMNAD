@@ -1492,15 +1492,6 @@ class Electronic_state:
             self.H[i_spin,:,:] = self.interpolate_in_orthogonal_basis(self.old_H[i_spin,:,:], self.new_H[i_spin,:,:], A)
             self.gs_rho[i_spin,:,:] = self.interpolate_in_orthogonal_basis(self.old_gs_rho[i_spin,:,:], self.new_gs_rho[i_spin,:,:], A)
             
-            ## Debug code
-            if ibin_interpol == 0:
-                print('INTERPOL TEST')
-                #print(self.old_H[i_spin,:,:])
-                #print(self.H[i_spin,:,:])
-                print(self.old_L[:,:])
-                print(self.L[:,:])
-            ## End Debug code
-
         if update_deriv_coupling or self.new_deriv_coupling is None or self.old_deriv_coupling is None:
             self.update_derivative_coupling()
         else:

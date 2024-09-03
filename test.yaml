@@ -50,16 +50,16 @@ initial_coeffs:
 #  - 1.0
 #n_step: 75
 n_step: 20000
-max_n_tbf: 1
+max_n_tbf: 2
 
 # cloning parameters
 cloning_parameters:
   e_threshold: 0.0001
 
 do_interpol: True
-nbin_interpol: 500
+nbin_interpol: 200
 
-dt: 5.0
+dt: 2.0
 print_xyz_interval: 1
 
 dt_deriv: 0.1
