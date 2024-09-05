@@ -20,27 +20,19 @@ class Tbf:
     """Class of TBFs."""
 
 
+    overlap_cutoff = 1.0e-6
+
+
     @classmethod
-    def get_gaussian_overlap(cls, tbf1, tbf2):
-        """Calculate overlap matrix element (for each degree of freedom) between two gaussian wave packets."""
-
-        pos1 = tbf1.get_position()
-        pos2 = tbf2.get_position()
-        mom1 = tbf1.get_momentum()
-        mom2 = tbf2.get_momentum()
-
-        #delta_pos   = tbf2.position - tbf1.position
-        #delta_mom   = tbf2.momentum - tbf1.momentum
+    def calculate_goverlap_from_parameters(cls, pos1, pos2, mom1, mom2, phase1, phase2, n_dof, width):
+        
         delta_pos   = pos2 - pos1
         delta_mom   = mom2 - mom1
-        delta_phase = tbf2.get_phase() - tbf1.get_phase()
+        delta_phase = phase2 - phase1
 
         mid_pos   = 0.5 * (pos1 + pos2)
         
         vals = []
-
-        n_dof = tbf1.get_n_dof()
-        width = tbf1.get_width()
 
         for i_dof in range(n_dof):
             
@@ -57,6 +49,43 @@ class Tbf:
             vals.append(val)
 
         return np.array(vals)
+
+
+    @classmethod
+    def get_gaussian_overlap(cls, tbf1, tbf2):
+        """Calculate overlap matrix element (for each degree of freedom) between two gaussian wave packets."""
+
+        pos1 = tbf1.get_position()
+        pos2 = tbf2.get_position()
+
+        mom1 = tbf1.get_momentum()
+        mom2 = tbf2.get_momentum()
+
+        phase1 = tbf1.get_phase()
+        phase2 = tbf2.get_phase()
+
+        n_dof = tbf1.get_n_dof()
+        width = tbf1.get_width()
+
+        return cls.calculate_goverlap_from_parameters(pos1, pos2, mom1, mom2, phase1, phase2, n_dof, width)
+
+
+    @classmethod
+    def get_gaussian_overlap_delay(cls, tbf_old, tbf_new):
+        
+        pos1 = tbf_old.get_old_position()
+        pos2 = tbf_new.get_position()
+
+        mom1 = tbf_old.get_old_momentum()
+        mom2 = tbf_new.get_momentum()
+
+        phase1 = tbf_old.get_old_phase()
+        phase2 = tbf_new.get_phase()
+
+        n_dof = tbf_old.get_n_dof()
+        width = tbf_old.get_width()
+        
+        return cls.calculate_goverlap_from_parameters(pos1, pos2, mom1, mom2, phase1, phase2, n_dof, width)
 
     
     @classmethod
@@ -94,6 +123,38 @@ class Tbf:
         return s_gw.prod() * np.dot(
             np.conj(tbf1.e_part.get_e_coeffs()), tbf2.e_part.get_e_coeffs()
         )
+
+
+    @classmethod
+    def get_wf_overlap_delay(cls, tbf_old, tbf_new, gaussian_overlap_delay):
+        """Calculate overlap matrix between two TBFs at different time."""
+        s_gw = gaussian_overlap_delay
+
+        e_overlap = 0.0+0.0j
+
+        # overlap for the electronic part
+        # note that electronic wavefunctions at t and t+Dt are non-orthogonal
+
+        old_e_coeffs = tbf_old.e_part.get_old_e_coeffs()
+        new_e_coeffs = tbf_new.e_part.get_e_coeffs()
+
+        n_estate = new_e_coeffs.size()
+
+        tbf_new.e_part.set_mo_overlap_with_old_other_e_part(tbf_old.e_part)
+
+        for i_estate in range(n_estate):
+            for j_estate in range(n_estate):
+
+                a1a2 = np.conj(old_e_coeffs[i_estate]) * new_e_coeffs[j_estate]
+
+                if abs(a1a2) < cls.overlap_cutoff:
+                    continue
+
+                e_overlap += tbf_new.e_part.get_overlap_with_old_other_e_part(i_estate, j_estate)
+
+                #e_overlap += a1a2 ## Debug code
+
+        return s_gw.prod() * e_overlap
 
     
     @classmethod
@@ -277,11 +338,13 @@ class Tbf:
         t = self.istep * self.dt
 
         # Time-dependent values and "clocks"
+        # "old" means "at the previous nuclear position"
 
         if phase is not None:
             self.phase = phase # np.array (n_dof)
         else:
             self.phase = np.zeros(n_dof, dtype='float64')
+        self.old_phase = deepcopy(self.phase)
         self.t_phase = t
 
         #self.gs_energy     = initial_gs_energy # None or float
@@ -772,7 +835,8 @@ class Tbf:
         else:
             #momentum = old_momentum + 2.0 * force * dt
             momentum = self.get_momentum() + 0.5 * (self.old_force + self.force) * dt
-
+        
+        self.old_phase = deepcopy(self.phase)
         self.phase = self.phase_integrator.engine(dt, self.t_phase, self.phase, self.dgdt)
         self.t_phase += dt
 

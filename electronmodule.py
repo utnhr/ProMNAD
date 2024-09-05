@@ -1512,6 +1512,92 @@ class Electronic_state:
         return M_in_AO
 
 
+    def set_mo_overlap_with_old_other_e_part(self, old_e_part):
+
+        if self.is_open_shell:
+            n_spin = 2
+        else:
+            n_spin = 1
+        
+        position_2d_old = utils.coord_1d_to_2d(old_e_part.old_position)
+        position_2d_new = utils.coord_1d_to_2d(self.position)
+
+        # DFTB+
+
+        self.dftbplus_instance.go_to_workdir()
+
+        n_AO = sum( self.dftbplus_instance.worker.get_atom_nr_basis() )
+
+        S = self.dftbplus_instance.worker.return_overlap_twogeom(position_2d_old, position_2d_new)
+
+        self.dftbplus_instance.return_from_workdir()
+
+        S = utils.symmetrize(S, is_upper_triangle = True)
+
+        # End DFTB+
+
+        self.mo_overlap_with_old_other = np.zeros_like(self.mo_coeffs)
+
+        for i_spin in range(n_spin):
+
+            self.mo_overlap_with_old_other = np.dot(
+                old_e_part.old_mo_coeffs[i_spin,:,:], np.dot(
+                    S, self.mo_coeffs[i_spin,:,:]
+                )
+            )
+
+        return
+
+
+    def get_overlap_with_old_other_e_part(self, i_state_old, i_state_new):
+
+        # !!! set_mo_overlap_with_old_other_epart must be called in advance !!!
+
+        # excitation = 'cis' and  basis type = 'configuration'
+
+        if self.is_open_shell:
+            utils.stop_with_error('Electronic-state overlap calculations currently not compatible with open-shell systems')
+        
+        n_act_occ = len(self.active_occ_mos)
+        n_act_vir = len(self.active_vir_mos)
+
+        i_act_old = i_state_old // n_act_occ
+        a_act_old = i_state_old %  n_act_occ
+        i_act_new = i_state_new // n_act_occ
+        a_act_new = i_state_new %  n_act_occ
+
+        i_old = self.active_occ_mos[i_act_old]
+        a_old = self.active_occ_mos[a_act_old]
+        i_new = self.active_occ_mos[i_act_new]
+        a_new = self.active_occ_mos[a_act_new]
+
+        n_occ = self.n_occ
+
+        S = self.mo_overlap_with_old_other[0,0:n_occ,0:n_occ]
+
+        # overlap = det(S[ia,jb]) * det(S[ii,jj]) + det(S[ia,jj]) * det(S[ii,jb])
+
+        S_iijj = np.linalg.det(S)
+
+        S[0,i_old,0:n_occ] = self.mo_overlap_with_old_other[0,a_old,0:n_occ]
+
+        S_iajj = np.linalg.det(S)
+
+        S[0,0:n_occ,i_new] = self.mo_overlap_with_old_other[0,0:n_occ,a_new]
+        S[0,i_old,i_new] = self.mo_overlap_with_old_other[0,a_old,a_new]
+
+        S_iajb = np.linalg.det(S)
+
+        S = self.mo_overlap_with_old_other[0,0:n_occ,0:n_occ]
+        S[0,0:n_occ,i_new] = self.mo_overlap_with_old_other[0,0:n_occ,a_new]
+        
+        S_iijb = np.linalg.det(S)
+
+        overlap = S_iajb * S_iijj + S_iajj * S_iijb
+
+        return overlap
+
+                
     def dump_matrices(self):
         
         matrices = {
