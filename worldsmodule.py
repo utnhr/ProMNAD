@@ -58,10 +58,10 @@ class World:
         self.do_interpol = load_setting(settings, 'do_interpol')
 
         if self.do_interpol:
-            self.nbin_interpol = load_setting(settings, 'nbin_interpol')
+            self.nbin_interpol = load_setting(settings, 'nbin_interpol_tbf')
         else:
             self.nbin_interpol = 1
-
+        
         self.dt = load_setting(settings, 'dt') # in interpolation, dt = self.dt / nbin
 
         self.globaloutput = GlobalOutputFiles(self.world_id)
@@ -388,7 +388,7 @@ class World:
                 S_ij = Tbf.get_wf_overlap(guy_i, guy_j, gaussian_overlap = g_ij)
                 
                 self.S_tbf[i_tbf,j_tbf] = S_ij
-                self.S_tbf[j_tbf,i_tbf] = S_ij
+                self.S_tbf[j_tbf,i_tbf] = np.conjugate(S_ij)
 
         # lowdin orghogonalization
 
@@ -575,6 +575,7 @@ class World:
         if is_first_call:
             
             self.new_L_tbf = BasisTransformer.lowdin(self.S_tbf)
+            self.new_S_tbf = deepcopy(self.S_tbf)
 
             self.new_H_tbf = deepcopy(self.H_tbf)
 
@@ -600,30 +601,35 @@ class World:
         B = float(ibin_interpol) / float(nbin_interpol)
         A = 1.0 - B
 
-        self.positions = A * self.old_positions + B * self.new_positions
-        self.momenta   = A * self.old_momenta   + B * self.new_momenta
+        #self.positions = A * self.old_positions + B * self.new_positions
+        #self.momenta   = A * self.old_momenta   + B * self.new_momenta
 
-        # set interpolated positions and momenta to TBFs (to update S_tbf)
+        ## set interpolated positions and momenta to TBFs (to update S_tbf)
 
-        for i_tbf in range(n_tbf):
+        #for i_tbf in range(n_tbf):
 
-            tbf = self.tbfs[i_tbf]
+        #    tbf = self.tbfs[i_tbf]
 
-            tbf.position = self.positions[i_tbf]
-            tbf.momenta  = self.momenta[i_tbf]
+        #    tbf.position = self.positions[i_tbf]
+        #    tbf.momenta  = self.momenta[i_tbf]
 
-        # update S_tbf
+        ## update S_tbf
 
-        self.update_tbf_overlap()
+        #self.update_tbf_overlap()
 
-        # reset interpolated positions and momenta of TBFs
+        ## reset interpolated positions and momenta of TBFs
 
-        for i_tbf in range(n_tbf):
+        #for i_tbf in range(n_tbf):
 
-            tbf = self.tbfs[i_tbf]
+        #    tbf = self.tbfs[i_tbf]
 
-            tbf.position = self.new_positions[i_tbf]
-            tbf.momenta  = self.new_momenta[i_tbf]
+        #    tbf.position = self.new_positions[i_tbf]
+        #    tbf.momenta  = self.new_momenta[i_tbf]
+
+        #print('S_tbf', self.S_tbf) ## Debug code
+
+        self.S_tbf = A * self.old_S_tbf + B * self.new_S_tbf
+        self.L_tbf = BasisTransformer.lowdin(self.S_tbf)
 
         # interpolate H_tbf
 

@@ -88,7 +88,7 @@ class Electronic_state:
         self.dt_deriv            = load_setting(settings, 'dt_deriv')
         
         self.do_interpol         = load_setting(settings, 'do_interpol')
-        self.nbin_interpol       = load_setting(settings, 'nbin_interpol')
+        self.nbin_interpol       = load_setting(settings, 'nbin_interpol_elec')
 
         self.atomparams          = deepcopy(atomparams)
 
