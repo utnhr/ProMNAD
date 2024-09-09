@@ -382,10 +382,24 @@ class Electronic_state:
         # mo_coeffs can either phase-containing or phaseless MOs
 
         gs_rho = self.get_mo_dependent_gs_density_matrix(mo_coeffs)
+
+        if self.qc_program == 'dftb+':
         
-        self.dftbplus_instance.go_to_workdir()
-        Htmp = self.dftbplus_instance.worker.return_hamiltonian(gs_rho)
-        self.dftbplus_instance.return_from_workdir()
+            self.dftbplus_instance.go_to_workdir()
+            Htmp = self.dftbplus_instance.worker.return_hamiltonian(gs_rho)
+            self.dftbplus_instance.return_from_workdir()
+
+        elif self.qc_program == 'pyscf':
+
+            hcore = self.pyscf_instance.scf.hf.get_hcore(self.mol)
+            veff  = self.pyscf_instance.dft.get_veff(self.pyscf_instance.ks, dm=gs_rho)
+            Htmp = hcore + veff
+
+            print('PYSCF HTMP', Htmp) ## Debug code
+        
+        else:
+
+            utils.stop_with_error("Not compatible with quantum chemistry program %s ." % self.qc_program)
 
         H = np.zeros_like(Htmp, dtype = 'complex128')
 
@@ -1293,12 +1307,12 @@ class Electronic_state:
     
     def reconstruct_gs(self, is_initial = False, energy_only = False, rho_H_only = False):
 
+        n_atom = len(self.atomparams)
+
+        coords = self.position.reshape(n_atom, 3)
+
         if self.qc_program == 'dftb+':
         
-            n_atom = len(self.atomparams)
-
-            coords = self.position.reshape(n_atom, 3)
-
             self.dftbplus_instance.go_to_workdir()
             
             self.dftbplus_instance.worker.set_geometry(coords)
@@ -1316,50 +1330,70 @@ class Electronic_state:
                 open_shell = self.is_open_shell
             )
 
-            if rho_H_only:
-            # DO NOT update self.mo_coeffs/mo_coeffs_nophase, but self.gs_rho will be updated according to the newly calculated MOs
-                mo_coeffs = mo_coeffs_real.astype('complex128')
-                mo_coeffs_nophase = mo_coeffs_real.astype('complex128')
-            else:
-                self.mo_coeffs = mo_coeffs_real.astype('complex128')
-                self.mo_coeffs_nophase = mo_coeffs_real.astype('complex128')
-                self.t_mo_coeffs = self.t_position
-                self.t_mo_coeffs_nophase = self.t_position
-
             self.gs_filling = self.dftbplus_instance.worker.get_filling(open_shell = self.is_open_shell)
             #self.t_gs_filling = self.t_position
 
             self.dftbplus_instance.return_from_workdir()
 
-            self.n_elec = np.sum(self.gs_filling)
-
-            self.n_MO = np.size(self.mo_coeffs, 2)
-            self.n_AO = self.n_MO
+        elif self.qc_program == 'pyscf':
             
-            if not rho_H_only:
-                self.mo_e_int = np.zeros( (2, self.n_MO), dtype = 'float64')
-                self.t_mo_e_int = self.t_position
+            self.pyscf_instance.update_geometry(coords)
 
-            self.update_gs_density_matrix()
-            self.update_gs_hamiltonian_and_molevels(gs_hamiltonian_only = True)
-            
-            if is_initial:
+            self.pyscf_instance.converge_scf()
 
-                self.rho = self.gs_rho.astype('complex128')
-                self.t_rho = self.t_position
+            self.gs_energy = self.pyscf_instance.ks.e_tot
+            self.t_gs_energy = self.t_position
 
-                self.initial_gs_energy = self.gs_energy
+            if energy_only:
+                return
 
-                self.update_position_dependent_quantities()
+            if self.is_open_shell:
+                utils.stop_with_error('Currently, pyscf-based implementation not compatible with open-shell systems.')
 
-                self.update_mo_dependent_quantities()
+            mo_coeffs_real = np.array( [ self.pyscf_instance.ks.mo_coeff.transpose() ] )
+            self.init_mo_energies = np.array( [ self.pyscf_instance.ks.mo_energy ] )
 
-                self.update_e_coeffs_dependent_quantities()
-                
+            self.gs_filling = np.array( [ self.pyscf_instance.ks.get_occ(self.init_mo_energies[0], mo_coeffs_real) ] )
+
         else:
 
             utils.stop_with_error("Not compatible with quantum chemistry program %s ." % self.qc_program)
 
+        if rho_H_only:
+        # DO NOT update self.mo_coeffs/mo_coeffs_nophase, but self.gs_rho will be updated according to the newly calculated MOs
+            mo_coeffs = mo_coeffs_real.astype('complex128')
+            mo_coeffs_nophase = mo_coeffs_real.astype('complex128')
+        else:
+            self.mo_coeffs = mo_coeffs_real.astype('complex128')
+            self.mo_coeffs_nophase = mo_coeffs_real.astype('complex128')
+            self.t_mo_coeffs = self.t_position
+            self.t_mo_coeffs_nophase = self.t_position
+
+        self.n_elec = np.sum(self.gs_filling)
+
+        self.n_MO = np.size(self.mo_coeffs, 2)
+        self.n_AO = self.n_MO
+            
+        if not rho_H_only:
+            self.mo_e_int = np.zeros( (2, self.n_MO), dtype = 'float64')
+            self.t_mo_e_int = self.t_position
+
+        self.update_gs_density_matrix()
+        self.update_gs_hamiltonian_and_molevels(gs_hamiltonian_only = True)
+            
+        if is_initial:
+
+            self.rho = self.gs_rho.astype('complex128')
+            self.t_rho = self.t_position
+
+            self.initial_gs_energy = self.gs_energy
+
+            self.update_position_dependent_quantities()
+
+            self.update_mo_dependent_quantities()
+
+            self.update_e_coeffs_dependent_quantities()
+                
         return
 
 

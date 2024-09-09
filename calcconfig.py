@@ -65,10 +65,7 @@ def init_qc_engine(settings, workdir_suffix, **kwords):
         from interface_pyscf import pyscf_manager
 
         atoms = get_geom(load_setting(settings, 'geom_file'), return_format = 'pyscf')
-        basis = load_setting(settings, 'ao_basis')
-        unit  = 'Angstrom'
-
-        pyscf_instance = pyscf_manager(atoms, basis, unit)
+        pyscf_instance = pyscf_manager(settings, atoms)
 
         return pyscf_instance
 
