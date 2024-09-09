@@ -568,6 +568,7 @@ class Tbf:
             position         = deepcopy(self.position),
             momentum         = deepcopy(self.momentum),
             width            = deepcopy(self.width),
+            istep            = self.istep,
             n_dof            = self.n_dof,
             n_estate         = self.n_estate,
             e_coeffs_nophase = baby_e_coeffs_nophase,

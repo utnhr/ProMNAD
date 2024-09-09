@@ -150,6 +150,8 @@ class Electronic_state:
             self.H                   = matrices['H']
             self.S                   = matrices['S']
             self.Sinv                = matrices['Sinv']
+            self.tdnac               = matrices['tdnac']
+            self.deriv_coupling      = matrices['deriv_coupling']
             self.estate_energies     = matrices['estate_energies']
             self.old_estate_energies = matrices['old_estate_energies']
 
@@ -1606,6 +1608,8 @@ class Electronic_state:
             'H'                   : deepcopy(self.H),
             'S'                   : deepcopy(self.S),
             'Sinv'                : deepcopy(self.Sinv),
+            'tdnac'               : deepcopy(self.tdnac),
+            'deriv_coupling'      : deepcopy(self.deriv_coupling),
             'mo_coeffs'           : deepcopy(self.mo_coeffs),
             'mo_coeffs_nophase'   : deepcopy(self.mo_coeffs_nophase),
             'old_mo_coeffs'       : deepcopy(self.old_mo_coeffs),

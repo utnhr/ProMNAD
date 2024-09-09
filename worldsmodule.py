@@ -413,6 +413,8 @@ class World:
         #if self.L_tbf is not None:
         #    self.old_L_tbf = deepcopy(self.L_tbf)
 
+        print('S_tbf', self.S_tbf) ## Debug code
+
         #self.S_tbf = np.zeros( (n_tbf, n_tbf), dtype = 'complex128' )
         self.H_tbf = np.zeros( (n_tbf, n_tbf), dtype = 'complex128' )
 
@@ -443,6 +445,8 @@ class World:
                 #self.S_tbf[j_tbf,i_tbf] = S_ij
                 self.H_tbf[j_tbf,i_tbf] = np.conj(H_ij)
 
+        print('H_tbf', self.H_tbf) ## Debug code
+
         # < \psi_m | d/dt | \psi_n >
 
         for i_tbf in range(n_tbf):
@@ -470,6 +474,8 @@ class World:
 
                 self.H_tbf[i_tbf,j_tbf] -= 1.0j * H_DIRAC * val
                 self.H_tbf[j_tbf,i_tbf] -= 1.0j * H_DIRAC * val
+
+        print('H_tbf+\Sigma_tbf', self.H_tbf) ## Debug code
 
         ## symmetrize S
 
