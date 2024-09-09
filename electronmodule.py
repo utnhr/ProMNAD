@@ -396,8 +396,6 @@ class Electronic_state:
             
             Htmp = self.pyscf_instance.return_hamiltonian(gs_rho[0,:,:], n_spin)
 
-            print('PYSCF HTMP', Htmp) ## Debug code
-        
         else:
 
             utils.stop_with_error("Not compatible with quantum chemistry program %s ." % self.qc_program)
@@ -554,31 +552,31 @@ class Electronic_state:
         utils.check_time_equal(self.t_mo_coeffs, self.t_position)
         utils.check_time_equal(self.t_mo_coeffs, self.t_velocity)
 
-        # (1/2) * <\psi(t-dt)|\psi(t+dt)>
+        ## (1/2) * <\psi(t-dt)|\psi(t+dt)>
 
-        position_2d = utils.coord_1d_to_2d(self.position)
-        velocity_2d = utils.coord_1d_to_2d(self.velocity)
+        #position_2d = utils.coord_1d_to_2d(self.position)
+        #velocity_2d = utils.coord_1d_to_2d(self.velocity)
 
-        #old_position_2d = position_2d - self.dt * velocity_2d
-        old_position_2d = position_2d - 2.0 * self.dt * velocity_2d
-        #new_position_2d = position_2d + self.dt * velocity_2d
-        
-        if self.qc_program == 'dftb+':
-            
-            self.dftbplus_instance.go_to_workdir()
-            overlap_twogeom_1 = self.dftbplus_instance.worker.return_overlap_twogeom(old_position_2d, position_2d)
-            overlap_twogeom_2 = self.dftbplus_instance.worker.return_overlap_twogeom(position_2d, old_position_2d)
-            #overlap_twogeom_1 = self.dftbplus_instance.worker.return_overlap_twogeom(old_position_2d, new_position_2d)
-            #overlap_twogeom_2 = self.dftbplus_instance.worker.return_overlap_twogeom(new_position_2d, old_position_2d)
-            self.dftbplus_instance.return_from_workdir()
+        ##old_position_2d = position_2d - self.dt * velocity_2d
+        #old_position_2d = position_2d - 2.0 * self.dt * velocity_2d
+        ##new_position_2d = position_2d + self.dt * velocity_2d
+        #
+        #if self.qc_program == 'dftb+':
+        #    
+        #    self.dftbplus_instance.go_to_workdir()
+        #    overlap_twogeom_1 = self.dftbplus_instance.worker.return_overlap_twogeom(old_position_2d, position_2d)
+        #    overlap_twogeom_2 = self.dftbplus_instance.worker.return_overlap_twogeom(position_2d, old_position_2d)
+        #    #overlap_twogeom_1 = self.dftbplus_instance.worker.return_overlap_twogeom(old_position_2d, new_position_2d)
+        #    #overlap_twogeom_2 = self.dftbplus_instance.worker.return_overlap_twogeom(new_position_2d, old_position_2d)
+        #    self.dftbplus_instance.return_from_workdir()
 
-            #S = np.triu(overlap_twogeom_1) + np.triu(overlap_twogeom_2).transpose() - np.diag(np.diag(overlap_twogeom_1))
+        #    #S = np.triu(overlap_twogeom_1) + np.triu(overlap_twogeom_2).transpose() - np.diag(np.diag(overlap_twogeom_1))
 
-        else:
+        #else:
 
-            utils.stop_with_error("MO TDNAC calculation is not compatible with QC program %s .\n" % self.qc_program)
+        #    utils.stop_with_error("MO TDNAC calculation is not compatible with QC program %s .\n" % self.qc_program)
 
-        temp = np.triu(overlap_twogeom_1) + np.triu(overlap_twogeom_2).transpose() - np.diag( np.diag(overlap_twogeom_2) )
+        #temp = np.triu(overlap_twogeom_1) + np.triu(overlap_twogeom_2).transpose() - np.diag( np.diag(overlap_twogeom_2) )
 
         self.mo_tdnac = np.zeros_like(self.mo_coeffs)
 
@@ -893,30 +891,18 @@ class Electronic_state:
             overlap_twogeom = temp
             #overlap_twogeom = temp.transpose()
 
+            #self.deriv_coupling = overlap_twogeom / self.dt
+            #self.deriv_coupling = overlap_twogeom / (2.0 * self.dt)
+            self.deriv_coupling = overlap_twogeom / (2.0 * self.dt_deriv)
+            self.t_deriv_coupling = self.t_position
+
         elif self.qc_program == 'pyscf':
             
             self.deriv_coupling = self.pyscf_instance.get_derivative_coupling(velocity_2d)
 
-            print(sderiv.shape)
-            utils.stop_with_error('PYSCF TEST')
-
         else:
 
             utils.stop_with_error("Unknown quantum chemistry program %s .\n" % self.qc_program)
-
-        #self.deriv_coupling = overlap_twogeom / self.dt
-        #self.deriv_coupling = overlap_twogeom / (2.0 * self.dt)
-        self.deriv_coupling = overlap_twogeom / (2.0 * self.dt_deriv)
-        self.t_deriv_coupling = self.t_position
-
-        #print('POSITION_2D', position_2d) ## Debug code
-        #print('OLD_POSITION_2D', old_position_2d) ## Debug code
-
-        #print('TEMP1', temp1)
-        #print('DERIV_COUPLING', self.deriv_coupling)
-        
-        #print(' WARNING: derivative coupling set to zero') ## Debug code
-        #self.deriv_coupling = np.zeros_like(self.deriv_coupling) ## Debug code
 
         return
 
@@ -1029,49 +1015,61 @@ class Electronic_state:
 
         force = np.zeros_like(self.position)
 
-        if not self.is_edyn_initialized:
+        if self.qc_program == 'dftb+':
+
+            if not self.is_edyn_initialized:
+                self.dftbplus_instance.go_to_workdir()
+                self.dftbplus_instance.worker.init_elec_dynamics()
+                self.dftbplus_instance.return_from_workdir()
+                self.is_edyn_initialized = True
+
+            #if self.S is None:
+            #    self.update_matrices(is_before_initial = True)
+            
+            utils.check_time_equal(self.t_S, self.t_Sinv)
+            S = np.zeros( (1, self.n_AO, self.n_AO), dtype = 'float64' )
+            Sinv = np.zeros( (1, self.n_AO, self.n_AO), dtype = 'float64' )
+            S[0,:,:] = self.S[:,:]
+            Sinv[0,:,:] = self.Sinv[:,:]
+            
+            if gs_force:
+                utils.check_time_equal(self.t_gs_rho, self.t_S)
+                rho_real = self.gs_rho
+            else:
+                utils.check_time_equal(self.t_rho, self.t_S)
+                rho_real = np.zeros_like(self.rho, dtype = 'float64')
+                rho_real[:,:,:] = self.rho[:,:,:]
+            
+            H = np.zeros_like(self.rho)
             self.dftbplus_instance.go_to_workdir()
-            self.dftbplus_instance.worker.init_elec_dynamics()
+            tmp = self.dftbplus_instance.worker.return_hamiltonian(rho_real) # Internal atom positions ??
             self.dftbplus_instance.return_from_workdir()
-            self.is_edyn_initialized = True
 
-        #if self.S is None:
-        #    self.update_matrices(is_before_initial = True)
-        
-        utils.check_time_equal(self.t_S, self.t_Sinv)
-        S = np.zeros( (1, self.n_AO, self.n_AO), dtype = 'float64' )
-        Sinv = np.zeros( (1, self.n_AO, self.n_AO), dtype = 'float64' )
-        S[0,:,:] = self.S[:,:]
-        Sinv[0,:,:] = self.Sinv[:,:]
-        
-        if gs_force:
-            utils.check_time_equal(self.t_gs_rho, self.t_S)
-            rho_real = self.gs_rho
+            if self.is_open_shell:
+                n_spin = 2
+            else:
+                n_spin = 1
+
+            for i_spin in range(n_spin):
+                H[i_spin,:,:] = utils.hermitize(tmp[i_spin,:,:], is_upper_triangle = True)
+
+            self.dftbplus_instance.go_to_workdir()
+            force = self.dftbplus_instance.worker.get_ehrenfest_force(H, self.rho, S, Sinv)
+            self.dftbplus_instance.return_from_workdir()
+
+            n_atom = len(self.atomparams)
+
+            force = force.reshape(3*n_atom)
+
+        elif self.qc_program == 'pyscf':
+            
+            print('WARNING: GROUND-STATE FORCE') ## Debug code
+
+            self.force = self.pyscf_instance.ks.Gradients()
+
         else:
-            utils.check_time_equal(self.t_rho, self.t_S)
-            rho_real = np.zeros_like(self.rho, dtype = 'float64')
-            rho_real[:,:,:] = self.rho[:,:,:]
-        
-        H = np.zeros_like(self.rho)
-        self.dftbplus_instance.go_to_workdir()
-        tmp = self.dftbplus_instance.worker.return_hamiltonian(rho_real) # Internal atom positions ??
-        self.dftbplus_instance.return_from_workdir()
 
-        if self.is_open_shell:
-            n_spin = 2
-        else:
-            n_spin = 1
-
-        for i_spin in range(n_spin):
-            H[i_spin,:,:] = utils.hermitize(tmp[i_spin,:,:], is_upper_triangle = True)
-
-        self.dftbplus_instance.go_to_workdir()
-        force = self.dftbplus_instance.worker.get_ehrenfest_force(H, self.rho, S, Sinv)
-        self.dftbplus_instance.return_from_workdir()
-
-        n_atom = len(self.atomparams)
-
-        force = force.reshape(3*n_atom)
+            utils.stop_with_error("Unknown QC program %s ." % self.qc_program)
 
         if not do_not_update:
             
@@ -1507,16 +1505,29 @@ class Electronic_state:
         self.velocity = A * self.old_velocity + B * self.new_velocity
 
         position_2d = utils.coord_1d_to_2d(self.position)
+
+        if self.qc_program == 'dftb+':
         
-        # Update internal coordinate in DFTB+
+            # Update internal coordinate in DFTB+
 
-        self.dftbplus_instance.worker.set_geometry(position_2d)
+            self.dftbplus_instance.worker.set_geometry(position_2d)
 
-        self.dftbplus_instance.worker.update_coordinate_dependent_stuffs()
+            self.dftbplus_instance.worker.update_coordinate_dependent_stuffs()
 
-        # Exact S in the interpolated position
-        
-        S = self.dftbplus_instance.worker.return_overlap_twogeom(position_2d, position_2d)
+            # Exact S in the interpolated position
+            
+            S = self.dftbplus_instance.worker.return_overlap_twogeom(position_2d, position_2d)
+
+        elif self.qc_program == 'pyscf':
+            
+            self.pyscf_instance.update_geometry(position_2d)
+
+            S = self.pyscf_instance.mol.intor('int1e_ovlp')
+
+        else:
+
+            utils.stop_with_error("Unknown QC program %s ." % self.qc_program)
+
         self.S = utils.symmetrize(S, is_upper_triangle = True)
         self.Sinv = np.linalg.inv(self.S)
         
@@ -1561,19 +1572,25 @@ class Electronic_state:
         position_2d_old = utils.coord_1d_to_2d(old_e_part.old_position)
         position_2d_new = utils.coord_1d_to_2d(self.position)
 
-        # DFTB+
+        if self.qc_program == 'dftb+':
 
-        self.dftbplus_instance.go_to_workdir()
+            # DFTB+
 
-        n_AO = sum( self.dftbplus_instance.worker.get_atom_nr_basis() )
+            self.dftbplus_instance.go_to_workdir()
 
-        S = self.dftbplus_instance.worker.return_overlap_twogeom(position_2d_old, position_2d_new)
+            n_AO = sum( self.dftbplus_instance.worker.get_atom_nr_basis() )
 
-        self.dftbplus_instance.return_from_workdir()
+            S = self.dftbplus_instance.worker.return_overlap_twogeom(position_2d_old, position_2d_new)
 
-        S = utils.symmetrize(S, is_upper_triangle = True)
+            self.dftbplus_instance.return_from_workdir()
 
-        # End DFTB+
+            S = utils.symmetrize(S, is_upper_triangle = True)
+
+            # End DFTB+
+
+        else:
+
+            utils.stop_with_error("This function is currently not compatible with QC program %s ." % self.qc_program)
 
         self.mo_overlap_with_old_other = np.zeros_like(self.mo_coeffs)
 
