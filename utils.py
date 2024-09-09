@@ -145,6 +145,21 @@ def coord_1d_to_2d(coord_1d):
     return coord_1d.reshape([natom, 3])
 
 
+def coord_1d_to_pyscf(coord_1d, elems):
+    
+    natom = int(coord_1d.size / 3)
+
+    coords = coord_1d.reshape([natom, 3])
+
+    atoms = []
+
+    for elem, coord in zip(elems, coords):
+
+        atoms.append( [ elem, coord ] )
+
+    return atoms
+
+
 def symmetrize(M, is_upper_triangle = True): ## placeholder
 
     if is_upper_triangle:

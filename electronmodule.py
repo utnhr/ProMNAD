@@ -126,6 +126,8 @@ class Electronic_state:
 
         if self.qc_program == 'dftb+':
             self.dftbplus_instance = init_qc_engine(settings, "%d" % self.electronic_state_id)
+        elif self.qc_program == 'pyscf':
+            self.pyscf_instance = init_qc_engine(settings, "%d" % self.electronic_state_id)
         else:
             utils.stop_with_error("Unknown QC program %s .\n" % self.qc_program)
 
