@@ -439,6 +439,9 @@ class Tbf:
         # I/O
         self.localoutput   = LocalOutputFiles(self.tbf_id)
 
+        # Print initial step
+        self.print_results()
+
         return
 
 
