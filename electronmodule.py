@@ -390,10 +390,11 @@ class Electronic_state:
             self.dftbplus_instance.return_from_workdir()
 
         elif self.qc_program == 'pyscf':
-
-            hcore = self.pyscf_instance.scf.hf.get_hcore(self.mol)
-            veff  = self.pyscf_instance.dft.get_veff(self.pyscf_instance.ks, dm=gs_rho)
-            Htmp = hcore + veff
+            
+            if not n_spin == 1:
+                utils.stop_with_error("Currently not compatible with open-shell systems.")
+            
+            Htmp = self.pyscf_instance.return_hamiltonian(gs_rho[0,:,:], n_spin)
 
             print('PYSCF HTMP', Htmp) ## Debug code
         
@@ -892,6 +893,13 @@ class Electronic_state:
             overlap_twogeom = temp
             #overlap_twogeom = temp.transpose()
 
+        elif self.qc_program == 'pyscf':
+            
+            self.deriv_coupling = self.pyscf_instance.get_derivative_coupling(velocity_2d)
+
+            print(sderiv.shape)
+            utils.stop_with_error('PYSCF TEST')
+
         else:
 
             utils.stop_with_error("Unknown quantum chemistry program %s .\n" % self.qc_program)
@@ -1087,15 +1095,12 @@ class Electronic_state:
 
         # Update stuffs that depend on position and velocity, but not on MOs
 
-        #utils.Printer.write_out('Updating hamiltonian and overlap matrices: Started.\n')
-
         self.old_position = deepcopy(self.position)
         self.old_velocity = deepcopy(self.velocity)
 
+        position_2d = utils.coord_1d_to_2d(self.position)
+
         if self.qc_program == 'dftb+':
-            
-            #position_2d = utils.coord_1d_to_2d(self.position) * ANGST2AU
-            position_2d = utils.coord_1d_to_2d(self.position)
 
             self.dftbplus_instance.go_to_workdir()
 
@@ -1109,57 +1114,44 @@ class Electronic_state:
 
             self.dftbplus_instance.return_from_workdir()
 
-            #self.update_gs_density_matrix()
-
-            #self.update_gs_hamiltonian_and_molevels()
+        elif self.qc_program == 'pyscf':
             
-            #if self.i_step % self.reconst_interval == 0 and self.reconst_interval > 0:
-            #    self.reconstruct_gs(energy_only = True)
+            position_2d = utils.coord_1d_to_2d(self.position)
 
-            n_spin = int(self.is_open_shell) + 1
+            self.pyscf_instance.update_geometry(position_2d)
 
-            if self.S is not None:
-                self.old_S = deepcopy(self.S)
-            if self.Sinv is not None:
-                self.old_Sinv = deepcopy(self.Sinv)
-            if self.L is not None:
-                self.old_L = deepcopy(self.L)
-
-            self.S = utils.symmetrize(S, is_upper_triangle = True)
-            self.t_S = self.t_position
-
-            self.Sinv = np.linalg.inv(self.S)
-            self.t_Sinv = self.t_S
-
-            self.L = BasisTransformer.lowdin(self.S)
-
-            if self.old_S is None:
-                self.old_S = deepcopy(self.S)
-            if self.old_Sinv is None:
-                self.old_Sinv = deepcopy(self.Sinv)
-            
-            #self.construct_density_matrix()
-
-            self.update_derivative_coupling()
-            
-            #self.update_mo_tdnac()
-
-            #self.update_csc()
-
-            #self.propagate_molecular_orbitals()
-            
-            if self.do_interpol:
-                self.reconstruct_gs(rho_H_only = True)
+            S = self.pyscf_instance.get_overlap_matrix()
 
         else:
             
             utils.stop_with_error("Unknown quantum chemistry program %s .\n" % self.qc_program)
 
-        #if not is_before_initial:
-        #
-        #    self.i_step += 1
+        n_spin = int(self.is_open_shell) + 1
 
-        #utils.Printer.write_out('Updating hamiltonian and overlap matrices: Done.\n')
+        if self.S is not None:
+            self.old_S = deepcopy(self.S)
+        if self.Sinv is not None:
+            self.old_Sinv = deepcopy(self.Sinv)
+        if self.L is not None:
+            self.old_L = deepcopy(self.L)
+
+        self.S = utils.symmetrize(S, is_upper_triangle = True)
+        self.t_S = self.t_position
+
+        self.Sinv = np.linalg.inv(self.S)
+        self.t_Sinv = self.t_S
+
+        self.L = BasisTransformer.lowdin(self.S)
+
+        if self.old_S is None:
+            self.old_S = deepcopy(self.S)
+        if self.old_Sinv is None:
+            self.old_Sinv = deepcopy(self.Sinv)
+        
+        self.update_derivative_coupling()
+        
+        if self.do_interpol:
+            self.reconstruct_gs(rho_H_only = True)
 
         return
 
@@ -1438,10 +1430,19 @@ class Electronic_state:
         if self.H is not None:
             self.old_H = deepcopy(self.H)
 
-        self.dftbplus_instance.go_to_workdir()
-        Htmp = self.dftbplus_instance.worker.return_hamiltonian(self.gs_rho)
-        Htmp = self.dftbplus_instance.worker.return_hamiltonian(self.gs_rho) ## Calling twice here eliminates the spikes in MO levels; why?????
-        self.dftbplus_instance.return_from_workdir()
+        if self.qc_program == 'dftb+':
+
+            self.dftbplus_instance.go_to_workdir()
+            Htmp = self.dftbplus_instance.worker.return_hamiltonian(self.gs_rho)
+            Htmp = self.dftbplus_instance.worker.return_hamiltonian(self.gs_rho) ## Calling twice here eliminates the spikes in MO levels; why?????
+            self.dftbplus_instance.return_from_workdir()
+
+        elif self.qc_program == 'pyscf':
+            
+            if not n_spin == 1:
+                utils.stop_with_error("Currently not compatible with open-shell systems.")
+
+            Htmp = self.pyscf_instance.return_hamiltonian(self.gs_rho[0,:,:], n_spin)
 
         self.H = np.zeros_like(Htmp, dtype = 'complex128')
 

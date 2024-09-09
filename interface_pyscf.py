@@ -1,5 +1,7 @@
 #!-*- coding: utf-8 -*-
 
+import utils
+import numpy as np
 from settingsmodule import load_setting
 from copy import deepcopy
 from pyscf import gto, scf, dft
@@ -9,6 +11,7 @@ class pyscf_manager:
     def __init__(self, settings, atoms):
 
         self.gto = gto
+        self.scf = scf
         self.dft = dft
 
         self.mol = gto.Mole()
@@ -44,3 +47,47 @@ class pyscf_manager:
         self.ks.kernel()
 
         return
+
+
+    def return_hamiltonian(self, rho, n_spin):
+        
+        hcore = self.scf.hf.get_hcore(self.mol)
+        veff  = self.ks.get_veff(dm = rho)
+
+        H = hcore + veff
+
+        if n_spin == 1:
+
+            return np.array( [ H ] )
+
+        else:
+
+            utils.stop_with_error('Currently not compatible with open-shell systems.')
+
+    
+    def get_overlap_matrix(self):
+        
+        return deepcopy( self.mol.intor('int1e_ovlp') )
+
+
+    def get_derivative_coupling(self, velocity_2d):
+        
+        tmp = deepcopy( self.mol.intor('int1e_ipovlp') )
+
+        atom_indices = [ int(line.split()[0]) for line in self.mol.ao_labels() ]
+
+        n_ao = len(atom_indices)
+
+        for i_ao in range(n_ao):
+
+            i_atom = atom_indices[i_ao]
+            
+            vel = velocity_2d[i_atom]
+
+
+        utils.stop_with_error('UNDER CONSTRUCTION') ## Debug code
+            
+
+        return tmp
+        # int1e_ipovlp is derivative w.r.t. electronic coordinate -> minus of nuclear derivative. But...
+        # <dp/dr|q> = -<dp/dR|q> = <p|dq/dR>
