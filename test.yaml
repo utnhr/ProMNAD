@@ -56,11 +56,11 @@ max_n_tbf: 2
 cloning_parameters:
   e_threshold: 0.001
 
-do_interpol: False
+do_interpol: True
 nbin_interpol_elec: 200
 nbin_interpol_tbf: 2000
 
-dt: 0.01
+dt: 2.0
 print_xyz_interval: 1
 
 dt_deriv: 0.1
@@ -71,4 +71,4 @@ is_fixed: False
 
 tbf_coeffs_are_trivial: False
 
-flush_interval: 20
+flush_interval: 10
