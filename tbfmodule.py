@@ -7,7 +7,7 @@ import numpy as np
 import scipy.linalg as sp
 from copy import deepcopy
 
-from constants import H_DIRAC, AMU2AU, AU2ANGST, AU2EV, KB_EV, AU2SEC
+from constants import H_DIRAC, AMU2AU, AU2ANGST, AU2EV, KB_EV, AU2SEC, SEC2AU
 import utils
 from interface_dftbplus import dftbplus_manager
 from electronmodule import Electronic_state
@@ -366,7 +366,7 @@ class Tbf:
             self.given_geoms      = deepcopy(given_geoms)
             self.given_velocities = deepcopy(given_velocities)
 
-            position, velocity = self.get_next_given_traject()
+            position, velocity = self.get_next_given_traject(self.init_istep)
 
             self.position = position
             self.momentum = self.mass * velocity
@@ -438,6 +438,9 @@ class Tbf:
         
         # I/O
         self.localoutput   = LocalOutputFiles(self.tbf_id)
+
+        # Print initial step
+        self.print_results()
 
         return
 
@@ -820,7 +823,7 @@ class Tbf:
         velocity     = self.get_velocity()
 
         if self.read_traject:
-            position, velocity = self.get_next_given_traject()
+            position, velocity = self.get_next_given_traject(self.istep+1)
         else:
             #position = old_position + 2.0 * velocity * dt
             position = self.get_position() + velocity * dt + 0.5 * ( self.force / self.get_mass_au() ) * dt**2
@@ -876,12 +879,15 @@ class Tbf:
         return temp_kelvin
 
     
-    def get_next_given_traject(self):
+    def get_next_given_traject(self, istep):
 
-        geom  = self.given_geoms[self.istep]
-        veloc = self.given_velocities[self.istep]
+        #print('GEOMS', len(self.given_geoms)) ## Debug code
+        #print('VELOCITIES', len(self.given_velocities)) ## Debug code
+
+        geom  = self.given_geoms[istep]
+        veloc = self.given_velocities[istep]
         
-        self.istep += 1
+        #self.istep += 1
 
         #print(geom) ## Debug code
 
@@ -902,6 +908,30 @@ class Tbf:
 
             elem = self.atomparams[i_atom].elem
             coord = self.position[3*i_atom:3*i_atom+3] * AU2ANGST
+
+            xyz_file.write("%s %20.12f %20.12f %20.12f\n" % (
+                elem, coord[0], coord[1], coord[2]
+            ) )
+
+        return
+
+
+    def print_veloc(self):
+        
+        xyz_file = self.localoutput.velocity
+
+        n_atom = len(self.atomparams)
+
+        xyz_file.write("%d\n" % n_atom)
+
+        xyz_file.write( "T= %20.12f fs ( STEP %d ) \n" % (self.t_position*AU2SEC*1.0e15, self.istep) )
+
+        veloc = ( self.momentum / self.get_mass_au() ) * AU2ANGST * SEC2AU * 1.0e-15 # a.u. -> Angst/fs
+
+        for i_atom in range(n_atom):
+
+            elem = self.atomparams[i_atom].elem
+            coord = veloc[3*i_atom:3*i_atom+3]
 
             xyz_file.write("%s %20.12f %20.12f %20.12f\n" % (
                 elem, coord[0], coord[1], coord[2]
@@ -1009,6 +1039,8 @@ class Tbf:
         if self.print_xyz_interval != 0 and (self.istep % self.print_xyz_interval) == 0:
 
             self.print_xyz()
+
+            self.print_veloc()
 
             self.print_estate_info()
 
