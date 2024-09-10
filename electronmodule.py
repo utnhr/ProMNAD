@@ -12,6 +12,7 @@ import utils
 from settingsmodule import load_setting
 from integratormodule import Integrator
 #from interface_dftbplus import dftbplus_manager
+from interface_pyscf import pyscf_manager
 from calcconfig import init_qc_engine
 from basistransformermodule import BasisTransformer
 import struct
@@ -24,6 +25,8 @@ class Electronic_state:
         
         self.electronic_state_id = Electronic_state.electronic_state_count
         Electronic_state.electronic_state_count += 1
+
+        self.settings            = deepcopy(settings)
 
         self.active_occ_mos      = load_setting(settings, 'active_occ_mos')
         self.active_vir_mos      = load_setting(settings, 'active_vir_mos')
@@ -128,6 +131,8 @@ class Electronic_state:
             self.dftbplus_instance = init_qc_engine(settings, "%d" % self.electronic_state_id)
         elif self.qc_program == 'pyscf':
             self.pyscf_instance = init_qc_engine(settings, "%d" % self.electronic_state_id)
+            self.pyscf_instance_new = init_qc_engine(settings, "%d_newtmp" % self.electronic_state_id) # for numerical AO derivative
+            self.pyscf_instance_old = init_qc_engine(settings, "%d_oldtmp" % self.electronic_state_id) # for numerical AO derivative
         else:
             utils.stop_with_error("Unknown QC program %s .\n" % self.qc_program)
 
@@ -898,7 +903,34 @@ class Electronic_state:
 
         elif self.qc_program == 'pyscf':
             
-            self.deriv_coupling = self.pyscf_instance.get_derivative_coupling(velocity_2d)
+            #self.deriv_coupling = self.pyscf_instance.get_derivative_coupling(velocity_2d)
+
+            instance_new = self.pyscf_instance_new
+            instance_old = self.pyscf_instance_old
+            #instance_old = pyscf_manager(self.settings, self.pyscf_instance.mol.atom)
+
+            instance_new.update_geometry(new_position_2d)
+            instance_old.update_geometry(old_position_2d)
+
+            mol_new = instance_new.mol
+            mol_old = instance_old.mol
+            mol     = self.pyscf_instance.mol
+
+            overlap_twogeom_0 = self.pyscf_instance.gto.intor_cross('int1e_ovlp', mol    , mol    )
+            overlap_twogeom_1 = self.pyscf_instance.gto.intor_cross('int1e_ovlp', mol    , mol_new)
+            overlap_twogeom_2 = self.pyscf_instance.gto.intor_cross('int1e_ovlp', mol    , mol_old)
+            overlap_twogeom_3 = self.pyscf_instance.gto.intor_cross('int1e_ovlp', mol_new, mol    )
+            overlap_twogeom_4 = self.pyscf_instance.gto.intor_cross('int1e_ovlp', mol_old, mol    )
+
+            temp1 = np.triu(overlap_twogeom_1) + np.triu(overlap_twogeom_3).transpose()
+            temp2 = np.triu(overlap_twogeom_2) + np.triu(overlap_twogeom_4).transpose()
+
+            temp = temp1 - temp2
+
+            overlap_twogeom = temp
+
+            self.deriv_coupling = overlap_twogeom / (2.0 * self.dt_deriv)
+            self.t_deriv_coupling = self.t_position
 
         else:
 

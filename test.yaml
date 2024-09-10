@@ -5,10 +5,10 @@ geom_file: sample_geom.xyz
 
 engine:
   type: dftb+
-  #libpath: /home/hiroki/dftbplus-devel/hiroki/install/lib/libdftbplus.so
-  libpath: /home/uratani/dftbplus-devel/install/lib64/libdftbplus.so
-  #workdir: /home/hiroki/config-aimc/dftbplus_workdir
-  workdir: /home/uratani/config-aimc/dftbplus_workdir
+  libpath: /home/hiroki/dftbplus-devel/hiroki/install/lib/libdftbplus.so
+  #libpath: /home/uratani/dftbplus-devel/install/lib64/libdftbplus.so
+  workdir: /home/hiroki/config-aimc/dftbplus_workdir
+  #workdir: /home/uratani/config-aimc/dftbplus_workdir
 
 include_ground_state: False
 
@@ -19,7 +19,7 @@ integrator: adams_moulton_2
 
 mo_type: restricted
 
-read_traject: True
+read_traject: False
 
 active_occ_mos:
   - 8
@@ -56,11 +56,11 @@ max_n_tbf: 2
 cloning_parameters:
   e_threshold: 0.001
 
-do_interpol: True
+do_interpol: False
 nbin_interpol_elec: 200
 nbin_interpol_tbf: 2000
 
-dt: 0.5
+dt: 0.01
 print_xyz_interval: 1
 
 dt_deriv: 0.1

@@ -74,7 +74,7 @@ class pyscf_manager:
         
         ipovlp = deepcopy( self.mol.intor('int1e_ipovlp') )
         # int1e_ipovlp is derivative w.r.t. electronic coordinate -> minus of nuclear derivative. But...
-        # <dp/dr|q> = -<dp/dR|q> = <p|dq/dR>
+        # <dp/dr|q> = -<dp/dR|q> = <p|dq/dR> ?
 
         atom_indices = [ int(line.split()[0]) for line in self.mol.ao_labels() ]
 
@@ -89,5 +89,10 @@ class pyscf_manager:
             vel = velocity_2d[i_atom]
 
             deriv_coupling[i_ao, :] = np.dot(vel, ipovlp[0:3, i_ao, :])
+        
+        #deriv_coupling = -deriv_coupling.transpose() # ?
+        #deriv_coupling = deriv_coupling.transpose() # ?
+        #deriv_coupling = -deriv_coupling # ?
+        #deriv_coupling[:,:] = 0.0 ## Debug code
 
         return deepcopy(deriv_coupling)

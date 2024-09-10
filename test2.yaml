@@ -5,10 +5,10 @@ geom_file: sample_geom.xyz
 
 engine:
   #type: dftb+
-  ##libpath: /home/hiroki/dftbplus-devel/hiroki/install/lib/libdftbplus.so
-  #libpath: /home/uratani/dftbplus-devel/install/lib64/libdftbplus.so
-  ##workdir: /home/hiroki/config-aimc/dftbplus_workdir
-  #workdir: /home/uratani/config-aimc/dftbplus_workdir
+  #libpath: /home/hiroki/dftbplus-devel/hiroki/install/lib/libdftbplus.so
+  ##libpath: /home/uratani/dftbplus-devel/install/lib64/libdftbplus.so
+  #workdir: /home/hiroki/config-aimc/dftbplus_workdir
+  ##workdir: /home/uratani/config-aimc/dftbplus_workdir
   type: pyscf
 
 include_ground_state: False
@@ -20,7 +20,7 @@ integrator: adams_moulton_2
 
 mo_type: restricted
 
-read_traject: False
+read_traject: True
 
 active_occ_mos:
   - 8
@@ -50,7 +50,7 @@ initial_coeffs:
   - 1.0
 #  - 1.0
 #n_step: 75
-n_step: 20000
+n_step: 1000
 max_n_tbf: 2
 
 # cloning parameters
@@ -58,10 +58,10 @@ cloning_parameters:
   e_threshold: 0.001
 
 do_interpol: True
-nbin_interpol_elec: 20
-nbin_interpol_tbf: 200
+nbin_interpol_elec: 1
+nbin_interpol_tbf: 1
 
-dt: 0.5
+dt: 0.01
 print_xyz_interval: 1
 
 dt_deriv: 0.1
@@ -72,4 +72,6 @@ is_fixed: False
 
 tbf_coeffs_are_trivial: False
 
-flush_interval: 20
+flush_interval: 1
+
+#ao_basis: sto-3g
