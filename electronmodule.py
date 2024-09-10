@@ -587,8 +587,14 @@ class Electronic_state:
         #temp = np.triu(overlap_twogeom_1) + np.triu(overlap_twogeom_2).transpose() - np.diag( np.diag(overlap_twogeom_2) )
 
         self.mo_tdnac = np.zeros_like(self.mo_coeffs)
+        
+        if self.do_interpol:
+            
+            H = deepcopy(self.H)
 
-        H = self.get_mo_dependent_hamiltonian(self.mo_coeffs)
+        else:
+
+            H = self.get_mo_dependent_hamiltonian(self.mo_coeffs)
 
         Heff = np.zeros_like(H)
 
