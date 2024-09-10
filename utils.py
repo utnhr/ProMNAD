@@ -221,3 +221,33 @@ def check_time_equal(t1, t2, action = 'stop'):
     else:
 
         return
+
+
+def binary_search(values, target):
+    
+    n_values = len(values)
+
+    i_min = 0
+    i_max = n_values-1
+
+    while True:
+
+        if i_max - i_min < 2:
+            break
+
+        i_half = (i_min + i_max) // 2
+
+        if   values[i_half] < target:
+
+            i_min = i_half
+
+        elif values[i_half] > target:
+            
+            i_max = i_half
+
+        elif values[i_half] == target:
+            
+            i_min = i_half
+            i_max = i_half
+    
+    return i_min, i_max

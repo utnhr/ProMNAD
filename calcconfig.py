@@ -21,7 +21,7 @@ def configure_calculation(settings):
 
     if load_setting(settings, 'read_traject'):
 
-        settings['given_geoms'], settings['given_velocities'] = get_traject(
+        settings['given_geoms'], settings['given_velocities'], settings['given_time_frames'] = get_traject(
             'traject', 'velocity', return_geom_1d = True
         )
 

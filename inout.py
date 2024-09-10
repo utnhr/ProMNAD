@@ -61,7 +61,7 @@ def get_traject(filename_geom, filename_veloc, return_geom_1d=False):
 
     filenames = [ filename_geom, filename_veloc ]
 
-    geom = []; veloc = []
+    geom = []; veloc = []; time_frames = []
 
     for i, filename in enumerate(filenames):
 
@@ -76,7 +76,10 @@ def get_traject(filename_geom, filename_veloc, return_geom_1d=False):
 
                 n_atom = int(line)
 
-                traject_file.readline() # skip 1 line
+                ll = traject_file.readline().split()
+
+                t_fs = float(ll[1])
+                time_frames.append(t_fs*SEC2AU*1.0e-15)
 
                 vect = []
 
@@ -110,7 +113,7 @@ def get_traject(filename_geom, filename_veloc, return_geom_1d=False):
                     
                     veloc.append(vect)
 
-    return geom, veloc
+    return geom, veloc, time_frames
 
 def get_matrix_from_text(filename='sample_hamil.dat'):
     

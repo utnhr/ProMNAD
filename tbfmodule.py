@@ -1,4 +1,4 @@
-#!-*- coding: utf-8 -*-
+#!-*- coding: utf-8 -* self.given_geoms[:][0]
 
 import sys
 import math
@@ -360,13 +360,15 @@ class Tbf:
 
         if self.read_traject:
 
-            given_geoms      = load_setting(settings, 'given_geoms')
-            given_velocities = load_setting(settings, 'given_velocities')
+            given_geoms       = load_setting(settings, 'given_geoms')
+            given_velocities  = load_setting(settings, 'given_velocities')
+            given_time_frames = load_setting(settings, 'given_time_frames')
 
-            self.given_geoms      = deepcopy(given_geoms)
-            self.given_velocities = deepcopy(given_velocities)
+            self.given_geoms       = deepcopy(given_geoms)
+            self.given_velocities  = deepcopy(given_velocities)
+            self.given_time_frames = deepcopy(given_time_frames)
 
-            position, velocity = self.get_next_given_traject(self.init_istep)
+            position, velocity = self.get_next_given_traject(t)
 
             self.position = position
             self.momentum = self.mass * velocity
@@ -823,7 +825,7 @@ class Tbf:
         velocity     = self.get_velocity()
 
         if self.read_traject:
-            position, velocity = self.get_next_given_traject(self.istep+1)
+            position, velocity = self.get_next_given_traject(self.t_position)
         else:
             #position = old_position + 2.0 * velocity * dt
             position = self.get_position() + velocity * dt + 0.5 * ( self.force / self.get_mass_au() ) * dt**2
@@ -879,18 +881,24 @@ class Tbf:
         return temp_kelvin
 
     
-    def get_next_given_traject(self, istep):
+    def get_next_given_traject(self, t):
 
-        #print('GEOMS', len(self.given_geoms)) ## Debug code
-        #print('VELOCITIES', len(self.given_velocities)) ## Debug code
+        i_pre, i_nex = utils.binary_search(self.given_time_frames, t)
 
-        geom  = self.given_geoms[istep]
-        veloc = self.given_velocities[istep]
+        if i_pre == i_nex:
+            
+            x = 1.0
+
+        else:
+
+            t_pre = self.given_time_frames[i_pre]
+            t_nex = self.given_time_frames[i_nex]
+
+            x = (t - t_pre) / (t_nex - t_pre)
+
+        geom  = self.given_geoms[i_pre] * (1.0-x) + self.given_geoms[i_nex] * x
+        veloc = self.given_velocities[i_pre] * (1.0-x) + self.given_velocities[i_nex] * x
         
-        #self.istep += 1
-
-        #print(geom) ## Debug code
-
         return geom, veloc
 
     
