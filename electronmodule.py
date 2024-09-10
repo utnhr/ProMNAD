@@ -1369,7 +1369,14 @@ class Electronic_state:
         elif self.qc_program == 'pyscf':
             
             self.pyscf_instance.update_geometry(coords)
-
+            
+            #if self.is_open_shell:
+            #    utils.stop_with_error('Currently not compatible with open-shell systems.')
+            #else:
+            #    if self.gs_rho is not None:
+            #        self.pyscf_instance.converge_scf(dm = self.gs_rho[0,:,:])
+            #    else:
+            #        self.pyscf_instance.converge_scf()
             self.pyscf_instance.converge_scf()
 
             self.gs_energy = self.pyscf_instance.ks.e_tot

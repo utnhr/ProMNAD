@@ -249,5 +249,5 @@ def binary_search(values, target):
             
             i_min = i_half
             i_max = i_half
-    
+
     return i_min, i_max

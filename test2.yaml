@@ -58,10 +58,10 @@ cloning_parameters:
   e_threshold: 0.001
 
 do_interpol: True
-nbin_interpol_elec: 100
+nbin_interpol_elec: 4000
 nbin_interpol_tbf: 200
 
-dt: 1.5
+dt: 20
 print_xyz_interval: 1
 
 dt_deriv: 0.1

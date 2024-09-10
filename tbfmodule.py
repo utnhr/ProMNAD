@@ -832,9 +832,9 @@ class Tbf:
 
         old_momentum = self.get_old_momentum()
         
-        self.update_force()
-        #force = self.get_force()
-        self.t_force += dt
+        if not self.read_traject:
+            self.update_force()
+            self.t_force += dt
 
         if self.read_traject:
             momentum = velocity * self.get_mass_au()
