@@ -465,8 +465,11 @@ class Electronic_state:
         #print(P)
         #sys.exit()
         ### End Debug code
-
-        H_full = self.get_mo_dependent_hamiltonian(mo_coeffs_nophase)
+        
+        if self.do_interpol:
+            H_full = deepcopy(self.H)
+        else:
+            H_full = self.get_mo_dependent_hamiltonian(mo_coeffs_nophase)
 
         mo_nophase_tderiv = np.zeros_like(mo_coeffs_nophase)
 

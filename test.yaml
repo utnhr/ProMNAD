@@ -19,7 +19,7 @@ integrator: adams_moulton_2
 
 mo_type: restricted
 
-read_traject: False
+read_traject: True
 
 active_occ_mos:
   - 8
@@ -50,15 +50,15 @@ initial_coeffs:
 #  - 1.0
 #n_step: 75
 n_step: 1000
-max_n_tbf: 2
+max_n_tbf: 1
 
 # cloning parameters
 cloning_parameters:
   e_threshold: 0.001
 
 do_interpol: True
-nbin_interpol_elec: 200
-nbin_interpol_tbf: 2000
+nbin_interpol_elec: 500
+nbin_interpol_tbf: 200
 
 dt: 2.0
 print_xyz_interval: 1
