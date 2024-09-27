@@ -15,7 +15,8 @@ class pyscf_manager:
         self.dft = dft
 
         self.mol = gto.Mole()
-        self.mol.unit = 'Angstrom'
+        #self.mol.unit = 'Angstrom'
+        self.mol.unit = 'Bohr'
         self.mol.atom = atoms
         self.mol.basis = load_setting(settings, 'ao_basis')
         self.mol.symmetry = False
