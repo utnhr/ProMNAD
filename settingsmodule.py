@@ -8,9 +8,10 @@ default = {
     'is_fixed'  : False,
     'dt_deriv'  : 0.01,
     'dt': 0.1,
-    'do_interpol': True,
-    'nbin_interpol_elec': 10,
-    'nbin_interpol_tbf': 10,
+    'do_elec_interpol': False,
+    'nbin_interpol_elec': 100,
+    'do_tbf_interpol': True,
+    'nbin_interpol_tbf': 100,
     'reconst_interval': -1,
     'print_xyz_interval': 0,
     'integrator': 'adams_moulton_2',
@@ -55,3 +56,14 @@ def load_setting(settings, key):
         
         utils.stop_with_error("Invalid key.\n")
 
+
+def process_settings(settings):
+    
+    # 'do_interpol' keyword turns on/off both TBF and electronic interpolation
+
+    if 'do_interpol' in settings.keys():
+
+        settings['do_elec_interpol'] = settings['do_interpol']
+        settings['do_tbf_interpol'] = settings['do_interpol']
+
+    return

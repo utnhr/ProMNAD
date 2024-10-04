@@ -7,6 +7,7 @@ import numpy as np
 from utils import stop_with_error, Timer
 import inout
 import sample
+import settingsmodule
 from calcconfig import fill_default_settings, configure_calculation, init_qc_engine
 from dynamics import do_dynamics
 
@@ -17,6 +18,7 @@ if __name__ == '__main__':
     input_filename = sys.argv[1]
 
     settings = inout.read_input(input_filename)
+    settingsmodule.process_settings(settings)
 
     fill_default_settings(settings)
 

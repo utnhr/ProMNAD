@@ -55,7 +55,7 @@ class World:
 
         self.max_n_tbf = load_setting(settings, 'max_n_tbf')
 
-        self.do_interpol = load_setting(settings, 'do_interpol')
+        self.do_interpol = load_setting(settings, 'do_tbf_interpol')
 
         if self.do_interpol:
             self.nbin_interpol = load_setting(settings, 'nbin_interpol_tbf')

@@ -58,6 +58,7 @@ class LocalOutputFiles:
         self.energy.close()
         self.pec.close()
         self.e_coeff.close()
+        self.e_popul.close()
         self.e_ortho.close()
         self.mo_level.close()
 
@@ -71,6 +72,7 @@ class LocalOutputFiles:
         self.energy.flush()
         self.pec.flush()
         self.e_coeff.flush()
+        self.e_popul.flush()
         self.e_ortho.flush()
         self.mo_level.flush()
         
