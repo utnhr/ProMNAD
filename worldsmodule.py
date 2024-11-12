@@ -29,8 +29,6 @@ class World:
         self.old_tbf_coeffs        = None
         #self.old_tbf_coeffs_tderiv = None
 
-        self.dt = load_setting(settings, 'dt')
-
         self.S_tbf = None
         self.H_tbf = None
         self.L_tbf = None
@@ -62,7 +60,9 @@ class World:
         else:
             self.nbin_interpol = 1
         
-        self.dt = load_setting(settings, 'dt') # in interpolation, dt = self.dt / nbin
+        self.dtau = load_setting(settings, 'dtau')
+        self.alpha = load_setting(settings, 'alpha')
+        self.dt = self.alpha * self.dtau # in interpolation, dt = self.dt / nbin
 
         self.globaloutput = GlobalOutputFiles(self.world_id)
 
@@ -545,6 +545,7 @@ class World:
             if n_tbf == 1 and self.tbf_coeffs_are_trivial:
 
                 new_tbf_coeffs = [ 1.0+0.0j ]
+                new_tbf_coeffs_nophase = deepcopy(new_tbf_coeffs)
             
             else:
 

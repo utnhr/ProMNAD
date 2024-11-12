@@ -1,0 +1,52 @@
+title: test run
+
+geom_file: sample_geom.xyz
+
+engine:
+  type: dftb+
+  #libpath: /home/hiroki/dftbplus-devel/hiroki/install/lib/libdftbplus.so
+  libpath: /home/uratani/dftbplus-devel/install/lib64/libdftbplus.so
+  #workdir: /home/hiroki/config-aimc/dftbplus_workdir
+  workdir: /home/uratani/config-aimc/dftbplus_workdir
+  #type: pyscf
+
+include_ground_state: False
+
+calctype: config-aimc
+
+integrator: adams_moulton_2
+#integrator: leapfrog
+
+mo_type: restricted
+ao_basis: def2svp
+xc: b3lyp
+
+alpha: 1.0
+
+read_traject: True
+
+active_occ_mos: [ 0 ] # placeholder
+active_vir_mos: [ 1 ] # placeholder
+
+initial_estates:
+  - 1
+initial_coeffs:
+  - 1.0
+
+n_step: 100
+max_n_tbf: 1
+
+tbf_coeffs_are_trivial: True
+elec_coeffs_are_trivial: True
+do_interpol: False
+
+dtau: 0.1
+print_xyz_interval: 1
+
+dt_deriv: 0.1
+
+reconst_interval: -1
+
+is_fixed: False
+
+flush_interval: 1

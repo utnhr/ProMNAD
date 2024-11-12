@@ -21,7 +21,8 @@ class Electronic_state:
     
     electronic_state_count = 0
     
-    def __init__(self, settings, atomparams, e_coeffs, t_e_coeffs, position, t_position, velocity, t_velocity, dt, i_step, matrices = None):
+    def __init__(self, settings, atomparams, e_coeffs, t_e_coeffs, position, t_position, velocity, t_velocity,
+    dtau, alpha, i_step, matrices = None):
         
         self.electronic_state_id = Electronic_state.electronic_state_count
         Electronic_state.electronic_state_count += 1
@@ -38,6 +39,8 @@ class Electronic_state:
         self.reconst_interval    = load_setting(settings, 'reconst_interval')
 
         self.integmethod         = load_setting(settings, 'integrator')
+
+        self.alpha               = load_setting(settings, 'alpha')
         
         self.e_coeffs            = e_coeffs # np.array (n_estate)
         self.old_e_coeffs        = deepcopy(self.e_coeffs)
@@ -95,13 +98,15 @@ class Electronic_state:
 
         self.atomparams          = deepcopy(atomparams)
 
-        self.dt                  = dt
+        self.dtau                = dtau
+        self.alpha               = alpha
+        self.dt                  = self.alpha * self.dtau
 
         self.is_open_shell       = False
 
-        self.e_coeffs_tderiv     = np.zeros_like(e_coeffs)
-        self.old_e_coeffs_tderiv = np.zeros_like(e_coeffs)
-        self.t_e_coeffs_tderiv   = None
+        self.e_coeffs_tauderiv     = np.zeros_like(e_coeffs)
+        self.old_e_coeffs_tauderiv = np.zeros_like(e_coeffs)
+        self.t_e_coeffs_tauderiv   = None
 
         self.i_step              = i_step
         
@@ -236,12 +241,12 @@ class Electronic_state:
         return deepcopy(self.old_e_coeffs)
 
 
-    def get_e_coeffs_tderiv(self):
-        return deepcopy(self.e_coeffs_tderiv)
+    def get_e_coeffs_tauderiv(self):
+        return deepcopy(self.e_coeffs_tauderiv)
 
 
-    def get_old_e_coeffs_tderiv(self):
-        return deepcopy(self.old_e_coeffs_tderiv)
+    def get_old_e_coeffs_tauderiv(self):
+        return deepcopy(self.old_e_coeffs_tauderiv)
 
 
     #def get_molecular_orbitals(self):
@@ -261,6 +266,7 @@ class Electronic_state:
         #self.mo_energies, self.mo_coeffs = np.linalg.eigh(H, S)
         self.t_mo_levels = self.t_H
         self.t_mo_coeffs = self.t_H
+        self.tau_mo_coeffs = self.t_mo_coeffs / self.alpha
 
         self.mo_coeffs_nophase = deepcopy(self.mo_coeffs) # initial MOs are real
         self.t_mo_coeffs_nophase = self.t_mo_coeffs
@@ -413,7 +419,7 @@ class Electronic_state:
         return H
 
 
-    def make_mo_nophase_tderiv(self, t, mo_coeffs_nophase, deriv_coupling, Sinv, init_mo_energies = None):
+    def make_mo_nophase_tauderiv(self, tau, mo_coeffs_nophase, deriv_coupling, Sinv, init_mo_energies = None):
 
         if self.is_open_shell:
             n_spin = 2
@@ -471,7 +477,7 @@ class Electronic_state:
         else:
             H_full = self.get_mo_dependent_hamiltonian(mo_coeffs_nophase)
 
-        mo_nophase_tderiv = np.zeros_like(mo_coeffs_nophase)
+        mo_nophase_tauderiv = np.zeros_like(mo_coeffs_nophase)
 
         self.Heff = np.zeros_like(H_full)
 
@@ -500,18 +506,18 @@ class Electronic_state:
             Heff_nophase = H_nophase_ao - (0.0+1.0j) * deriv_coupling[:,:]
             self.Heff[i_spin,:,:] = H - (0.0+1.0j) * deriv_coupling[:,:] # for reuse in the later steps
 
-            mo_nophase_tderiv[i_spin,:,:] = -(0.0+1.0j) * np.dot(
+            mo_nophase_tauderiv[i_spin,:,:] = -(0.0+1.0j) * np.dot(
                 np.dot( Sinv.astype('complex128'), Heff_nophase ), C.transpose()
             ).transpose()
 
-        return mo_nophase_tderiv
+        return mo_nophase_tauderiv
 
     
     # call after make_mo_nophase_tderiv
     # (to make sure that self.Heff is up to date)
-    def make_mo_e_int_tderiv(self, t, mo_e_int, Heff):
+    def make_mo_e_int_tauderiv(self, tau, mo_e_int, Heff):
 
-        mo_e_int_tderiv = np.zeros_like(mo_e_int)
+        mo_e_int_tauderiv = np.zeros_like(mo_e_int)
 
         if self.is_open_shell:
             n_spin = 2
@@ -525,9 +531,9 @@ class Electronic_state:
             )
 
             #mo_e_int_tderiv[i_spin,:] = np.diag(Heff[i_spin,:,:])
-            mo_e_int_tderiv[i_spin,:] = np.diag(mo_H)
+            mo_e_int_tauderiv[i_spin,:] = np.diag(mo_H)
 
-        return mo_e_int_tderiv
+        return mo_e_int_tauderiv
 
 
     def update_csc(self):
@@ -640,6 +646,7 @@ class Electronic_state:
 
         #utils.check_time_equal(self.t_mo_coeffs, self.t_S)
 
+        dtau = self.dtau / float(self.nbin_interpol)
         dt = self.dt / float(self.nbin_interpol)
 
         for ibin_interpol in range(1, self.nbin_interpol+1):
@@ -651,12 +658,13 @@ class Electronic_state:
 
             self.interpolate_matrices_and_nuclei(ibin_interpol, self.nbin_interpol, is_first_call)
 
-            new_mo_coeffs = self.propagate_without_trivial_phase(self.t_mo_coeffs, dt)
+            new_mo_coeffs = self.propagate_without_trivial_phase(self.tau_mo_coeffs, dtau, dt)
 
             self.mo_coeffs = deepcopy(new_mo_coeffs)
             #self.t_mo_coeffs += dt
 
         self.t_mo_coeffs += self.dt
+        self.tau_mo_coeffs += self.dtau
         
         #utils.Printer.write_out('Updating MOs: Done.\n')
 
@@ -679,16 +687,16 @@ class Electronic_state:
         
         self.integrator.initialize_history(
             self.t_mo_coeffs_nophase, self.mo_coeffs_nophase,
-            self.make_mo_nophase_tderiv, self.deriv_coupling, self.Sinv,
+            self.make_mo_nophase_tauderiv, self.deriv_coupling, self.Sinv,
         )
 
         self.e_int_integrator.initialize_history(
             self.t_mo_e_int, self.mo_e_int,
-            self.make_mo_e_int_tderiv, self.H,
+            self.make_mo_e_int_tauderiv, self.H,
         )
 
     
-    def propagate_without_trivial_phase(self, t, dt):
+    def propagate_without_trivial_phase(self, tau, dtau, dt):
         
         if self.is_open_shell:
             n_spin = 2
@@ -703,16 +711,18 @@ class Electronic_state:
 
         self.mo_coeffs_nophase = self.integrator.engine(
             #self.dt, self.t_mo_coeffs_nophase, self.mo_coeffs_nophase,
-            dt, self.t_mo_coeffs_nophase, self.mo_coeffs_nophase,
-            self.make_mo_nophase_tderiv, self.deriv_coupling, self.Sinv,
+            dtau, self.tau_mo_coeffs_nophase, self.mo_coeffs_nophase,
+            self.make_mo_nophase_tauderiv, self.deriv_coupling, self.Sinv,
         )
         self.t_mo_coeffs_nophase += dt
+        self.tau_mo_coeffs_nophase += dtau
 
         self.mo_e_int = self.e_int_integrator.engine(
             self.dt, self.t_mo_e_int, self.mo_e_int,
-            self.make_mo_e_int_tderiv, self.Heff,
+            self.make_mo_e_int_tauderiv, self.Heff,
         )
-        self.mo_e_int += dt
+        self.t_mo_e_int += dt
+        self.tau_mo_e_int += dtau
 
         new_mo = np.zeros_like(self.mo_coeffs_nophase)
 
@@ -727,7 +737,7 @@ class Electronic_state:
         return new_mo
 
     
-    def get_trivial_phase_factor(self, mo_energies, t, invert = False):
+    def get_trivial_phase_factor(self, mo_energies, tau, invert = False):
 
         if self.is_open_shell:
             n_spin = 2
@@ -744,7 +754,7 @@ class Electronic_state:
         for i_spin in range(n_spin):
             for i_MO in range(self.n_MO):
 
-                trivial_phase[i_spin,i_MO,:] = np.exp( factor * (0.0+1.0j) * mo_energies[i_spin,i_MO] * t)
+                trivial_phase[i_spin,i_MO,:] = np.exp( factor * (0.0+1.0j) * mo_energies[i_spin,i_MO] * tau)
 
         return trivial_phase
 
@@ -814,9 +824,9 @@ class Electronic_state:
 
         self.e_coeffs /= new_norm
 
-        self.e_coeffs_tderiv[i_estate] = 0.0+0.0j
+        self.e_coeffs_tauderiv[i_estate] = 0.0+0.0j
 
-        self.e_coeffs_tderiv /= new_norm
+        self.e_coeffs_tauderiv /= new_norm
 
         return
 
@@ -1230,11 +1240,11 @@ class Electronic_state:
         return
 
 
-    def set_new_e_coeffs_tderiv(self, e_coeffs_tderiv, t_e_coeffs_tderiv):
+    def set_new_e_coeffs_tauderiv(self, e_coeffs_tauderiv, t_e_coeffs_tauderiv):
         
-        self.old_e_coeffs_tderiv = self.e_coeffs_tderiv
-        self.e_coeffs_tderiv = e_coeffs_tderiv
-        self.t_e_coeffs_tderiv = t_e_coeffs_tderiv
+        self.old_e_coeffs_tauderiv = self.e_coeffs_tauderiv
+        self.e_coeffs_tauderiv = e_coeffs_tauderiv
+        self.t_e_coeffs_tauderiv = t_e_coeffs_tauderiv
 
         return
 
@@ -1406,6 +1416,8 @@ class Electronic_state:
             self.mo_coeffs_nophase = mo_coeffs_real.astype('complex128')
             self.t_mo_coeffs = self.t_position
             self.t_mo_coeffs_nophase = self.t_position
+            self.tau_mo_coeffs = self.t_position / self.alpha
+            self.tau_mo_coeffs_nophase = self.t_position / self.alpha
 
         self.n_elec = np.sum(self.gs_filling)
 
@@ -1415,6 +1427,7 @@ class Electronic_state:
         if not rho_H_only:
             self.mo_e_int = np.zeros( (2, self.n_MO), dtype = 'float64')
             self.t_mo_e_int = self.t_position
+            self.tau_mo_e_int = self.t_position / self.alpha
 
         self.update_gs_density_matrix()
         self.update_gs_hamiltonian_and_molevels(gs_hamiltonian_only = True)

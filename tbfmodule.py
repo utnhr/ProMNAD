@@ -288,10 +288,10 @@ class Tbf:
         e_coeffs_1        = tbf1.e_part.get_e_coeffs()
         e_coeffs_2        = tbf2.e_part.get_e_coeffs()
 
-        e_coeffs_tderiv_2 = tbf2.e_part.get_e_coeffs_tderiv()
+        e_coeffs_tauderiv_2 = tbf2.e_part.get_e_coeffs_tauderiv()
 
         term1 = gwp_derivative * np.dot( np.conjugate(e_coeffs_1), e_coeffs_2)
-        term2 = gaussian_overlap.prod() * np.dot( np.conjugate(e_coeffs_1), e_coeffs_tderiv_2 )
+        term2 = gaussian_overlap.prod() * np.dot( np.conjugate(e_coeffs_1), e_coeffs_tauderiv_2 )
         
         return term1 + term2
 
@@ -310,11 +310,12 @@ class Tbf:
 
         # Load necessary settings
 
-        self.dt = load_setting(settings, 'dt') # For position and momentum integration
+        self.dtau = load_setting(settings, 'dtau')
         self.read_traject = load_setting(settings, 'read_traject')
         self.print_xyz_interval = load_setting(settings, 'print_xyz_interval')
         self.flush_interval = load_setting(settings, 'flush_interval')
         self.integmethod = load_setting(settings, 'integrator')
+        self.alpha = load_setting(settings, 'alpha')
 
         # Time-independent values
 
@@ -332,6 +333,7 @@ class Tbf:
         self.tbf_id        = tbf_id            # integer (start 0)
         self.is_fixed      = is_fixed          # logical
         #self.world_id      = world_id          # int (start 0)
+        self.dt            = self.alpha * self.dtau # for position and momentum integration
         
         # Initial time
         self.istep = self.init_istep # Position and momentum steps
@@ -395,10 +397,15 @@ class Tbf:
             e_coeffs = self.e_coeffs_nophase * np.exp(
                 (-1.0j/H_DIRAC) * self.e_coeffs_e_int
             )
-        self.t_e_coeffs_nophase = t
-        self.t_e_coeffs         = t
-        self.t_e_coeffs_e_int   = t
-        self.t_e_coeffs_tderiv  = t
+        self.t_e_coeffs_nophase  = t
+        self.t_e_coeffs          = t
+        self.t_e_coeffs_e_int    = t
+        self.t_e_coeffs_tauderiv = t
+
+        self.tau_e_coeffs_nophase  = self.alpha * t
+        self.tau_e_coeffs          = self.alpha * t
+        self.tau_e_coeffs_e_int    = self.alpha * t
+        self.tau_e_coeffs_tauderiv = self.alpha * t
 
         self.Epot = 0.0
         self.t_Epot = t
@@ -423,7 +430,7 @@ class Tbf:
             e_coeffs, self.t_e_coeffs,
             self.get_position(), self.t_position,
             self.get_velocity(), self.t_momentum,
-            self.dt, self.istep,
+            self.dtau, self.alpha, self.istep,
             matrices = e_part_matrices,
         )
 
@@ -706,7 +713,7 @@ class Tbf:
         return
 
 
-    def update_electronic_part(self, dt):
+    def update_electronic_part(self, dtau, alpha=1.0):
 
         # (in the initial step) initialize integrators
         if not self.e_coeffs_nophase_integrator.is_history_initialized:
@@ -753,27 +760,31 @@ class Tbf:
 
         H_el_ndiag = -1.0j * H_DIRAC * tdnac
         H_el_diag  = estate_energies
-
+        
+        dt = alpha * dtau
         t = dt * self.get_istep()
 
         # integrate electronic state coeffcients
 
         self.e_coeffs_nophase = self.e_coeffs_nophase_integrator.engine(
-            dt, self.t_e_coeffs_nophase, self.e_coeffs_nophase,
+            dtau, self.tau_e_coeffs_nophase, self.e_coeffs_nophase,
             self.make_e_coeffs_nophase_tderiv, H_el_ndiag,
         )
         self.t_e_coeffs_nophase += dt
+        self.tau_e_coeffs_nophase += dtau
 
         self.e_coeffs_e_int = self.e_coeffs_e_int_integrator.engine(
-            dt, self.t_e_coeffs_e_int, self.e_coeffs_e_int,
+            dtau, self.tau_e_coeffs_e_int, self.e_coeffs_e_int,
             self.make_e_coeffs_e_int_tderiv, H_el_diag,
         )
         self.t_e_coeffs_e_int += dt
+        self.tau_e_coeffs_e_int += dtau
 
         e_coeffs = self.e_coeffs_nophase * np.exp(
             ( (-1.0j)/H_DIRAC ) * self.e_coeffs_e_int
         )
         self.t_e_coeffs += dt
+        self.tau_e_coeffs += dtau
 
         self.e_part.set_new_e_coeffs(e_coeffs, self.t_e_coeffs)
 
@@ -788,12 +799,13 @@ class Tbf:
         #e_coeffs_tderiv = term1 + term2
 
         H_el = H_el_ndiag + np.diag(estate_energies)
-        e_coeffs_tderiv = (-1.0j / H_DIRAC) * np.dot(
+        e_coeffs_tauderiv = (-1.0j / H_DIRAC) * np.dot(
             H_el, e_coeffs
         )
         self.t_e_coeffs_tderiv = self.t_e_coeffs
+        self.tau_e_coeffs_tderiv = self.tau_e_coeffs
 
-        self.e_part.set_new_e_coeffs_tderiv(e_coeffs_tderiv, self.t_e_coeffs_tderiv)
+        self.e_part.set_new_e_coeffs_tauderiv(e_coeffs_tauderiv, self.t_e_coeffs_tauderiv)
 
         # update e_coeffs_dependent stuffs
 
