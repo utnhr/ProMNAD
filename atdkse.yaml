@@ -3,12 +3,12 @@ title: test run
 geom_file: sample_geom.xyz
 
 engine:
-  type: dftb+
-  #libpath: /home/hiroki/dftbplus-devel/hiroki/install/lib/libdftbplus.so
-  libpath: /home/uratani/dftbplus-devel/install/lib64/libdftbplus.so
-  #workdir: /home/hiroki/config-aimc/dftbplus_workdir
-  workdir: /home/uratani/config-aimc/dftbplus_workdir
-  #type: pyscf
+  #type: dftb+
+  ##libpath: /home/hiroki/dftbplus-devel/hiroki/install/lib/libdftbplus.so
+  #libpath: /home/uratani/dftbplus-devel/install/lib64/libdftbplus.so
+  ##workdir: /home/hiroki/config-aimc/dftbplus_workdir
+  #workdir: /home/uratani/config-aimc/dftbplus_workdir
+  type: pyscf
 
 include_ground_state: False
 
@@ -37,10 +37,14 @@ n_step: 100
 max_n_tbf: 1
 
 tbf_coeffs_are_trivial: True
-elec_coeffs_are_trivial: True
+e_coeffs_are_trivial: True
 do_interpol: False
+nbin_interpol_tbf: 1
+nbin_interpol_elec: 1
+nbin_interpol: 1
 
 dtau: 0.1
+alpha: 1.0
 print_xyz_interval: 1
 
 dt_deriv: 0.1

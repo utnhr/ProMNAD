@@ -316,6 +316,7 @@ class Tbf:
         self.flush_interval = load_setting(settings, 'flush_interval')
         self.integmethod = load_setting(settings, 'integrator')
         self.alpha = load_setting(settings, 'alpha')
+        self.e_coeffs_are_trivial = load_setting(settings, 'e_coeffs_are_trivial')
 
         # Time-independent values
 
@@ -358,6 +359,7 @@ class Tbf:
 
         self.momentum       = deepcopy(self.init_momentum)
         self.old_momentum   = deepcopy(self.momentum)
+        self.e_coeffs_are_trivial = load_setting(settings, 'e_coeffs_are_trivial')
         self.t_momentum     = t
 
         if self.read_traject:
@@ -583,6 +585,7 @@ class Tbf:
             istep            = self.istep,
             n_dof            = self.n_dof,
             n_estate         = self.n_estate,
+            e_coeffs_are_trivial = self.e_coeffs_are_trivial,
             e_coeffs_nophase = baby_e_coeffs_nophase,
             e_coeffs_e_int   = baby_e_coeffs_e_int,
             mass             = deepcopy(self.mass),
@@ -766,23 +769,31 @@ class Tbf:
 
         # integrate electronic state coeffcients
 
-        self.e_coeffs_nophase = self.e_coeffs_nophase_integrator.engine(
-            dtau, self.tau_e_coeffs_nophase, self.e_coeffs_nophase,
-            self.make_e_coeffs_nophase_tderiv, H_el_ndiag,
-        )
-        self.t_e_coeffs_nophase += dt
-        self.tau_e_coeffs_nophase += dtau
+        if n_estate == 1 and self.e_coeffs_are_trivial:
 
-        self.e_coeffs_e_int = self.e_coeffs_e_int_integrator.engine(
-            dtau, self.tau_e_coeffs_e_int, self.e_coeffs_e_int,
-            self.make_e_coeffs_e_int_tderiv, H_el_diag,
-        )
-        self.t_e_coeffs_e_int += dt
-        self.tau_e_coeffs_e_int += dtau
+            self.e_coeffs = np.array( [ 1.0+0.0j ] )
+            self.e_coeffs_nophase = deepcopy(self.e_coeffs)
 
-        e_coeffs = self.e_coeffs_nophase * np.exp(
-            ( (-1.0j)/H_DIRAC ) * self.e_coeffs_e_int
-        )
+        else:
+
+            self.e_coeffs_nophase = self.e_coeffs_nophase_integrator.engine(
+                dtau, self.tau_e_coeffs_nophase, self.e_coeffs_nophase,
+                self.make_e_coeffs_nophase_tderiv, H_el_ndiag,
+            )
+            self.t_e_coeffs_nophase += dt
+            self.tau_e_coeffs_nophase += dtau
+
+            self.e_coeffs_e_int = self.e_coeffs_e_int_integrator.engine(
+                dtau, self.tau_e_coeffs_e_int, self.e_coeffs_e_int,
+                self.make_e_coeffs_e_int_tderiv, H_el_diag,
+            )
+            self.t_e_coeffs_e_int += dt
+            self.tau_e_coeffs_e_int += dtau
+
+            e_coeffs = self.e_coeffs_nophase * np.exp(
+                ( (-1.0j)/H_DIRAC ) * self.e_coeffs_e_int
+            )
+
         self.t_e_coeffs += dt
         self.tau_e_coeffs += dtau
 

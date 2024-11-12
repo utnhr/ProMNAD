@@ -657,7 +657,7 @@ class Electronic_state:
                 is_first_call = False
 
             self.interpolate_matrices_and_nuclei(ibin_interpol, self.nbin_interpol, is_first_call)
-
+            
             new_mo_coeffs = self.propagate_without_trivial_phase(self.tau_mo_coeffs, dtau, dt)
 
             self.mo_coeffs = deepcopy(new_mo_coeffs)
@@ -708,7 +708,7 @@ class Electronic_state:
 
         #utils.check_time_equal(self.t_mo_coeffs_nophase, self.t_deriv_coupling)
         #utils.check_time_equal(self.t_mo_coeffs_nophase, self.t_Sinv)
-
+        
         self.mo_coeffs_nophase = self.integrator.engine(
             #self.dt, self.t_mo_coeffs_nophase, self.mo_coeffs_nophase,
             dtau, self.tau_mo_coeffs_nophase, self.mo_coeffs_nophase,
@@ -718,7 +718,7 @@ class Electronic_state:
         self.tau_mo_coeffs_nophase += dtau
 
         self.mo_e_int = self.e_int_integrator.engine(
-            self.dt, self.t_mo_e_int, self.mo_e_int,
+            self.dtau, self.tau_mo_e_int, self.mo_e_int,
             self.make_mo_e_int_tauderiv, self.Heff,
         )
         self.t_mo_e_int += dt

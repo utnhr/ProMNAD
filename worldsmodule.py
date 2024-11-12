@@ -544,7 +544,7 @@ class World:
 
             if n_tbf == 1 and self.tbf_coeffs_are_trivial:
 
-                new_tbf_coeffs = [ 1.0+0.0j ]
+                new_tbf_coeffs = np.array( [ 1.0+0.0j ] )
                 new_tbf_coeffs_nophase = deepcopy(new_tbf_coeffs)
             
             else:

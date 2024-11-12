@@ -10,15 +10,15 @@ import utils
 
 class Integrator:
     
-    def __init__(self, method, mode = 'passing'):
+    def __init__(self, method, error_threshold = 1.0e-10, mix_alpha = 0.5, mode = 'passing'):
 
         self.max_hist = 5
 
         self.y_hist = [ None for i in range(self.max_hist) ] # new (i-1) -> old
         self.f_hist = [ None for i in range(self.max_hist) ] # new (i-1) -> old
 
-        self.error_threshold = 1.0e-10
-        self.mix_alpha = 1.0
+        self.error_threshold = error_threshold
+        self.mix_alpha = mix_alpha
         
         #self.i_called = 0
         self.n_hist = 0
@@ -190,6 +190,8 @@ class Integrator:
             y1c = self.y_hist[0] + 0.5 * dt * (f1p + self.f_hist[0]) # corrector
 
             error = np.linalg.norm(y1p - y1c)
+
+            #print('AM2 ITER', i_iter, error, f_func.__name__)
 
             if error < self.error_threshold:
 

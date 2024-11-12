@@ -2,6 +2,7 @@
 
 import utils
 import numpy as np
+from time import perf_counter_ns
 from settingsmodule import load_setting
 from copy import deepcopy
 from pyscf import gto, scf, dft
@@ -55,7 +56,10 @@ class pyscf_manager:
     def return_hamiltonian(self, rho, n_spin):
         
         hcore = self.scf.hf.get_hcore(self.mol)
+        #ts = perf_counter_ns()
         veff  = self.ks.get_veff(dm = rho)
+        #te = perf_counter_ns()
+        #print("Time for veff: %12.3f sec.\n" % ((te-ts)/1.0e+9))
 
         H = hcore + veff
 
