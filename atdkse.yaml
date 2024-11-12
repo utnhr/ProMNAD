@@ -39,9 +39,6 @@ max_n_tbf: 1
 tbf_coeffs_are_trivial: True
 e_coeffs_are_trivial: True
 do_interpol: False
-nbin_interpol_tbf: 1
-nbin_interpol_elec: 1
-nbin_interpol: 1
 
 dtau: 0.1
 alpha: 1.0
@@ -54,3 +51,9 @@ reconst_interval: -1
 is_fixed: False
 
 flush_interval: 1
+
+moinfo_dump_interval: 10
+dump_mo_tdnac: True
+dump_mo_coeffs: True
+
+calc_nonorthogonality_interval: 10

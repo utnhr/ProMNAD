@@ -1352,60 +1352,16 @@ class Electronic_state:
 
         coords = self.position.reshape(n_atom, 3)
 
-        if self.qc_program == 'dftb+':
+        mo_energies, mo_coeffs_real, gs_energy, gs_filling = self.get_scf_results(coords)
         
-            self.dftbplus_instance.go_to_workdir()
-            
-            self.dftbplus_instance.worker.set_geometry(coords)
+        self.gs_energy = gs_energy
+        self.t_gs_energy = self.t_position
 
-            self.gs_energy = self.dftbplus_instance.worker.get_energy()
-            self.t_gs_energy = self.t_position
+        if energy_only:
+            return
 
-            if energy_only:
-
-                self.dftbplus_instance.return_from_workdir()
-
-                return
-
-            self.init_mo_energies, mo_coeffs_real = self.dftbplus_instance.worker.get_molecular_orbitals(
-                open_shell = self.is_open_shell
-            )
-
-            self.gs_filling = self.dftbplus_instance.worker.get_filling(open_shell = self.is_open_shell)
-            #self.t_gs_filling = self.t_position
-
-            self.dftbplus_instance.return_from_workdir()
-
-        elif self.qc_program == 'pyscf':
-            
-            self.pyscf_instance.update_geometry(coords)
-            
-            #if self.is_open_shell:
-            #    utils.stop_with_error('Currently not compatible with open-shell systems.')
-            #else:
-            #    if self.gs_rho is not None:
-            #        self.pyscf_instance.converge_scf(dm = self.gs_rho[0,:,:])
-            #    else:
-            #        self.pyscf_instance.converge_scf()
-            self.pyscf_instance.converge_scf()
-
-            self.gs_energy = self.pyscf_instance.ks.e_tot
-            self.t_gs_energy = self.t_position
-
-            if energy_only:
-                return
-
-            if self.is_open_shell:
-                utils.stop_with_error('Currently, pyscf-based implementation not compatible with open-shell systems.')
-
-            mo_coeffs_real = np.array( [ self.pyscf_instance.ks.mo_coeff.transpose() ] )
-            self.init_mo_energies = np.array( [ self.pyscf_instance.ks.mo_energy ] )
-
-            self.gs_filling = np.array( [ self.pyscf_instance.ks.get_occ(self.init_mo_energies[0], mo_coeffs_real) ] )
-
-        else:
-
-            utils.stop_with_error("Not compatible with quantum chemistry program %s ." % self.qc_program)
+        self.init_mo_energies = deepcopy(mo_energies)
+        self.gs_filling = deepcopy(gs_filling)
 
         if rho_H_only:
         # DO NOT update self.mo_coeffs/mo_coeffs_nophase, but self.gs_rho will be updated according to the newly calculated MOs
@@ -1446,6 +1402,47 @@ class Electronic_state:
             self.update_e_coeffs_dependent_quantities()
                 
         return
+
+
+    def get_scf_results(self, coords):
+
+        if self.qc_program == 'dftb+':
+        
+            self.dftbplus_instance.go_to_workdir()
+            
+            self.dftbplus_instance.worker.set_geometry(coords)
+
+            gs_energy = self.dftbplus_instance.worker.get_energy()
+
+            mo_energies, mo_coeffs_real = self.dftbplus_instance.worker.get_molecular_orbitals(
+                open_shell = self.is_open_shell
+            )
+
+            gs_filling = self.dftbplus_instance.worker.get_filling(open_shell = self.is_open_shell)
+
+            self.dftbplus_instance.return_from_workdir()
+
+        elif self.qc_program == 'pyscf':
+            
+            self.pyscf_instance.update_geometry(coords)
+            
+            self.pyscf_instance.converge_scf()
+
+            gs_energy = self.pyscf_instance.ks.e_tot
+
+            if self.is_open_shell:
+                utils.stop_with_error('Currently, pyscf-based implementation not compatible with open-shell systems.')
+
+            mo_coeffs_real = np.array( [ self.pyscf_instance.ks.mo_coeff.transpose() ] )
+            mo_energies = np.array( [ self.pyscf_instance.ks.mo_energy ] )
+
+            gs_filling = np.array( [ self.pyscf_instance.ks.get_occ(mo_energies[0], mo_coeffs_real) ] )
+
+        else:
+
+            utils.stop_with_error("Not compatible with quantum chemistry program %s ." % self.qc_program)
+
+        return mo_energies, mo_coeffs_real, gs_energy, gs_filling
 
 
     def update_gs_density_matrix(self):
