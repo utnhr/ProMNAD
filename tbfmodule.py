@@ -317,6 +317,7 @@ class Tbf:
         self.integmethod = load_setting(settings, 'integrator')
         self.alpha = load_setting(settings, 'alpha')
         self.e_coeffs_are_trivial = load_setting(settings, 'e_coeffs_are_trivial')
+        self.calc_nonorthogonality_interval = load_setting(settings, 'calc_nonorthogonality_interval')
 
         # Time-independent values
 
@@ -449,6 +450,10 @@ class Tbf:
         
         # I/O
         self.localoutput   = LocalOutputFiles(self.tbf_id)
+
+        # evaluate closeness of occ/vir Hilbert spaces to those of canonical orbitals
+        if self.istep % self.calc_nonorthogonality_interval == 0:
+            self.det_S_occ, self.det_S_vir = self.e_part.non_orthogonality()
 
         # Print initial step
         self.print_results()
@@ -824,6 +829,10 @@ class Tbf:
 
         self.set_new_istep( self.get_istep() + 1 )
 
+        # evaluate closeness of occ/vir Hilbert spaces to those of canonical orbitals
+        if self.istep % self.calc_nonorthogonality_interval == 0:
+            self.det_S_occ, self.det_S_vir = self.e_part.non_orthogonality()
+
         # sum up results of current time step
 
         self.print_results()
@@ -1065,6 +1074,66 @@ class Tbf:
         return
 
 
+    def print_det(self):
+
+        det_file = self.localoutput.det
+
+        time_str = "STEP %12d T= %20.12f fs" % (self.istep, self.e_part.t_csc*AU2SEC*1.0e15)
+
+        det_file.write(time_str)
+
+        det_file.write( " %20.12f+%20.12fj,%20.12f+%20.12fj\n" % (
+            self.det_S_occ.real, self.det_S_occ.imag, self.det_S_vir.real, self.det_S_vir.imag
+        ) )
+
+        return
+
+    
+    def print_mo_level(self):
+
+        if self.e_part.is_open_shell:
+            n_spin = 2
+        else:
+            n_spin = 1
+        
+        mo_level_file = self.localoutput.mo_level
+
+        n_mo = len(self.e_part.csc)
+
+        time_str = "STEP %12d T= %20.12f fs" % (self.istep, self.e_part.t_mo_levels*AU2SEC*1.0e15)
+
+        mo_level_file.write(time_str)
+
+        for i_spin in range(n_spin):
+
+            for i_mo in range(n_mo):
+            
+                mo_level_file.write( " %20.12f" % self.e_part.mo_levels[i_spin,i_mo] )
+
+        mo_level_file.write( "\n" % np.sum(self.e_part.csc) )
+
+        return
+
+
+    def print_thermodynamics(self):
+        
+        energy_file = self.localoutput.energy
+
+        temperature = self.get_temperature()
+
+        time_str = "STEP %12d T= %20.12f fs" % (self.istep, self.t_Ekin*AU2SEC*1.0e15)
+
+        energy_file.write(time_str)
+
+        energy_file.write(
+            "%20.12f %20.12f %20.12f %20.12f" % (temperature, self.Ekin, self.Epot, self.EpotGS)
+        )
+
+        energy_file.write("\n")
+
+        return
+
+
     def print_results(self):
         
         if self.print_xyz_interval != 0 and (self.istep % self.print_xyz_interval) == 0:
@@ -1080,6 +1149,10 @@ class Tbf:
             self.print_mo_level()
 
             self.print_thermodynamics()
+
+        if self.istep % self.calc_nonorthogonality_interval == 0:
+
+            self.print_det()
 
         if self.istep > 0 and (self.istep % self.flush_interval) == 0:
 

@@ -25,6 +25,8 @@ default = {
 
     'ao_basis': 'def2svp',
     'xc': 'b3lyp',
+
+    'calc_nonorthogonality_interval': -1,
 }
 
     

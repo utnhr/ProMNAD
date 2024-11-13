@@ -1445,6 +1445,38 @@ class Electronic_state:
         return mo_energies, mo_coeffs_real, gs_energy, gs_filling
 
 
+    def non_orthogonality(self):
+
+        n_atom = len(self.atomparams)
+
+        if self.is_open_shell:
+            n_spin = 2
+        else:
+            n_spin = 1
+
+        coords = self.position.reshape(n_atom, 3)
+        
+        mo_energies, mo_coeffs_real, gs_energy, gs_filling = self.get_scf_results(coords)
+
+        n_occ = round( gs_filling.sum() / 2 )
+
+        canonical_mo_coeffs = mo_coeffs_real.astype('complex128')
+
+        for i_spin in range(n_spin):
+
+            S = np.dot(
+                np.dot(self.mo_coeffs_nophase[i_spin,:,:], self.S).conj(), np.transpose(canonical_mo_coeffs[i_spin,:,:])
+            )
+
+            S_occ = S[0:n_occ,0:n_occ]
+            S_vir = S[n_occ:,n_occ:]
+
+            det_S_occ = np.linalg.det(S_occ)
+            det_S_vir = np.linalg.det(S_vir)
+
+        return det_S_occ, det_S_vir
+
+
     def update_gs_density_matrix(self):
 
         if self.is_open_shell:

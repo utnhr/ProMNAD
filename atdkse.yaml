@@ -56,4 +56,4 @@ moinfo_dump_interval: 10
 dump_mo_tdnac: True
 dump_mo_coeffs: True
 
-calc_nonorthogonality_interval: 10
+calc_nonorthogonality_interval: 1
