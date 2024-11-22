@@ -6,6 +6,7 @@ from cmath import exp, pi
 import numpy as np
 import scipy.linalg as sp
 from copy import deepcopy
+from time import perf_counter_ns
 
 from constants import H_DIRAC, AMU2AU, AU2ANGST, AU2EV, KB_EV, AU2SEC, SEC2AU
 import utils
@@ -439,9 +440,12 @@ class Tbf:
 
         # Integrators
 
-        self.e_coeffs_nophase_integrator = Integrator(self.integmethod, mode = 'chasing')
-        self.e_coeffs_e_int_integrator   = Integrator(self.integmethod, mode = 'chasing')
-        self.phase_integrator            = Integrator(self.integmethod, mode = 'chasing')
+        #self.e_coeffs_nophase_integrator = Integrator(self.integmethod, mode = 'chasing')
+        #self.e_coeffs_e_int_integrator   = Integrator(self.integmethod, mode = 'chasing')
+        #self.phase_integrator            = Integrator(self.integmethod, mode = 'chasing')
+        self.e_coeffs_nophase_integrator = Integrator('adams_moulton_2', mode = 'chasing') ## Debug code
+        self.e_coeffs_e_int_integrator   = Integrator('adams_moulton_2', mode = 'chasing') ## Debug code
+        self.phase_integrator            = Integrator('adams_moulton_2', mode = 'chasing') ## Debug code
         
         # Status
 
@@ -741,8 +745,11 @@ class Tbf:
         self.e_part.update_position_dependent_quantities()
 
         # propagate MOs
-
+        
+        ts = perf_counter_ns()
         self.e_part.propagate_molecular_orbitals()
+        te = perf_counter_ns()
+        print("Time for MO propagation: %12.3f sec.\n" % ((te-ts)/1.0e+9)) ## Debug code
 
         # update MO-dependent quantities
 
@@ -1130,6 +1137,26 @@ class Tbf:
         )
 
         energy_file.write("\n")
+
+        return
+
+
+    def print_mo_coeffs(self):
+
+        if self.e_part.is_open_shell:
+            n_spin = 2
+        else:
+            n_spin = 1
+        
+        mo_coeffs_file = self.localoutput.mo_coeffs
+
+        time_str = "STEP %12d T= %20.12f fs\n" % (self.istep, self.e_part.t_mo_coeffs_nophase*AU2SEC*1.0e15)
+
+        mo_coeffs_file.write(time_str)
+
+        #mo_coeffs_file.write( " %20.12f+%20.12fj," % (
+        #    self.det_S_occ.real, self.det_S_occ.imag, self.det_S_vir.real, self.det_S_vir.imag
+        #) )
 
         return
 

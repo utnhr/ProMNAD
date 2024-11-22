@@ -56,10 +56,10 @@ class pyscf_manager:
     def return_hamiltonian(self, rho, n_spin):
         
         hcore = self.scf.hf.get_hcore(self.mol)
-        #ts = perf_counter_ns()
+        ts = perf_counter_ns()
         veff  = self.ks.get_veff(dm = rho)
-        #te = perf_counter_ns()
-        #print("Time for veff: %12.3f sec.\n" % ((te-ts)/1.0e+9))
+        te = perf_counter_ns()
+        print("Time for veff: %12.3f sec.\n" % ((te-ts)/1.0e+9)) ## Debug code
 
         H = hcore + veff
 

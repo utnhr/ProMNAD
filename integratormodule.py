@@ -7,6 +7,7 @@ import numpy as np
 from copy import deepcopy
 from constants import H_DIRAC, ANGST2AU, AU2EV, ONEOVER24, ONEOVER720
 import utils
+from unitarypropagatormodule import UnitaryPropagator
 
 class Integrator:
     

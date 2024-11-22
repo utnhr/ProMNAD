@@ -49,7 +49,7 @@ class LocalOutputFiles:
         self.mo_level = open("mo_level.%d.dat" % index, 'w')  # MO levels
         self.det      = open("det.%d.dat" % index, 'w')       # |S_occ| and |S_vir|
         self.mo_tdnac = open("mo_tdnac.%d.dat" % index, 'w')  # MO TDNAC
-        self.mo_coeffs= open("mo_coeffs.%d.dat" % index, 'w') # MO coeffs
+        self.mo_coeffs= open("mo_coeffs.%d.dat" % index, 'w') # MO coeffs (without phase)
         
         return
 

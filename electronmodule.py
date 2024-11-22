@@ -6,11 +6,13 @@ from cmath import exp, pi
 import numpy as np
 import scipy.linalg as sp
 from copy import deepcopy
+from time import perf_counter_ns
 
 from constants import H_DIRAC, ANGST2AU, AU2EV, ONEOVER24
 import utils
 from settingsmodule import load_setting
 from integratormodule import Integrator
+from unitarypropagatormodule import UnitaryPropagator
 #from interface_dftbplus import dftbplus_manager
 from interface_pyscf import pyscf_manager
 from calcconfig import init_qc_engine
@@ -125,10 +127,17 @@ class Electronic_state:
         #
 
         self.is_edyn_initialized  = False
+        
+        if self.integmethod in UnitaryPropagator.methods:
+            self.integration_mode = 'propagator'
+            self.propagator = UnitaryPropagator(self.integmethod)
+        else:
+            self.integration_mode = 'integrator'
+            self.integrator = Integrator(self.integmethod, mode = 'chasing')
 
-        self.integrator = Integrator(self.integmethod, mode = 'chasing')
         #self.gs_energy_integrator = Integrator(self.integmethod)
-        self.e_int_integrator = Integrator(self.integmethod, mode = 'chasing')
+        #self.e_int_integrator = Integrator(self.integmethod, mode = 'chasing')
+        self.e_int_integrator = Integrator('adams_moulton_2', mode = 'chasing') ## Debug code
 
         self.initial_estate_energies = None
 
@@ -166,8 +175,10 @@ class Electronic_state:
             self.deriv_coupling      = matrices['deriv_coupling']
             self.estate_energies     = matrices['estate_energies']
             self.old_estate_energies = matrices['old_estate_energies']
-
-        self.initialize_mo_integrator()
+        
+        if self.integration_mode == 'integrator':
+            self.initialize_mo_integrator()
+        self.initialize_mo_e_int_integrator()
 
         return
 
@@ -658,7 +669,10 @@ class Electronic_state:
 
             self.interpolate_matrices_and_nuclei(ibin_interpol, self.nbin_interpol, is_first_call)
             
+            ts = perf_counter_ns()
             new_mo_coeffs = self.propagate_without_trivial_phase(self.tau_mo_coeffs, dtau, dt)
+            te = perf_counter_ns()
+            print("Time for MO integration: %12.3f sec.\n" % ((te-ts)/1.0e+9)) ## Debug code
 
             self.mo_coeffs = deepcopy(new_mo_coeffs)
             #self.t_mo_coeffs += dt
@@ -690,6 +704,8 @@ class Electronic_state:
             self.make_mo_nophase_tauderiv, self.deriv_coupling, self.Sinv,
         )
 
+    def initialize_mo_e_int_integrator(self):
+
         self.e_int_integrator.initialize_history(
             self.t_mo_e_int, self.mo_e_int,
             self.make_mo_e_int_tauderiv, self.H,
@@ -708,12 +724,42 @@ class Electronic_state:
 
         #utils.check_time_equal(self.t_mo_coeffs_nophase, self.t_deriv_coupling)
         #utils.check_time_equal(self.t_mo_coeffs_nophase, self.t_Sinv)
+
+        if self.integration_mode == 'integrator':
         
-        self.mo_coeffs_nophase = self.integrator.engine(
-            #self.dt, self.t_mo_coeffs_nophase, self.mo_coeffs_nophase,
-            dtau, self.tau_mo_coeffs_nophase, self.mo_coeffs_nophase,
-            self.make_mo_nophase_tauderiv, self.deriv_coupling, self.Sinv,
-        )
+            self.mo_coeffs_nophase = self.integrator.engine(
+                #self.dt, self.t_mo_coeffs_nophase, self.mo_coeffs_nophase,
+                dtau, self.tau_mo_coeffs_nophase, self.mo_coeffs_nophase,
+                self.make_mo_nophase_tauderiv, self.deriv_coupling, self.Sinv,
+            )
+
+        elif self.integration_mode == 'propagator':
+
+            new_mo = np.zeros_like(self.mo_coeffs)
+
+            self.Heff = np.zeros_like(self.H)
+
+            for i_spin in range(n_spin):
+
+                H = self.H[i_spin,:,:]
+
+                print('H', H) ## Debug code
+
+                self.Heff[i_spin,:,:] = H - (0.0+1.0j) * self.deriv_coupling[:,:]
+
+                print('DERIV_COUPLING', self.deriv_coupling) ## Debug code
+            
+                ts = perf_counter_ns()
+                new_mo[i_spin,:,:] = self.propagator.engine(
+                    self.mo_coeffs[i_spin,:,:], self.Sinv, self.Heff[i_spin,:,:], dtau
+                )
+                te = perf_counter_ns()
+                print("Time for propagator: %12.3f sec.\n" % ((te-ts)/1.0e+9)) ## Debug code
+
+        else:
+            
+            utils.stop_with_error("Unknown integration mode %s ." % self.integration_mode)
+
         self.t_mo_coeffs_nophase += dt
         self.tau_mo_coeffs_nophase += dtau
 
@@ -724,15 +770,17 @@ class Electronic_state:
         self.t_mo_e_int += dt
         self.tau_mo_e_int += dtau
 
-        new_mo = np.zeros_like(self.mo_coeffs_nophase)
+        if self.integration_mode == 'integrator':
 
-        for i_spin in range(n_spin):
+            new_mo = np.zeros_like(self.mo_coeffs_nophase)
 
-            for i_MO in range(self.n_MO):
-                    
-                new_mo[i_spin,i_MO,:] = \
-                    self.mo_coeffs_nophase[i_spin,i_MO,:] * \
-                    np.exp( (-1.0j/H_DIRAC) * self.mo_e_int[i_spin,i_MO] )
+            for i_spin in range(n_spin):
+
+                for i_MO in range(self.n_MO):
+                        
+                    new_mo[i_spin,i_MO,:] = \
+                        self.mo_coeffs_nophase[i_spin,i_MO,:] * \
+                        np.exp( (-1.0j/H_DIRAC) * self.mo_e_int[i_spin,i_MO] )
 
         return new_mo
 

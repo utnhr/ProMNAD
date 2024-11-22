@@ -14,8 +14,9 @@ include_ground_state: False
 
 calctype: config-aimc
 
-integrator: adams_moulton_2
+#integrator: adams_moulton_2
 #integrator: leapfrog
+integrator: unitary
 
 mo_type: restricted
 ao_basis: def2svp
@@ -56,4 +57,5 @@ moinfo_dump_interval: 10
 dump_mo_tdnac: True
 dump_mo_coeffs: True
 
-calc_nonorthogonality_interval: 1
+calc_nonorthogonality_interval: 10
+#calc_nonorthogonality_interval: 10
