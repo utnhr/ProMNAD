@@ -496,10 +496,25 @@ class Electronic_state:
             
             #print('DERIVCOUPL', deriv_coupling) ## Debug code
             
-            # AO -> MO
-
             C = mo_coeffs_nophase[i_spin]
             H = H_full[i_spin,:,:]
+
+            H_nophase_ao = self.make_H_nophase(H, self.S, C)
+
+            Heff_nophase = H_nophase_ao - (0.0+1.0j) * deriv_coupling[:,:]
+            self.Heff[i_spin,:,:] = H - (0.0+1.0j) * deriv_coupling[:,:] # for reuse in the later steps
+
+            mo_nophase_tauderiv[i_spin,:,:] = -(0.0+1.0j) * np.dot(
+                np.dot( Sinv.astype('complex128'), Heff_nophase ), C.transpose()
+            ).transpose()
+
+        return mo_nophase_tauderiv
+
+
+    def make_H_nophase(self, H, S, C):
+        
+            # AO -> MO
+
             H_nophase_mo = np.dot( C.conjugate(), np.dot( H, C.transpose() ) )
 
             # subtract MO energy
@@ -513,15 +528,8 @@ class Electronic_state:
             SC = np.dot( self.S, C.transpose() )
 
             H_nophase_ao = np.dot( SC, np.dot( H_nophase_mo, SC.transpose().conjugate() ) )
-            
-            Heff_nophase = H_nophase_ao - (0.0+1.0j) * deriv_coupling[:,:]
-            self.Heff[i_spin,:,:] = H - (0.0+1.0j) * deriv_coupling[:,:] # for reuse in the later steps
 
-            mo_nophase_tauderiv[i_spin,:,:] = -(0.0+1.0j) * np.dot(
-                np.dot( Sinv.astype('complex128'), Heff_nophase ), C.transpose()
-            ).transpose()
-
-        return mo_nophase_tauderiv
+            return H_nophase_ao
 
     
     # call after make_mo_nophase_tderiv
@@ -738,20 +746,20 @@ class Electronic_state:
             new_mo = np.zeros_like(self.mo_coeffs)
 
             self.Heff = np.zeros_like(self.H)
+            self.Heff_nophase = np.zeros_like(self.H)
 
             for i_spin in range(n_spin):
 
                 H = self.H[i_spin,:,:]
-
-                print('H', H) ## Debug code
+                H_nophase = self.make_H_nophase(H, self.S, self.mo_coeffs[i_spin,:,:])
 
                 self.Heff[i_spin,:,:] = H - (0.0+1.0j) * self.deriv_coupling[:,:]
+                self.Heff_nophase[i_spin,:,:] = H_nophase - (0.0+1.0j) * self.deriv_coupling[:,:]
 
-                print('DERIV_COUPLING', self.deriv_coupling) ## Debug code
-            
                 ts = perf_counter_ns()
-                new_mo[i_spin,:,:] = self.propagator.engine(
-                    self.mo_coeffs[i_spin,:,:], self.Sinv, self.Heff[i_spin,:,:], dtau
+                self.mo_coeffs_nophase[i_spin,:,:] = self.propagator.engine(
+                    #self.mo_coeffs[i_spin,:,:], self.Sinv, self.Heff[i_spin,:,:], dtau
+                    self.mo_coeffs_nophase[i_spin,:,:], self.Sinv, self.Heff_nophase[i_spin,:,:], dtau
                 )
                 te = perf_counter_ns()
                 print("Time for propagator: %12.3f sec.\n" % ((te-ts)/1.0e+9)) ## Debug code
@@ -770,17 +778,17 @@ class Electronic_state:
         self.t_mo_e_int += dt
         self.tau_mo_e_int += dtau
 
-        if self.integration_mode == 'integrator':
+        #if self.integration_mode == 'integrator':
 
-            new_mo = np.zeros_like(self.mo_coeffs_nophase)
+        new_mo = np.zeros_like(self.mo_coeffs_nophase)
 
-            for i_spin in range(n_spin):
+        for i_spin in range(n_spin):
 
-                for i_MO in range(self.n_MO):
-                        
-                    new_mo[i_spin,i_MO,:] = \
-                        self.mo_coeffs_nophase[i_spin,i_MO,:] * \
-                        np.exp( (-1.0j/H_DIRAC) * self.mo_e_int[i_spin,i_MO] )
+            for i_MO in range(self.n_MO):
+                    
+                new_mo[i_spin,i_MO,:] = \
+                    self.mo_coeffs_nophase[i_spin,i_MO,:] * \
+                    np.exp( (-1.0j/H_DIRAC) * self.mo_e_int[i_spin,i_MO] )
 
         return new_mo
 
@@ -1587,6 +1595,7 @@ class Electronic_state:
             for i_spin in range(n_spin):
 
                 self.H[i_spin,:,:] = utils.hermitize(Htmp[i_spin,:,:], is_upper_triangle = True)
+                #self.H[i_spin,:,:] = utils.hermitize(Htmp[i_spin,:,:], is_upper_triangle = False); print('DEBUG: LOWER TRIANGLE') ## Debug code
 
         else:
 
