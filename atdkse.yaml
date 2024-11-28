@@ -18,6 +18,7 @@ integrator: adams_moulton_2
 #integrator: leapfrog
 #integrator: unitary
 #integrator: crank_nicholson
+do_sc_propagation: False
 
 mo_type: restricted
 ao_basis: def2svp
@@ -50,7 +51,7 @@ dt_deriv: 0.1
 
 reconst_interval: -1
 
-is_fixed: False
+is_fixed: True
 
 flush_interval: 1
 

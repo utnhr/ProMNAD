@@ -41,6 +41,7 @@ class Electronic_state:
         self.reconst_interval    = load_setting(settings, 'reconst_interval')
 
         self.integmethod         = load_setting(settings, 'integrator')
+        self.do_sc_propagation   = load_setting(settings, 'do_sc_propagation')
 
         self.alpha               = load_setting(settings, 'alpha')
         
@@ -127,8 +128,11 @@ class Electronic_state:
         #
 
         self.is_edyn_initialized  = False
-        
-        if self.integmethod in UnitaryPropagator.methods:
+
+        if self.do_sc_propagation:
+            self.integration_mode = 'sc-propagator'        
+            self.propagator = UnitaryPropagator(self.integmethod)
+        elif self.integmethod in UnitaryPropagator.methods:
             self.integration_mode = 'propagator'
             self.propagator = UnitaryPropagator(self.integmethod)
         else:
@@ -394,7 +398,7 @@ class Electronic_state:
         return gs_rho
 
 
-    def get_mo_dependent_hamiltonian(self, mo_coeffs):
+    def get_mo_dependent_hamiltonian(self, mo_coeffs, rho=None):
 
         if self.is_open_shell:
             n_spin = 2
@@ -402,8 +406,15 @@ class Electronic_state:
             n_spin = 1
         
         # mo_coeffs can either phase-containing or phaseless MOs
+        # optionally, rho can be given instead of mo_coeffs
 
-        gs_rho = self.get_mo_dependent_gs_density_matrix(mo_coeffs)
+        if rho is None:
+
+            gs_rho = self.get_mo_dependent_gs_density_matrix(mo_coeffs)
+
+        else:
+
+            gs_rho = deepcopy(rho)
 
         if self.qc_program == 'dftb+':
         
@@ -719,6 +730,7 @@ class Electronic_state:
             self.make_mo_e_int_tauderiv, self.H,
         )
 
+
     
     def propagate_without_trivial_phase(self, tau, dtau, dt):
         
@@ -743,8 +755,6 @@ class Electronic_state:
 
         elif self.integration_mode == 'propagator':
 
-            new_mo = np.zeros_like(self.mo_coeffs)
-
             self.Heff = np.zeros_like(self.H)
             self.Heff_nophase = np.zeros_like(self.H)
 
@@ -763,6 +773,66 @@ class Electronic_state:
                 )
                 te = perf_counter_ns()
                 print("Time for propagator: %12.3f sec.\n" % ((te-ts)/1.0e+9)) ## Debug code
+
+        elif self.integration_mode == 'sc-propagator':
+
+            self.Heff = np.zeros_like(self.H)
+            self.Heff_nophase = np.zeros_like(self.H)
+
+            threshold = 1.0e-11
+            mix_param = 0.3
+
+            error = threshold + 1 # larger than threshold
+
+            H_spin = deepcopy(self.H)
+            mo_coeffs_nophase = deepcopy(self.mo_coeffs_nophase)
+            new_mo_coeffs_nophase = np.zeros_like(mo_coeffs_nophase)
+            old_rho = None
+
+            i_cycle = 0
+            
+            while error > threshold:
+
+                print('SC CYCLE: ', i_cycle) ## Debug code
+
+                for i_spin in range(n_spin):
+
+                    H_nophase = self.make_H_nophase(H_spin[i_spin,:,:], self.S, mo_coeffs_nophase[i_spin,:,:])
+
+                    Heff_nophase = H_nophase - (0.0+1.0j) * self.deriv_coupling[:,:]
+
+                    new_mo_coeffs_nophase[i_spin,:,:] = self.propagator.engine(
+                        mo_coeffs_nophase[i_spin,:,:], self.Sinv, Heff_nophase, dtau
+                    )
+
+                rho = self.get_mo_dependent_gs_density_matrix(new_mo_coeffs_nophase)
+
+                if i_cycle == 0:
+                    
+                    old_rho = deepcopy(rho)
+
+                else:
+
+                    error = (np.abs(rho - old_rho)).max()
+
+                    rho = mix_param * rho + (1 - mix_param) * old_rho
+
+                    old_rho = deepcopy(rho)
+
+                H_spin = self.get_mo_dependent_hamiltonian(mo_coeffs=None, rho=rho)
+
+                print(error)
+
+                i_cycle += 1
+
+            self.mo_coeffs_nophase = deepcopy(new_mo_coeffs_nophase)
+
+            for i_spin in range(n_spin):
+
+                H_nophase = self.make_H_nophase(self.H[i_spin,:,:], self.S, mo_coeffs_nophase[i_spin,:,:])
+                
+                self.Heff_nophase[i_spin,:,:] = H_nophase - (0.0+1.0j) * self.deriv_coupling[:,:]
+                self.Heff[i_spin,:,:] = self.H[i_spin,:,:] - (0.0+1.0j) * self.deriv_coupling[:,:]
 
         else:
             

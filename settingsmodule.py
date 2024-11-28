@@ -16,6 +16,7 @@ default = {
     'reconst_interval': -1,
     'print_xyz_interval': 0,
     'integrator': 'adams_moulton_2',
+    'do_sc_propagation': False,
     'tbf_coeffs_are_trivial': False,
     'e_coeffs_are_trivial': False,
     'flush_interval':  2000,

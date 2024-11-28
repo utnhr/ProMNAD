@@ -8,6 +8,7 @@ from copy import deepcopy
 from constants import H_DIRAC, ANGST2AU, AU2EV, ONEOVER24, ONEOVER720
 import utils
 from unitarypropagatormodule import UnitaryPropagator
+from mixermodule import Mixer
 
 class Integrator:
     
@@ -27,6 +28,9 @@ class Integrator:
         self.function_name = 'self.' + method
 
         #self.engine = eval(self.function_name) # integrator engine (euler, leapfrog, etc.)
+
+        self.mixer = Mixer('diis') # to be made optional
+        #self.mixer = Mixer('simple') ## Debug code
 
         if mode == 'passing': # return y(t+Dt) from y(t) and fargs(t)
 
@@ -190,19 +194,25 @@ class Integrator:
 
             y1c = self.y_hist[0] + 0.5 * dt * (f1p + self.f_hist[0]) # corrector
 
-            error = np.linalg.norm(y1p - y1c)
+            error_vec = (y1c - y1p).real
+            error = np.max( np.abs(error_vec) )
 
-            #print('AM2 ITER', i_iter, error, f_func.__name__)
+            #print('ERROR VEC', error_vec) ## Debug code
+
+            print('AM2 ITER', i_iter, error, f_func.__name__)
 
             if error < self.error_threshold:
 
                 y_new = y1c
 
+                self.mixer.reset()
+
                 break
 
             else:
 
-                y1p = self.mix_alpha * y1c + (1.0 - self.mix_alpha) * y1p
+                #y1p = self.mix_alpha * y1c + (1.0 - self.mix_alpha) * y1p
+                y1p = self.mixer.engine(y1c, error_vec)
 
                 i_iter += 1
 
