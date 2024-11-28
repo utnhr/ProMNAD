@@ -63,7 +63,13 @@ class Mixer:
 
     def simple(self):
 
-        y_new = self.almix * self.y_hist[0] + (1.0 - self.almix) * self.y_hist[1]
+        if self.n_hist < 2:
+
+            y_new = self.y_hist[0]
+
+        else:
+
+            y_new = self.almix * self.y_hist[0] + (1.0 - self.almix) * self.y_hist[1]
 
         return y_new
 

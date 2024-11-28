@@ -225,12 +225,9 @@ class Integrator:
         if not self.is_chasing_mode:
             utils.stop_with_error('Implicit solvers only available for chasing mode.')
 
-        if self.n_hist < 2:
-            y1p = self.y_hist[0] + dt * self.f_hist[0] # predictor: Euler
+        if self.n_hist < 4:
 
-        elif self.n_hist< 4:
-            
-            y1p = self.y_hist[0] + 0.5 * dt * (3.0*self.f_hist[1] - self.f_hist[0]) # predictor: 2-step Adams-Bashforth
+            return self.adams_moulton_2(dt, t, f_func, *fargs)
 
         else:
 
@@ -251,17 +248,24 @@ class Integrator:
                 251.0*f1p + 646.0*self.f_hist[0] - 264.0*self.f_hist[1] + 106.0*self.f_hist[2] - 19.0*self.f_hist[3]
             ) # corrector
 
-            error = np.linalg.norm(y1p - y1c)
+            #error = np.linalg.norm(y1p - y1c)
+            error_vec = (y1c - y1p).real
+            error = np.max( np.abs(error_vec) )
+
+            print('AM4 ITER', i_iter, error, f_func.__name__)
 
             if error < self.error_threshold:
 
                 y_new = y1c
 
+                self.mixer.reset()
+
                 break
 
             else:
 
-                y1p = self.mix_alpha * y1c + (1.0 - self.mix_alpha) * y1p
+                #y1p = self.mix_alpha * y1c + (1.0 - self.mix_alpha) * y1p
+                y1p = self.mixer.engine(y1c, error_vec)
 
                 i_iter += 1
 
