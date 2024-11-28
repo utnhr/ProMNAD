@@ -109,10 +109,10 @@ class Integrator:
 
     def update_history(self, y, f):
         
-        for i_hist in range(self.max_hist-1):
+        for i_hist in range(self.max_hist-2,-1,-1):
             
-            self.y_hist[i_hist+1] = self.y_hist[i_hist]
-            self.f_hist[i_hist+1] = self.f_hist[i_hist]
+            self.y_hist[i_hist+1] = deepcopy(self.y_hist[i_hist])
+            self.f_hist[i_hist+1] = deepcopy(self.f_hist[i_hist])
 
         self.y_hist[0] = deepcopy(y)
         self.f_hist[0] = deepcopy(f)
