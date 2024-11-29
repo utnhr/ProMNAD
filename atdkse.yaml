@@ -14,11 +14,11 @@ include_ground_state: False
 
 calctype: config-aimc
 
-integrator: adams_moulton_2
+#integrator: adams_moulton_2
 #integrator: leapfrog
-#integrator: unitary
+integrator: sc_unitary
 #integrator: crank_nicholson
-do_sc_propagation: False
+#do_sc_propagation: False
 
 mo_type: restricted
 ao_basis: def2svp
@@ -51,7 +51,7 @@ dt_deriv: 0.1
 
 reconst_interval: -1
 
-is_fixed: True
+is_fixed: False
 
 flush_interval: 1
 
