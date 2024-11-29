@@ -43,6 +43,8 @@ class Electronic_state:
         self.integmethod         = load_setting(settings, 'integrator')
         #self.do_sc_propagation   = load_setting(settings, 'do_sc_propagation')
 
+        self.propagate_in_orthogonal_basis = load_setting(settings, 'propagate_in_orthogonal_basis')
+
         self.alpha               = load_setting(settings, 'alpha')
         
         self.e_coeffs            = e_coeffs # np.array (n_estate)
@@ -522,6 +524,50 @@ class Electronic_state:
         return mo_nophase_tauderiv
 
 
+    def make_mo_nophase_tauderiv_ort(self, tau, mo_coeffs_nophase_ort):
+
+        if self.is_open_shell:
+            n_spin = 2
+        else:
+            n_spin = 1
+
+        mo_coeffs_nophase = np.zeros_like(mo_coeffs_nophase_ort)
+
+        for i_spin in range(n_spin):
+            # project onto basis at current nuclear coordinate
+            mo_coeffs_nophase[i_spin,:,:] = BasisTransformer.moinao(mo_coeffs_nophase_ort[i_spin,:,:], self.S, self.L)
+
+        #test = mo_coeffs_nophase - self.mo_coeffs_nophase ## Debug code
+        #test = mo_coeffs_nophase_ort ## Debug code
+        #print('TEST2', test) ## Debug code
+
+        if self.do_interpol:
+            H_full = deepcopy(self.H)
+        else:
+            H_full = self.get_mo_dependent_hamiltonian(mo_coeffs_nophase)
+
+        mo_nophase_tauderiv_ort = np.zeros_like(mo_coeffs_nophase_ort)
+
+        self.Heff = np.zeros_like(H_full)
+
+        for i_spin in range(n_spin):
+            
+            C = mo_coeffs_nophase_ort[i_spin,:,:]
+            C_ao = mo_coeffs_nophase[i_spin,:,:]
+            #C_ao = self.mo_coeffs_nophase[i_spin,:,:]; print('FOR DEBUG') ## Debug code
+            
+            H_nophase_ao = self.make_H_nophase(H_full[i_spin,:,:], self.S, C_ao)
+
+            #Heff_nophase = deepcopy(H_nophase_ao)
+            self.Heff = deepcopy(H_full) # for reuse in the later steps
+
+            H_nophase = BasisTransformer.ao2mo(H_nophase_ao, self.L)
+
+            mo_nophase_tauderiv_ort[i_spin,:,:] = -(0.0+1.0j) * np.dot( H_nophase, C.transpose() ).transpose()
+
+        return mo_nophase_tauderiv_ort
+
+
     def make_H_nophase(self, H, S, C):
         
             # AO -> MO
@@ -533,7 +579,7 @@ class Electronic_state:
             for i_MO in range(self.n_MO):
                 H_nophase_mo[i_MO,i_MO] = 0.0+0.0j
 
-            print('H_NOPHASE_MO', H_nophase_mo) ## Debug code
+            #print('H_NOPHASE_MO', H_nophase_mo) ## Debug code
 
             # back to AO
 
@@ -718,11 +764,32 @@ class Electronic_state:
 
 
     def initialize_mo_integrator(self):
+
+        if self.is_open_shell:
+            n_spin = 2
+        else:
+            n_spin = 1
+
+        if self.propagate_in_orthogonal_basis:
+
+            mo_coeffs_nophase_ort = np.zeros_like(self.mo_coeffs_nophase)
+
+            for i_spin in range(n_spin):
+                mo_coeffs_nophase_ort[i_spin,:,:] = BasisTransformer.moinmo(
+                    self.mo_coeffs_nophase[i_spin,:,:], self.S, self.L,
+                )
+
+            self.integrator.initialize_history(
+                self.t_mo_coeffs_nophase, mo_coeffs_nophase_ort,
+                self.make_mo_nophase_tauderiv_ort,
+            )
+
+        else:
         
-        self.integrator.initialize_history(
-            self.t_mo_coeffs_nophase, self.mo_coeffs_nophase,
-            self.make_mo_nophase_tauderiv, self.deriv_coupling, self.Sinv,
-        )
+            self.integrator.initialize_history(
+                self.t_mo_coeffs_nophase, self.mo_coeffs_nophase,
+                self.make_mo_nophase_tauderiv, self.deriv_coupling, self.Sinv,
+            )
 
 
     def initialize_mo_e_int_integrator(self):
@@ -748,12 +815,42 @@ class Electronic_state:
         #utils.check_time_equal(self.t_mo_coeffs_nophase, self.t_Sinv)
 
         if self.integration_mode == 'integrator':
+
+            if self.propagate_in_orthogonal_basis:
+
+                mo_coeffs_nophase_ort = np.zeros_like(self.mo_coeffs_nophase)
+
+                # At this point, self.mo_coeffs_nophase is based on the previous geometry
+                for i_spin in range(n_spin):
+                    mo_coeffs_nophase_ort[i_spin,:,:] = BasisTransformer.moinmo(
+                        self.mo_coeffs_nophase[i_spin,:,:], self.old_S, self.old_L,
+                    )
+
+                    ## Debug code
+                    ##test = BasisTransformer.moinao(mo_coeffs_nophase_ort[i_spin,:,:],self.S,self.L) - self.mo_coeffs_nophase[i_spin,:,:]
+                    #test = mo_coeffs_nophase_ort
+                    #print('TEST1', test)
+                    ## End Debug code
+                
+                # propagate in orthonormalized basis
+                mo_coeffs_nophase_ort = self.integrator.engine(
+                    dtau, self.tau_mo_coeffs_nophase, mo_coeffs_nophase_ort,
+                    self.make_mo_nophase_tauderiv_ort,
+                )
+                
+                # project onto current geometry
+                for i_spin in range(n_spin):
+                    self.mo_coeffs_nophase[i_spin,:,:] = BasisTransformer.moinao(
+                        mo_coeffs_nophase_ort[i_spin,:,:], self.S, self.L
+                    )
+
+            else:
         
-            self.mo_coeffs_nophase = self.integrator.engine(
-                #self.dt, self.t_mo_coeffs_nophase, self.mo_coeffs_nophase,
-                dtau, self.tau_mo_coeffs_nophase, self.mo_coeffs_nophase,
-                self.make_mo_nophase_tauderiv, self.deriv_coupling, self.Sinv,
-            )
+                self.mo_coeffs_nophase = self.integrator.engine(
+                    #self.dt, self.t_mo_coeffs_nophase, self.mo_coeffs_nophase,
+                    dtau, self.tau_mo_coeffs_nophase, self.mo_coeffs_nophase,
+                    self.make_mo_nophase_tauderiv, self.deriv_coupling, self.Sinv,
+                )
 
         elif self.integration_mode == 'propagator':
 

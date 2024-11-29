@@ -69,6 +69,8 @@ class Integrator:
         #   f_hist[0] @ t, f_hist[1] @ t-Dt, ...
 
         y_new = eval(self.function_name)(dt, t, f_func, *fargs)
+        
+        #print('Y_NEW', y_new) ## Debug code
 
         if self.is_chasing_mode:
 

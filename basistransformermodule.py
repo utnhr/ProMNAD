@@ -48,6 +48,35 @@ class BasisTransformer:
             SC = np.dot(S, C)
 
         return np.dot( SC.transpose().conjugate(), np.dot(M, SC) )
+
+
+    @classmethod
+    def moinmo(cls, MOinAO, S, C, is_C_columnmajor = False):
+        
+        #if is_C_columnmajor:
+        #    SC = np.dot( S, C.transpose() )
+        #else:
+        #    SC = np.dot( S, C )
+        if is_C_columnmajor:
+            CdagS = np.dot( C.transpose(), S )
+        else:
+            CdagS = np.dot( C, S )
+
+        return np.dot( CdagS, MOinAO.transpose() ).transpose()
+
+
+    @classmethod
+    def moinao(cls, MOinC, S, C, is_C_columnmajor = False):
+        
+        #if is_C_columnmajor:
+        #    SC = np.dot( S, C.transpose() )
+        #else:
+        if is_C_columnmajor:
+            CdagS = np.dot( C.transpose(), S )
+        else:
+            CdagS = np.dot( C, S )
+
+        return np.dot( np.linalg.inv(CdagS), MOinC.transpose() ).transpose()
     
 
     @classmethod
