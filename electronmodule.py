@@ -528,13 +528,12 @@ class Electronic_state:
 
             H_nophase_mo = np.dot( C.conjugate(), np.dot( H, C.transpose() ) )
 
-            #print('H_NOPHASE_MO', H_nophase_mo) ## Debug code
-
             # subtract MO energy
-                        
+            
             for i_MO in range(self.n_MO):
-
                 H_nophase_mo[i_MO,i_MO] = 0.0+0.0j
+
+            print('H_NOPHASE_MO', H_nophase_mo) ## Debug code
 
             # back to AO
 
@@ -878,7 +877,9 @@ class Electronic_state:
 
         H = self.get_mo_dependent_hamiltonian( np.array([mo_coeffs]) )[0] # i_spin == 0
 
+        #print('PHASE SUBTRACTION DISABLED FOR DEBUG') ## Debug code
         H_nophase = self.make_H_nophase(H, self.S, mo_coeffs)
+        #H_nophase = deepcopy(H) ## Debug code
 
         Heff_nophase = H_nophase - (0.0+1.0j) * self.deriv_coupling[:,:]
 
