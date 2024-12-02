@@ -13,7 +13,7 @@ class Mixer:
 
     def __init__(self, method):
 
-        self.max_hist = 20
+        self.max_hist = 100
 
         self.function_name = 'self.' + method
 

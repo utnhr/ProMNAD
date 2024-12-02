@@ -15,9 +15,9 @@ include_ground_state: False
 calctype: config-aimc
 
 #integrator: adams_moulton_2
-integrator: adams_moulton_4
+#integrator: adams_moulton_4
 #integrator: leapfrog
-#integrator: sc_unitary
+integrator: sc_unitary
 #integrator: crank_nicholson
 #do_sc_propagation: False
 propagate_in_orthogonal_basis: True
@@ -45,7 +45,7 @@ tbf_coeffs_are_trivial: True
 e_coeffs_are_trivial: True
 do_interpol: False
 
-dtau: 0.2
+dtau: 0.1
 alpha: 1.0
 print_xyz_interval: 1
 

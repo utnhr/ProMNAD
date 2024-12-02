@@ -863,23 +863,46 @@ class Electronic_state:
 
             i_spin = 0
 
-            self.mo_coeffs_nophase[i_spin,:,:] = self.propagator.engine(
-                dtau, self.mo_coeffs_nophase[i_spin,:,:], self.get_SinvHeff_nophase_nospin, True,
-            )
+            if self.propagate_in_orthogonal_basis:
 
-            #H = self.H[i_spin,:,:]
-            #H_nophase = self.make_H_nophase(H, self.S, self.mo_coeffs[i_spin,:,:])
+                mo_coeffs_nophase_ort = np.zeros_like(self.mo_coeffs_nophase)
 
-            #self.Heff[i_spin,:,:] = H - (0.0+1.0j) * self.deriv_coupling[:,:]
-            #self.Heff_nophase[i_spin,:,:] = H_nophase - (0.0+1.0j) * self.deriv_coupling[:,:]
+                # At this point, self.mo_coeffs_nophase is based on the previous geometry
+                for i_spin in range(n_spin):
+                    mo_coeffs_nophase_ort[i_spin,:,:] = BasisTransformer.moinmo(
+                        self.mo_coeffs_nophase[i_spin,:,:], self.old_S, self.old_L,
+                    )
 
-            #ts = perf_counter_ns()
-            #self.mo_coeffs_nophase[i_spin,:,:] = self.propagator.engine(
-            #    #self.mo_coeffs[i_spin,:,:], self.Sinv, self.Heff[i_spin,:,:], dtau
-            #    self.mo_coeffs_nophase[i_spin,:,:], self.Sinv, self.Heff_nophase[i_spin,:,:], dtau
-            #)
-            #te = perf_counter_ns()
-            #print("Time for propagator: %12.3f sec.\n" % ((te-ts)/1.0e+9)) ## Debug code
+                # propagate in orthonormalized basis
+                self.mo_coeffs_nophase[i_spin,:,:] = self.propagator.engine(
+                    dtau, mo_coeffs_nophase_ort[i_spin,:,:], self.get_H_orthogonal_nophase_nospin,
+                )
+
+                # project onto current geometry
+                for i_spin in range(n_spin):
+                    self.mo_coeffs_nophase[i_spin,:,:] = BasisTransformer.moinao(
+                        mo_coeffs_nophase_ort[i_spin,:,:], self.S, self.L
+                    )
+
+            else:
+
+                self.mo_coeffs_nophase[i_spin,:,:] = self.propagator.engine(
+                    dtau, self.mo_coeffs_nophase[i_spin,:,:], self.get_SinvHeff_nophase_nospin, True,
+                )
+
+                #H = self.H[i_spin,:,:]
+                #H_nophase = self.make_H_nophase(H, self.S, self.mo_coeffs[i_spin,:,:])
+
+                #self.Heff[i_spin,:,:] = H - (0.0+1.0j) * self.deriv_coupling[:,:]
+                #self.Heff_nophase[i_spin,:,:] = H_nophase - (0.0+1.0j) * self.deriv_coupling[:,:]
+
+                #ts = perf_counter_ns()
+                #self.mo_coeffs_nophase[i_spin,:,:] = self.propagator.engine(
+                #    #self.mo_coeffs[i_spin,:,:], self.Sinv, self.Heff[i_spin,:,:], dtau
+                #    self.mo_coeffs_nophase[i_spin,:,:], self.Sinv, self.Heff_nophase[i_spin,:,:], dtau
+                #)
+                #te = perf_counter_ns()
+                #print("Time for propagator: %12.3f sec.\n" % ((te-ts)/1.0e+9)) ## Debug code
 
         #elif self.integration_mode == 'sc-propagator':
 
@@ -989,6 +1012,19 @@ class Electronic_state:
             self.Heff_nophase[i_spin,:,:] = deepcopy(Heff_nophase)
 
         return np.dot(self.Sinv, Heff_nophase)
+
+
+    def get_H_orthogonal_nophase_nospin(self, mo_coeffs_ort_nospin):
+        
+        mo_coeffs = BasisTransformer.moinao(mo_coeffs_ort_nospin, self.S, self.L)
+
+        H = self.get_mo_dependent_hamiltonian( np.array([mo_coeffs]) )[0] # i_spin == 0
+
+        i_spin = 0
+
+        H_nophase = self.make_H_nophase(H, self.S, mo_coeffs)
+
+        return BasisTransformer.ao2mo(H_nophase, self.L)
 
     
     def get_trivial_phase_factor(self, mo_energies, tau, invert = False):
