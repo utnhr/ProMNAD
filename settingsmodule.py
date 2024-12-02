@@ -15,6 +15,8 @@ default = {
     'nbin_interpol_tbf': 1,
     'reconst_interval': -1,
     'print_xyz_interval': 0,
+    'print_mo_tdnac_interval': -1,
+    'print_mo_coeffs_interval': -1,
     'integrator': 'adams_moulton_2',
     #'do_sc_propagation': False,
     'propagate_in_orthogonal_basis': False,

@@ -314,6 +314,8 @@ class Tbf:
         self.dtau = load_setting(settings, 'dtau')
         self.read_traject = load_setting(settings, 'read_traject')
         self.print_xyz_interval = load_setting(settings, 'print_xyz_interval')
+        self.dump_mo_tdnac_interval = load_setting(settings, 'print_mo_tdnac_interval')
+        self.dump_mo_coeffs_interval = load_setting(settings, 'print_mo_coeffs_interval')
         self.flush_interval = load_setting(settings, 'flush_interval')
         self.integmethod = load_setting(settings, 'integrator')
         self.alpha = load_setting(settings, 'alpha')
@@ -1089,8 +1091,9 @@ class Tbf:
 
         det_file.write(time_str)
 
-        det_file.write( " %20.12f+%20.12fj,%20.12f+%20.12fj\n" % (
-            self.det_S_occ.real, self.det_S_occ.imag, self.det_S_vir.real, self.det_S_vir.imag
+        det_file.write( " %20.12f+%20.12fj,%20.12f,%20.12f+%20.12fj,%20.12f\n" % (
+            self.det_S_occ.real, self.det_S_occ.imag, abs(self.det_S_occ),
+            self.det_S_vir.real, self.det_S_vir.imag, abs(self.det_S_vir),
         ) )
 
         return
@@ -1154,9 +1157,45 @@ class Tbf:
 
         mo_coeffs_file.write(time_str)
 
-        #mo_coeffs_file.write( " %20.12f+%20.12fj," % (
-        #    self.det_S_occ.real, self.det_S_occ.imag, self.det_S_vir.real, self.det_S_vir.imag
-        #) )
+        for i_spin in range(n_spin):
+
+            for i_mo in range(self.e_part.n_MO):
+
+                for i_ao in range(self.e_part.n_AO):
+
+                    coeff = self.e_part.mo_coeffs[i_spin,i_mo,i_ao]
+
+                    mo_coeffs_file.write( "%20.12f+%20.12fj," % (coeff.real, coeff.imag) )
+
+                mo_coeffs_file.write("\n")
+
+        return
+
+
+    def print_mo_tdnac(self):
+
+        if self.e_part.is_open_shell:
+            n_spin = 2
+        else:
+            n_spin = 1
+        
+        mo_tdnac_file = self.localoutput.mo_tdnac
+
+        time_str = "STEP %12d T= %20.12f fs\n" % (self.istep, self.e_part.t_mo_coeffs_nophase*AU2SEC*1.0e15)
+
+        mo_tdnac_file.write(time_str)
+
+        for i_spin in range(n_spin):
+
+            for i_mo in range(self.e_part.n_MO):
+
+                for i_mo in range(self.e_part.n_MO):
+
+                    tdnac = self.e_part.mo_tdnac[i_spin,i_mo,i_mo]
+
+                    mo_tdnac_file.write( "%20.12f+%20.12fj," % (tdnac.real, tdnac.imag) )
+
+                mo_tdnac_file.write("\n")
 
         return
 
@@ -1180,6 +1219,14 @@ class Tbf:
         if self.istep % self.calc_nonorthogonality_interval == 0:
 
             self.print_det()
+
+        if self.istep % self.dump_mo_tdnac_interval == 0:
+            
+            self.print_mo_tdnac()
+
+        if self.istep % self.dump_mo_coeffs_interval == 0:
+            
+            self.print_mo_coeffs()
 
         if self.istep > 0 and (self.istep % self.flush_interval) == 0:
 
