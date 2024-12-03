@@ -570,24 +570,26 @@ class Electronic_state:
 
     def make_H_nophase(self, H, S, C):
         
-            # AO -> MO
+            print('PHASE EXTRACTION DISABLED FOR DEBUG') ## Debug code
+            ## AO -> MO
 
-            H_nophase_mo = np.dot( C.conjugate(), np.dot( H, C.transpose() ) )
+            #H_nophase_mo = np.dot( C.conjugate(), np.dot( H, C.transpose() ) )
 
-            # subtract MO energy
-            
-            for i_MO in range(self.n_MO):
-                H_nophase_mo[i_MO,i_MO] = 0.0+0.0j
+            ## subtract MO energy
+            #
+            ##for i_MO in range(self.n_MO):
+            ##    H_nophase_mo[i_MO,i_MO] = 0.0+0.0j
 
-            #print('H_NOPHASE_MO', H_nophase_mo) ## Debug code
+            ##print('H_NOPHASE_MO', H_nophase_mo) ## Debug code
 
-            # back to AO
+            ## back to AO
 
-            SC = np.dot( self.S, C.transpose() )
+            #SC = np.dot( self.S, C.transpose() )
 
-            H_nophase_ao = np.dot( SC, np.dot( H_nophase_mo, SC.transpose().conjugate() ) )
+            #H_nophase_ao = np.dot( SC, np.dot( H_nophase_mo, SC.transpose().conjugate() ) )
 
-            return H_nophase_ao
+            #return H_nophase_ao
+            return deepcopy(H) ## Debug code
 
     
     # call after make_mo_nophase_tderiv
@@ -874,7 +876,8 @@ class Electronic_state:
                     )
 
                 # propagate in orthonormalized basis
-                self.mo_coeffs_nophase[i_spin,:,:] = self.propagator.engine(
+                #self.mo_coeffs_nophase[i_spin,:,:] = self.propagator.engine(
+                mo_coeffs_nophase_ort[i_spin,:,:] = self.propagator.engine(
                     dtau, mo_coeffs_nophase_ort[i_spin,:,:], self.get_H_orthogonal_nophase_nospin,
                 )
 
@@ -979,16 +982,18 @@ class Electronic_state:
         self.tau_mo_e_int += dtau
 
         #if self.integration_mode == 'integrator':
+        
+        print('NO ADDITIONAL PHASE FACTOR FOR DEBUG') ## Debug code
+        #new_mo = np.zeros_like(self.mo_coeffs_nophase)
 
-        new_mo = np.zeros_like(self.mo_coeffs_nophase)
+        #for i_spin in range(n_spin):
 
-        for i_spin in range(n_spin):
-
-            for i_MO in range(self.n_MO):
-                    
-                new_mo[i_spin,i_MO,:] = \
-                    self.mo_coeffs_nophase[i_spin,i_MO,:] * \
-                    np.exp( (-1.0j/H_DIRAC) * self.mo_e_int[i_spin,i_MO] )
+        #    for i_MO in range(self.n_MO):
+        #            
+        #        new_mo[i_spin,i_MO,:] = \
+        #            self.mo_coeffs_nophase[i_spin,i_MO,:] * \
+        #            np.exp( (-1.0j/H_DIRAC) * self.mo_e_int[i_spin,i_MO] )
+        new_mo = deepcopy(self.mo_coeffs_nophase)
 
         return new_mo
 
