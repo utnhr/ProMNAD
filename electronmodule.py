@@ -571,6 +571,8 @@ class Electronic_state:
     def make_H_nophase(self, H, S, C):
         
             print('PHASE EXTRACTION DISABLED FOR DEBUG') ## Debug code
+            return deepcopy(H) ## Debug code
+
             ## AO -> MO
 
             #H_nophase_mo = np.dot( C.conjugate(), np.dot( H, C.transpose() ) )
@@ -589,7 +591,6 @@ class Electronic_state:
             #H_nophase_ao = np.dot( SC, np.dot( H_nophase_mo, SC.transpose().conjugate() ) )
 
             #return H_nophase_ao
-            return deepcopy(H) ## Debug code
 
     
     # call after make_mo_nophase_tderiv
@@ -984,6 +985,7 @@ class Electronic_state:
         #if self.integration_mode == 'integrator':
         
         print('NO ADDITIONAL PHASE FACTOR FOR DEBUG') ## Debug code
+        new_mo = deepcopy(self.mo_coeffs_nophase) ## Debug code
         #new_mo = np.zeros_like(self.mo_coeffs_nophase)
 
         #for i_spin in range(n_spin):
@@ -993,7 +995,6 @@ class Electronic_state:
         #        new_mo[i_spin,i_MO,:] = \
         #            self.mo_coeffs_nophase[i_spin,i_MO,:] * \
         #            np.exp( (-1.0j/H_DIRAC) * self.mo_e_int[i_spin,i_MO] )
-        new_mo = deepcopy(self.mo_coeffs_nophase)
 
         return new_mo
 
@@ -1847,6 +1848,8 @@ class Electronic_state:
                 H_MO = np.dot(
                     self.mo_coeffs[i_spin,:,:].conj(), np.dot(self.H[i_spin,:,:], self.mo_coeffs[i_spin,:,:].transpose())
                 )
+
+                #print('DIAG(H_MO)',np.diag(H_MO)) ## Debug code
 
                 self.mo_levels[i_spin,:] = np.real(np.diag(H_MO))
 
