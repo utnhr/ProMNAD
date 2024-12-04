@@ -1741,7 +1741,7 @@ class Electronic_state:
         return mo_energies, mo_coeffs_real, gs_energy, gs_filling
 
 
-    def non_orthogonality(self):
+    def non_orthogonality(self, update_cmo=True):
 
         n_atom = len(self.atomparams)
 
@@ -1753,6 +1753,11 @@ class Electronic_state:
         coords = self.position.reshape(n_atom, 3)
         
         mo_energies, mo_coeffs_real, gs_energy, gs_filling = self.get_scf_results(coords)
+
+        if update_cmo:
+            self.cmo_levels = deepcopy(mo_energies)
+            self.cmo_coeffs = deepcopy(mo_coeffs_real)
+            self.t_cmo = self.t_position
 
         n_occ = round( gs_filling.sum() / 2 )
 

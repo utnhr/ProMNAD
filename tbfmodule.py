@@ -1125,6 +1125,32 @@ class Tbf:
         return
 
 
+    def print_cmo_level(self):
+        
+        if self.e_part.is_open_shell:
+            n_spin = 2
+        else:
+            n_spin = 1
+        
+        cmo_level_file = self.localoutput.cmo_level
+
+        n_mo = len(self.e_part.csc)
+
+        time_str = "STEP %12d T= %20.12f fs" % (self.istep, self.e_part.t_cmo*AU2SEC*1.0e15)
+
+        cmo_level_file.write(time_str)
+
+        for i_spin in range(n_spin):
+
+            for i_mo in range(n_mo):
+            
+                cmo_level_file.write( " %20.12f" % self.e_part.cmo_levels[i_spin,i_mo] )
+
+        cmo_level_file.write( "\n" % np.sum(self.e_part.csc) )
+
+        return
+
+
     def print_thermodynamics(self):
         
         energy_file = self.localoutput.energy
@@ -1219,6 +1245,7 @@ class Tbf:
         if self.istep % self.calc_nonorthogonality_interval == 0:
 
             self.print_det()
+            self.print_cmo_level()
 
         if self.istep % self.dump_mo_tdnac_interval == 0:
             

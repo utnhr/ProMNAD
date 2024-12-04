@@ -47,6 +47,7 @@ class LocalOutputFiles:
         self.e_popul  = open("e_popul.%d.dat" % index, 'w')   # populations of electronic states
         self.e_ortho  = open("e_ortho.%d.dat" % index, 'w')   # orthonormality of MOs, i.e., C^\dag*S*C
         self.mo_level = open("mo_level.%d.dat" % index, 'w')  # MO levels
+        self.cmo_level= open("cmo_level.%d.dat" % index, 'w') # Canonical MO levels
         self.det      = open("det.%d.dat" % index, 'w')       # |S_occ| and |S_vir|
         self.mo_tdnac = open("mo_tdnac.%d.dat" % index, 'w')  # MO TDNAC
         self.mo_coeffs= open("mo_coeffs.%d.dat" % index, 'w') # MO coeffs (without phase)
@@ -64,6 +65,7 @@ class LocalOutputFiles:
         self.e_popul.close()
         self.e_ortho.close()
         self.mo_level.close()
+        self.cmo_level.close()
         self.det.close()
         self.mo_tdnac.close()
         self.mo_coeffs.close()
@@ -81,6 +83,7 @@ class LocalOutputFiles:
         self.e_popul.flush()
         self.e_ortho.flush()
         self.mo_level.flush()
+        self.cmo_level.flush()
         self.det.flush()
         self.mo_tdnac.flush()
         self.mo_coeffs.flush()
