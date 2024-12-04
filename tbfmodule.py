@@ -1226,6 +1226,34 @@ class Tbf:
         return
 
 
+    def print_phase_cancellation_angles(self):
+
+        if self.e_part.is_open_shell:
+            n_spin = 2
+        else:
+            n_spin = 1
+        
+        pc_angle_file = self.localoutput.pc_angle
+
+        n_mo = len(self.e_part.csc)
+
+        time_str = "STEP %12d T= %20.12f fs" % (self.istep, self.e_part.t_mo_levels*AU2SEC*1.0e15)
+
+        pc_angle_file.write(time_str)
+
+        for i_spin in range(n_spin):
+
+            for i_mo in range(n_mo):
+
+                angle, res = self.e_part.get_phase_cancellation_angle(i_spin, i_mo)
+            
+                pc_angle_file.write( " %20.14f:%20.14f," % (angle, res)  )
+
+        pc_angle_file.write("\n")
+
+        return
+
+
     def print_results(self):
         
         if self.print_xyz_interval != 0 and (self.istep % self.print_xyz_interval) == 0:
@@ -1254,6 +1282,7 @@ class Tbf:
         if self.istep % self.dump_mo_coeffs_interval == 0:
             
             self.print_mo_coeffs()
+            self.print_phase_cancellation_angles()
 
         if self.istep > 0 and (self.istep % self.flush_interval) == 0:
 

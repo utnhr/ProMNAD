@@ -38,7 +38,7 @@ initial_estates:
 initial_coeffs:
   - 1.0
 
-n_step: 100
+n_step: 10000
 max_n_tbf: 1
 
 tbf_coeffs_are_trivial: True

@@ -48,6 +48,7 @@ class LocalOutputFiles:
         self.e_ortho  = open("e_ortho.%d.dat" % index, 'w')   # orthonormality of MOs, i.e., C^\dag*S*C
         self.mo_level = open("mo_level.%d.dat" % index, 'w')  # MO levels
         self.cmo_level= open("cmo_level.%d.dat" % index, 'w') # Canonical MO levels
+        self.pc_angle = open("pc_angle.%d.dat" % index, 'w')  # Phase cancellation angles and residues for TD-MOs
         self.det      = open("det.%d.dat" % index, 'w')       # |S_occ| and |S_vir|
         self.mo_tdnac = open("mo_tdnac.%d.dat" % index, 'w')  # MO TDNAC
         self.mo_coeffs= open("mo_coeffs.%d.dat" % index, 'w') # MO coeffs (without phase)
@@ -66,6 +67,7 @@ class LocalOutputFiles:
         self.e_ortho.close()
         self.mo_level.close()
         self.cmo_level.close()
+        self.pc_angle.close()
         self.det.close()
         self.mo_tdnac.close()
         self.mo_coeffs.close()
@@ -84,6 +86,7 @@ class LocalOutputFiles:
         self.e_ortho.flush()
         self.mo_level.flush()
         self.cmo_level.flush()
+        self.pc_angle.flush()
         self.det.flush()
         self.mo_tdnac.flush()
         self.mo_coeffs.flush()

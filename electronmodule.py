@@ -570,7 +570,7 @@ class Electronic_state:
 
     def make_H_nophase(self, H, S, C):
         
-            print('PHASE EXTRACTION DISABLED FOR DEBUG') ## Debug code
+            print('PHASE EXTRACTION DISABLED') ## Debug code
             return deepcopy(H) ## Debug code
 
             ## AO -> MO
@@ -1997,6 +1997,40 @@ class Electronic_state:
             )
 
         return
+
+
+    def get_phase_cancellation_angle(self, i_spin, i_mo):
+        
+        # multiply e^i\theta to MO coeffs to minimize square-sum of imaginary part
+        # find \theta
+        
+        c = self.mo_coeffs[i_spin,i_mo,:]
+
+        c_real = np.real(c)
+        c_imag = np.imag(c)
+
+        # find \theta such that d(s2-norm of imaginary part)/d\theta = 0
+        # theta minimize OR maximize the s2-norm; compare two results and return the \theta MINIMIZE the s2-norm
+
+        val = 2.0 * np.dot(c_real,c_imag) / ( np.linalg.norm(c_imag)**2 - np.linalg.norm(c_real)**2 )
+
+        theta1 = 0.5 * np.arctan(val)
+        theta2 = theta1 + 0.5 * np.pi
+
+        phase1 = np.exp( (0.0+1.0j) * theta1 )
+        phase2 = np.exp( (0.0+1.0j) * theta2 )
+
+        res1 = np.linalg.norm( np.imag( phase1 * c ) )
+        res2 = np.linalg.norm( np.imag( phase2 * c ) )
+
+        if res1 < res2:
+            theta = theta1
+            res = res1
+        else:
+            theta = theta2
+            res = res2
+        
+        return theta, res
 
 
     def get_overlap_with_old_other_e_part(self, i_state_old, i_state_new):

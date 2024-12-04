@@ -24,7 +24,7 @@ def do_dynamics(settings, is_restarted = False):
     
             world.propagate()
 
-    utils.Printer.write_out('Time propagation finished.\n')
+    utils.Printer.write_out('Time propagation finished.\n', flush = True)
 
 
 def init_dynamics(settings, is_restarted = False):
