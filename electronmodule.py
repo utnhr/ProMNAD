@@ -42,6 +42,8 @@ class Electronic_state:
 
         self.integmethod         = load_setting(settings, 'integrator')
         #self.do_sc_propagation   = load_setting(settings, 'do_sc_propagation')
+        self.integmixer          = load_setting(settings, 'integmixer')
+        self.mixererror          = load_setting(settings, 'mixererror')
 
         self.propagate_in_orthogonal_basis = load_setting(settings, 'propagate_in_orthogonal_basis')
 
@@ -136,7 +138,9 @@ class Electronic_state:
         #    self.propagator = UnitaryPropagator(self.integmethod)
         if self.integmethod in UnitaryPropagator.methods:
             self.integration_mode = 'propagator'
-            self.propagator = UnitaryPropagator(self.integmethod)
+            self.propagator = UnitaryPropagator(
+                self.integmethod, mixertype=self.integmixer, error_threshold=self.mixererror
+            )
         else:
             self.integration_mode = 'integrator'
             self.integrator = Integrator(self.integmethod, mode = 'chasing')
@@ -985,7 +989,7 @@ class Electronic_state:
 
         #if self.integration_mode == 'integrator':
         
-        print('NO ADDITIONAL PHASE FACTOR FOR DEBUG') ## Debug code
+        print('NO ADDITIONAL PHASE FACTOR') ## Debug code
         new_mo = deepcopy(self.mo_coeffs_nophase) ## Debug code
         #new_mo = np.zeros_like(self.mo_coeffs_nophase)
 

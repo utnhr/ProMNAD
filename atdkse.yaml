@@ -26,8 +26,6 @@ mo_type: restricted
 ao_basis: def2svp
 xc: b3lyp
 
-alpha: 1.0
-
 read_traject: True
 
 active_occ_mos: [ 0 ] # placeholder
@@ -45,7 +43,7 @@ tbf_coeffs_are_trivial: True
 e_coeffs_are_trivial: True
 do_interpol: False
 
-dtau: 0.1
+dtau: 0.5
 alpha: 0.1
 print_xyz_interval: 1
 
@@ -53,7 +51,7 @@ dt_deriv: 0.1
 
 reconst_interval: -1
 
-is_fixed: False
+is_fixed: True
 
 flush_interval: 1
 

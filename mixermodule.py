@@ -11,13 +11,13 @@ import utils
 class Mixer:
     
 
-    def __init__(self, method):
+    def __init__(self, method, max_hist=100, almix=0.3):
 
-        self.max_hist = 100
+        self.max_hist = max_hist
 
         self.function_name = 'self.' + method
 
-        self.almix = 0.3 # mixing parameter
+        self.almix = almix # mixing parameter
         
         self.reset()
         
