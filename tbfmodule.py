@@ -1225,6 +1225,8 @@ class Tbf:
                     if i_mo == j_mo:
 
                         tdnac -= -(0.0+1.0j) * self.e_part.mo_levels[i_spin,i_mo]
+
+                    tdnac /= self.e_part.alpha # d/dtau -> d/dt
                     
                     norm = abs(tdnac)
 
@@ -1233,9 +1235,9 @@ class Tbf:
                         max_tdnac_norm = norm
                         max_tdnac_mopair = (i_mo, j_mo)
 
-                mo_tdnac_file.write("\n")
+                    mo_tdnac_file.write( "%20.12f+%20.12fj," % (tdnac.real, tdnac.imag) )
 
-                mo_tdnac_file.write( "%20.12f+%20.12fj," % (tdnac.real, tdnac.imag) )
+                mo_tdnac_file.write("\n")
 
             utils.Printer.write_out(
                 "Max. MO TDNAC: %20.12f (MO %d and %d)\n" % (

@@ -46,7 +46,7 @@ e_coeffs_are_trivial: True
 do_interpol: False
 
 dtau: 0.1
-alpha: 1.0
+alpha: 0.1
 print_xyz_interval: 1
 
 dt_deriv: 0.1
