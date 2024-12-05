@@ -686,7 +686,8 @@ class Electronic_state:
 
         for i_spin in range(n_spin):
 
-            Heff[i_spin,:,:] = H[i_spin,:,:] - (0.0+1.0j) * self.deriv_coupling[:,:]
+            #Heff[i_spin,:,:] = H[i_spin,:,:] - (0.0+1.0j) * self.deriv_coupling[:,:]
+            Heff[i_spin,:,:] = deepcopy(H[i_spin,:,:])
             
             # According to TDKS
             # <p|d/dt|q> = (-i / \hbar) * <p|Heff|q>

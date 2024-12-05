@@ -38,7 +38,7 @@ initial_estates:
 initial_coeffs:
   - 1.0
 
-n_step: 10000
+n_step: 1000
 max_n_tbf: 1
 
 tbf_coeffs_are_trivial: True
@@ -53,7 +53,7 @@ dt_deriv: 0.1
 
 reconst_interval: -1
 
-is_fixed: True
+is_fixed: False
 
 flush_interval: 1
 

@@ -1211,17 +1211,37 @@ class Tbf:
 
         mo_tdnac_file.write(time_str)
 
+        max_tdnac_norm = 0.0
+        max_tdnac_mopair = None
+
         for i_spin in range(n_spin):
 
             for i_mo in range(self.e_part.n_MO):
 
-                for i_mo in range(self.e_part.n_MO):
+                for j_mo in range(self.e_part.n_MO):
 
-                    tdnac = self.e_part.mo_tdnac[i_spin,i_mo,i_mo]
+                    tdnac = self.e_part.mo_tdnac[i_spin,i_mo,j_mo]
 
-                    mo_tdnac_file.write( "%20.12f+%20.12fj," % (tdnac.real, tdnac.imag) )
+                    if i_mo == j_mo:
+
+                        tdnac -= -(0.0+1.0j) * self.e_part.mo_levels[i_spin,i_mo]
+                    
+                    norm = abs(tdnac)
+
+                    if norm > max_tdnac_norm:
+
+                        max_tdnac_norm = norm
+                        max_tdnac_mopair = (i_mo, j_mo)
 
                 mo_tdnac_file.write("\n")
+
+                mo_tdnac_file.write( "%20.12f+%20.12fj," % (tdnac.real, tdnac.imag) )
+
+            utils.Printer.write_out(
+                "Max. MO TDNAC: %20.12f (MO %d and %d)\n" % (
+                    max_tdnac_norm, max_tdnac_mopair[0], max_tdnac_mopair[1]
+                )
+            )
 
         return
 
