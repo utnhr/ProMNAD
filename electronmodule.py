@@ -636,6 +636,14 @@ class Electronic_state:
             csc = np.dot( mo_midstep, np.dot( self.S.astype('complex128'), mo_midstep.transpose().conj() ) )
 
             self.csc = np.real(np.diag(csc))
+            #print('CSC', csc) ## Debug code
+            #print('CSC DIAG', np.diag(self.csc) ) ## Debug code
+            
+            ### Debug code
+            #cc = np.dot( mo_midstep, mo_midstep.transpose().conj() )
+            #print('CC DIAG', np.diag(cc) )
+            #print( 'S', self.S.astype('complex128') )
+            ### End Debug code
 
         self.t_csc = self.t_mo_coeffs
     

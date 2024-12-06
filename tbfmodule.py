@@ -1198,6 +1198,34 @@ class Tbf:
         return
 
 
+    def print_cmo_coeffs(self):
+        
+        if self.e_part.is_open_shell:
+            n_spin = 2
+        else:
+            n_spin = 1
+        
+        cmo_coeffs_file = self.localoutput.cmo_coeffs
+
+        time_str = "STEP %12d T= %20.12f fs\n" % (self.istep, self.e_part.t_mo_coeffs_nophase*AU2SEC*1.0e15)
+
+        cmo_coeffs_file.write(time_str)
+
+        for i_spin in range(n_spin):
+
+            for i_mo in range(self.e_part.n_MO):
+
+                for i_ao in range(self.e_part.n_AO):
+
+                    coeff = self.e_part.cmo_coeffs[i_spin,i_mo,i_ao]
+
+                    cmo_coeffs_file.write("%20.12f," % coeff)
+
+                cmo_coeffs_file.write("\n")
+
+        return
+
+
     def print_mo_tdnac(self):
 
         if self.e_part.is_open_shell:
@@ -1296,6 +1324,7 @@ class Tbf:
 
             self.print_det()
             self.print_cmo_level()
+            self.print_cmo_coeffs()
 
         if self.istep % self.dump_mo_tdnac_interval == 0:
             

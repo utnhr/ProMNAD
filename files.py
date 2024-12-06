@@ -52,6 +52,7 @@ class LocalOutputFiles:
         self.det      = open("det.%d.dat" % index, 'w')       # |S_occ| and |S_vir|
         self.mo_tdnac = open("mo_tdnac.%d.dat" % index, 'w')  # MO TDNAC
         self.mo_coeffs= open("mo_coeffs.%d.dat" % index, 'w') # MO coeffs (without phase)
+        self.cmo_coeffs=open("cmo_coeffs.%d.dat" % index, 'w')# Canonical MO coeffs
         
         return
 
@@ -71,6 +72,7 @@ class LocalOutputFiles:
         self.det.close()
         self.mo_tdnac.close()
         self.mo_coeffs.close()
+        self.cmo_coeffs.close()
 
         return
 
@@ -90,5 +92,6 @@ class LocalOutputFiles:
         self.det.flush()
         self.mo_tdnac.flush()
         self.mo_coeffs.flush()
+        self.cmo_coeffs.flush()
         
         return
