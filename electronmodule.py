@@ -426,6 +426,7 @@ class Electronic_state:
         
             self.dftbplus_instance.go_to_workdir()
             Htmp = self.dftbplus_instance.worker.return_hamiltonian(gs_rho)
+            Htmp = self.dftbplus_instance.worker.return_hamiltonian(gs_rho) ## Sometimes Htmp become crazy, but calling twice here supresses it
             self.dftbplus_instance.return_from_workdir()
 
         elif self.qc_program == 'pyscf':
