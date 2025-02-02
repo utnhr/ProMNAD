@@ -1660,7 +1660,8 @@ class Electronic_state:
 
         n_atom = len(self.atomparams)
 
-        coords = self.position.reshape(n_atom, 3)
+        #coords = self.position.reshape(n_atom, 3)
+        coords = self.position.reshape( (n_atom, 3) )
 
         mo_energies, mo_coeffs_real, gs_energy, gs_filling = self.get_scf_results(coords)
         
