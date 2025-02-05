@@ -10,13 +10,22 @@ import utils
 import inout
 from settingsmodule import load_setting
 
-inputfilename = 'atdkse.yaml'
-mo_filename = 'mo_coeffs.0.dat'
-is_real_mo = False
-traject_filename = 'traject.0.xyz'
-
-i_mo = 10 # 0-based
-i_step = 1 # STEP No. indicated in traject.*.xyz
+#inputfilename = 'atdkse.yaml'
+inputfilename = sys.argv[1]
+#mo_filename = 'mo_coeffs.0.dat'
+mo_filename = sys.argv[2]
+#is_real_mo = False
+is_real_mo = bool(int(sys.argv[3])) # 0 (False) or 1 (True)
+#traject_filename = 'traject.0.xyz'
+traject_filename = sys.argv[4]
+#i_mo = 10 # 0-based
+i_mo = int(sys.argv[5])
+#i_step = 1 # STEP No. indicated in traject.*.xyz
+i_step = int(sys.argv[6]) # STEP No. indicated in traject.*.xyz
+result_filename = sys.argv[7]
+mesh_x = int(sys.argv[8])
+mesh_y = int(sys.argv[9])
+mesh_z = int(sys.argv[10])
 
 # Read input file (to retrieve basis set information)
 settings = inout.read_input(inputfilename)
@@ -113,5 +122,5 @@ mol.basis = basis
 mol.symmetry = False
 mol.build()
 
-cubegen.density(mol, 'result.cube', dm=dm, nx=80, ny=80, nz=80)
+cubegen.density(mol, 'result.cube', dm=dm, nx=mesh_x, ny=mesh_y, nz=mesh_z)
 
