@@ -103,7 +103,6 @@ if is_real_mo:
     dm = np.outer(mo_coeff, mo_coeff)
 else:
     dm = np.outer(mo_coeff.conjugate(), mo_coeff)
-print(dm)
 
 # PySCF initialization
 
