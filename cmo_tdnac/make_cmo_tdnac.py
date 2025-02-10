@@ -3,10 +3,11 @@
 import sys
 import numpy as np
 import re
+import os
 from copy import deepcopy
 from pyscf import gto, scf, dft
 from pyscf.tools import cubegen
-sys.path.append('..')
+sys.path.append( os.path.join( os.path.dirname(__file__), '..') )
 import utils
 import inout
 from settingsmodule import load_setting
