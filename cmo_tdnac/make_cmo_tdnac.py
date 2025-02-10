@@ -164,8 +164,8 @@ for i_snapshot in range(1, n_snapshot):
 
     mo_tdnac = ( mo_overlap - mo_overlap.transpose() ) / timediff
 
-    tdnac_step = (mo_steps[i_snapshot] - mo_steps[i_snapshot-1]) // 2
-    tdnac_time = (mo_times[i_snapshot] - mo_times[i_snapshot-1]) / 2 # in fs
+    tdnac_step = (mo_steps[i_snapshot] + mo_steps[i_snapshot-1]) // 2
+    tdnac_time = (mo_times[i_snapshot] + mo_times[i_snapshot-1]) / 2 # in fs
 
     mo_tdnac_file = sys.stdout
 
