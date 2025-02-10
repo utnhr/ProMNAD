@@ -43,6 +43,8 @@ def init_qc_engine(settings, workdir_suffix, **kwords):
 
         elems, position = get_geom(load_setting(settings, 'geom_file'), return_geom_1d = True, return_elems_1d = True)
 
+        charge = float( load_setting(settings, 'charge') )
+
         workdir = os.path.join( load_setting( settings, ('engine', 'workdir') ), workdir_suffix )
         
         try:
@@ -54,7 +56,7 @@ def init_qc_engine(settings, workdir_suffix, **kwords):
 
         os.chdir(workdir)
         dftbplus_instance = dftbplus_manager(
-            load_setting( settings, ('engine', 'libpath') ), workdir, elems, position,
+            load_setting( settings, ('engine', 'libpath') ), workdir, elems, position, charge,
         )
         os.chdir(home)
 

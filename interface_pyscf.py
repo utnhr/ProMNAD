@@ -21,6 +21,7 @@ class pyscf_manager:
         self.mol.atom = atoms
         self.mol.basis = load_setting(settings, 'ao_basis')
         self.mol.symmetry = False
+        self.mol.charge = load_setting(settings, 'charge')
         self.mol.verbose = 4
         self.mol.build()
 

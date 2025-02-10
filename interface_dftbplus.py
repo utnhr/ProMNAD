@@ -13,7 +13,7 @@ from constants import DEFAULT_DFTB_ANGMOM, AU2ANGST
 class dftbplus_manager:
 
     
-    def __init__(self, libpath, workdir, elem_list, geom):
+    def __init__(self, libpath, workdir, elem_list, geom, charge):
         
         import dftbplus
 
@@ -42,7 +42,7 @@ class dftbplus_manager:
 
                 self.angmom_table[elem] = '"' + DEFAULT_DFTB_ANGMOM[elem] + '"'
 
-        self.write_dftbplus_input(self.template_filename, elem_list)
+        self.write_dftbplus_input(self.template_filename, elem_list, charge)
 
         self.worker = dftbplus.DftbPlus(libpath = libpath, hsdpath = hsdpath)
 
@@ -122,7 +122,7 @@ class dftbplus_manager:
         return string
     
     
-    def write_dftbplus_input(self, template_filename, elem_list):
+    def write_dftbplus_input(self, template_filename, elem_list, charge):
         
         with open(template_filename, 'r') as template:
                 
@@ -139,6 +139,8 @@ class dftbplus_manager:
         dftb_block['MaxAngularMomentum']['(noname)']['is_named_dict'] = True
         dftb_block['MaxAngularMomentum']['(noname)']['values'] = {}
         dftb_block['MaxAngularMomentum']['(noname)']['values']['is_named_dict'] = False
+
+        dftb_block['Charge'] = charge
         
         for elem in elem_list:
     
