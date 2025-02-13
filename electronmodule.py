@@ -151,6 +151,8 @@ class Electronic_state:
 
         self.initial_estate_energies = None
 
+        self.check_stability = load_setting(settings, 'check_stability')
+
         if self.qc_program == 'dftb+':
             self.dftbplus_instance = init_qc_engine(settings, "%d" % self.electronic_state_id)
         elif self.qc_program == 'pyscf':
@@ -1725,6 +1727,9 @@ class Electronic_state:
 
             gs_energy = self.dftbplus_instance.worker.get_energy()
 
+            if self.check_stability:
+                utils.stop_with_error('DFTB+ is not compatible with stability analysis.')
+
             mo_energies, mo_coeffs_real = self.dftbplus_instance.worker.get_molecular_orbitals(
                 open_shell = self.is_open_shell
             )
@@ -1737,7 +1742,7 @@ class Electronic_state:
             
             self.pyscf_instance.update_geometry(coords)
             
-            self.pyscf_instance.converge_scf()
+            self.pyscf_instance.converge_scf(check_stability = self.check_stability)
 
             gs_energy = self.pyscf_instance.ks.e_tot
 

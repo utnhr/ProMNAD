@@ -32,6 +32,8 @@ class pyscf_manager:
         self.ks.xc = self.xc
         self.ks.max_cycle = self.max_cycle
         
+        self.level_shift = load_setting(settings, 'level_shift')
+
         return
 
 
@@ -54,9 +56,32 @@ class pyscf_manager:
         return
 
 
-    def converge_scf(self, dm = None):
-
+    def converge_scf(self, dm = None, check_stability = False):
+        
+        self.ks.level_shift = self.level_shift
         self.ks.kernel(dm = dm)
+
+        if check_stability:
+
+            while True:
+
+                mo_i, dummy1, stable_i, dummy2 = self.ks.stability(
+                    internal=True, external=False, return_status=True
+                )
+
+                if stable_i:
+
+                    break
+
+                else:
+
+                    guess_dm = self.scf.rhf.make_rdm1(mo_i, self.ks.mo_occ)
+                    #self.ks.kernel(dm = guess_dm)
+
+                    self.ks.level_shift = 0.1
+                    self.ks.kernel(dm = guess_dm)
+
+                    #self.ks.newton().run(mo_i, self.ks.mo_occ)
 
         return
 

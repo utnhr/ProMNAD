@@ -33,6 +33,8 @@ default = {
     'xc': 'b3lyp',
     'charge': 0,
     #'spin': 0,
+    'check_stability': False,
+    'level_shift': 0.0,
 
     'calc_nonorthogonality_interval': -1,
 }
