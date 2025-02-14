@@ -26,7 +26,7 @@ class pyscf_manager:
         self.mol.build()
 
         self.xc = load_setting(settings, 'xc')
-        self.max_cycle = 500
+        self.max_cycle = load_setting(settings, 'max_scf_cycle')
 
         self.ks = self.dft.KS(self.mol) # currently only RKS is supprted (mol.spin==0 assumed)
         self.ks.xc = self.xc
@@ -61,6 +61,10 @@ class pyscf_manager:
         self.ks.level_shift = self.level_shift
         self.ks.kernel(dm = dm)
 
+        if not self.ks.converged:
+            utils.Printer.write_out('Trying second-order SCF.')
+            self.ks.newton().run(self.ks.mo_coeff, self.ks.mo_occ)
+
         if check_stability:
 
             while True:
@@ -78,10 +82,15 @@ class pyscf_manager:
                     guess_dm = self.scf.rhf.make_rdm1(mo_i, self.ks.mo_occ)
                     #self.ks.kernel(dm = guess_dm)
 
-                    self.ks.level_shift = 0.1
+                    self.ks.level_shift = self.level_shift
                     self.ks.kernel(dm = guess_dm)
 
-                    #self.ks.newton().run(mo_i, self.ks.mo_occ)
+                    if not self.ks.converged:
+                        utils.Printer.write_out('Trying second-order SCF.')
+                        self.ks.newton().run(mo_i, self.ks.mo_occ)
+
+        if not self.ks.converged:
+            utils.stop_with_error('SCF failed to converge.')
 
         return
 
