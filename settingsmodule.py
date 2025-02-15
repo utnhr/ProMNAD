@@ -35,7 +35,7 @@ default = {
     #'spin': 0,
     'check_stability': False,
     'level_shift': 0.0,
-    'max_scf_cycle': 100,
+    'max_scf_cycle': 300,
 
     'calc_nonorthogonality_interval': -1,
 }
