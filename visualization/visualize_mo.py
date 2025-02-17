@@ -3,9 +3,10 @@
 import sys
 import numpy as np
 import re
+import os
 from pyscf import gto, scf, dft
 from pyscf.tools import cubegen
-sys.path.append('..')
+sys.path.append( os.path.join( os.path.dirname(__file__), '..') )
 import utils
 import inout
 from settingsmodule import load_setting
@@ -55,7 +56,7 @@ with open(mo_filename, 'r') as mo_file:
                 
                 for word in ll:
 
-                    mo_coeff.append(float(word))
+                    mo_coeff.append(float(word.rstrip(',')))
             
             else:
 
@@ -122,5 +123,5 @@ mol.basis = basis
 mol.symmetry = False
 mol.build()
 
-cubegen.density(mol, 'result.cube', dm=dm, nx=mesh_x, ny=mesh_y, nz=mesh_z)
+cubegen.density(mol, result_filename, dm=dm, nx=mesh_x, ny=mesh_y, nz=mesh_z)
 
