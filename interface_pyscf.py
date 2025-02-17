@@ -67,6 +67,8 @@ class pyscf_manager:
 
         if check_stability:
 
+            count = 0
+
             while True:
 
                 mo_i, dummy1, stable_i, dummy2 = self.ks.stability(
@@ -78,19 +80,28 @@ class pyscf_manager:
                     break
 
                 else:
+                    
+                    if count == 0:
 
-                    guess_dm = self.scf.rhf.make_rdm1(mo_i, self.ks.mo_occ)
-                    #self.ks.kernel(dm = guess_dm)
-
-                    self.ks.level_shift = self.level_shift
-                    self.ks.kernel(dm = guess_dm)
-
-                    if not self.ks.converged:
                         utils.Printer.write_out('Trying second-order SCF.')
                         self.ks.newton().run(mo_i, self.ks.mo_occ)
 
+                    elif count == 1:
+
+                        guess_dm = self.scf.rhf.make_rdm1(mo_i, self.ks.mo_occ)
+
+                        self.ks.level_shift = self.level_shift
+                        self.ks.kernel(dm = guess_dm)
+
+                    elif count > 1:
+                        
+                        break
+
+                    count += 1
+
         if not self.ks.converged:
-            utils.stop_with_error('SCF failed to converge.')
+            #utils.stop_with_error('SCF failed to converge.')
+            utils.Printer.write_out('WARNING! SCF NOT CONVERGED!!!')
 
         return
 
