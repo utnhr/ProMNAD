@@ -162,6 +162,20 @@ for i_snapshot in range(1, n_snapshot):
     mo_coeff_new = mo_coeffs[i_snapshot]
 
     mo_overlap = np.dot( mo_coeff_old.conjugate(), np.dot( overlap_twogeom, mo_coeff_new.transpose() ) )
+    
+    # correction for sign flipping
+
+    for i_mo in range(n_mo):
+
+        if mo_overlap[i_mo,i_mo] < 0:
+
+            #sys.stderr.write("SIGN CORRECTED (%d, %20.12f)\n" % (i_mo, mo_overlap[i_mo,i_mo])) ## Debug code
+
+            #mo_coeffs[i_snapshot][i_mo] *= -1.0
+            mo_overlap[:,i_mo] = deepcopy(-mo_overlap[:,i_mo])
+
+    #mo_coeff_new = mo_coeffs[i_snapshot]
+    #mo_overlap = np.dot( mo_coeff_old.conjugate(), np.dot( overlap_twogeom, mo_coeff_new.transpose() ) )
 
     mo_tdnac = ( mo_overlap - mo_overlap.transpose() ) / timediff
 
