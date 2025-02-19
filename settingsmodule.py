@@ -36,6 +36,7 @@ default = {
     'check_stability': False,
     'level_shift': 0.0,
     'max_scf_cycle': 300,
+    'reuse_scf_dm': True,
 
     'calc_nonorthogonality_interval': -1,
 }

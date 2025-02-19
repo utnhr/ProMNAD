@@ -104,6 +104,10 @@ class Electronic_state:
         self.nbin_interpol       = load_setting(settings, 'nbin_interpol_elec')
 
         self.atomparams          = deepcopy(atomparams)
+    
+        self.reuse_scf_dm        = load_setting(settings, 'reuse_scf_dm')
+        self.guess_dm            = None # previous DM
+        #self.guess_dm_ort        = None # previous DM in orthogonal basis
 
         self.dtau                = dtau
         self.alpha               = alpha
@@ -1719,6 +1723,9 @@ class Electronic_state:
 
     def get_scf_results(self, coords):
 
+        #if self.S is None:
+        #    self.update_position_dependent_quantities() # for initial step
+
         if self.qc_program == 'dftb+':
         
             self.dftbplus_instance.go_to_workdir()
@@ -1741,8 +1748,20 @@ class Electronic_state:
         elif self.qc_program == 'pyscf':
             
             self.pyscf_instance.update_geometry(coords)
+
+            #if self.guess_dm_ort is None:
+            #    guess_dm = None
+            #else:
+            #    guess_dm = BasisTransformer.mo2ao(self.guess_dm_ort, self.S, self.L)
             
-            self.pyscf_instance.converge_scf(check_stability = self.check_stability)
+            self.guess_dm = self.pyscf_instance.converge_scf(
+                guess_dm = self.guess_dm, check_stability = self.check_stability, return_dm = self.reuse_scf_dm,
+            )
+
+            #if self.reuse_scf_dm and guess_dm_nonort is not None:
+            #    self.guess_dm_ort = BasisTransformer.ao2mo(guess_dm_nonort, self.L)
+            #else:
+            #    self.guess_dm_ort = None
 
             gs_energy = self.pyscf_instance.ks.e_tot
 

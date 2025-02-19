@@ -56,10 +56,10 @@ class pyscf_manager:
         return
 
 
-    def converge_scf(self, dm = None, check_stability = False):
+    def converge_scf(self, guess_dm = None, check_stability = False, return_dm = False):
         
         self.ks.level_shift = self.level_shift
-        self.ks.kernel(dm = dm)
+        self.ks.kernel(dm0 = guess_dm)
 
         if not self.ks.converged:
             utils.Printer.write_out('Trying second-order SCF.')
@@ -103,7 +103,12 @@ class pyscf_manager:
             #utils.stop_with_error('SCF failed to converge.')
             utils.Printer.write_out('WARNING! SCF NOT CONVERGED!!!')
 
-        return
+        if return_dm and self.ks.converged:
+            dm = self.ks.make_rdm1()
+        else:
+            dm = None
+
+        return dm
 
 
     def return_hamiltonian(self, rho, n_spin):
