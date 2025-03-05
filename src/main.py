@@ -6,7 +6,7 @@ import numpy as np
 
 from utils import stop_with_error, Timer
 import inout
-import sample
+#import sample
 import settingsmodule
 from calcconfig import fill_default_settings, configure_calculation, init_qc_engine
 from dynamics import do_dynamics
