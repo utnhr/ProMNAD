@@ -63,7 +63,7 @@ nsigma_max            = 4.0
 random.seed(20191113)
 
 
-# read dftbk_vib.out file
+# read output file from vibrational analysis
 standard_orientation_pattern = re.compile("^\s*Standard orientation:")
 freq_pattern                 = re.compile("^\s*Frequencies --")
 horizontal_bar_pattern       = re.compile("^\s*--------------------------------------------------------------------------------")
