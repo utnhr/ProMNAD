@@ -56,11 +56,18 @@ class pyscf_manager:
         return
 
 
-    def converge_scf(self, guess_dm = None, check_stability = False, return_dm = False):
+    def converge_scf(self, guess_dm = None, guess_mo = None, occ_mo = None,
+                     check_stability = False, return_dm = False, return_mo = False):
         
         self.ks.level_shift = self.level_shift
-        self.ks.kernel(dm0 = guess_dm)
-
+        
+        # if guess MO is given, use quasi-Newton
+        if guess_mo is not None:
+            self.ks = self.dft.KS(self.mol).newton()
+            self.ks.kernel(guess_mo, occ_mo)
+        else:
+            self.ks.kernel(dm0 = guess_dm)
+        
         if not self.ks.converged:
             utils.Printer.write_out('Trying second-order SCF.')
             self.ks.newton().run(self.ks.mo_coeff, self.ks.mo_occ)
@@ -103,12 +110,20 @@ class pyscf_manager:
             #utils.stop_with_error('SCF failed to converge.')
             utils.Printer.write_out('WARNING! SCF NOT CONVERGED!!!')
 
-        if return_dm and self.ks.converged:
-            dm = self.ks.make_rdm1()
-        else:
-            dm = None
+        dm  = None
+        mo  = None
+        occ = None
 
-        return dm
+        if self.ks.converged:
+
+            if return_dm:
+                dm = self.ks.make_rdm1()
+            
+            if return_mo:
+                mo  = deepcopy(self.ks.mo_coeff)
+                occ = deepcopy(self.ks.mo_occ)
+
+        return dm, mo, occ
 
 
     def return_hamiltonian(self, rho, n_spin):

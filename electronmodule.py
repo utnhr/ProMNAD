@@ -106,7 +106,10 @@ class Electronic_state:
         self.atomparams          = deepcopy(atomparams)
     
         self.reuse_scf_dm        = load_setting(settings, 'reuse_scf_dm')
+        self.reuse_scf_mo        = load_setting(settings, 'reuse_scf_mo')
         self.guess_dm            = None # previous DM
+        self.guess_mo            = None # previous MO
+        self.occ_mo              = None # MO occupation numbers
         #self.guess_dm_ort        = None # previous DM in orthogonal basis
 
         self.dtau                = dtau
@@ -1754,8 +1757,9 @@ class Electronic_state:
             #else:
             #    guess_dm = BasisTransformer.mo2ao(self.guess_dm_ort, self.S, self.L)
             
-            self.guess_dm = self.pyscf_instance.converge_scf(
-                guess_dm = self.guess_dm, check_stability = self.check_stability, return_dm = self.reuse_scf_dm,
+            self.guess_dm, self.guess_mo, self.occ_mo = self.pyscf_instance.converge_scf(
+                guess_dm = self.guess_dm, guess_mo = self.guess_mo, occ_mo = self.occ_mo,
+                check_stability = self.check_stability, return_dm = self.reuse_scf_dm, return_mo = self.reuse_scf_mo,
             )
 
             #if self.reuse_scf_dm and guess_dm_nonort is not None:
