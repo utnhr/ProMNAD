@@ -5,7 +5,8 @@ import numpy as np
 from time import perf_counter_ns
 from settingsmodule import load_setting
 from copy import deepcopy
-from pyscf import gto, scf, dft
+from math import sqrt
+from pyscf import gto, scf, dft, grad
 
 class pyscf_manager:
     
@@ -14,6 +15,7 @@ class pyscf_manager:
         self.gto = gto
         self.scf = scf
         self.dft = dft
+        self.grad = grad
 
         self.mol = gto.Mole()
         #self.mol.unit = 'Angstrom'
@@ -176,3 +178,119 @@ class pyscf_manager:
         #deriv_coupling[:,:] = 0.0 ## Debug code
 
         return deepcopy(deriv_coupling)
+
+
+    def get_force_from_DM(self, n_spin, H_AO, rho_AO, Vinv, ortho_type):
+
+        # Force from time-dependent electron density
+        # X. Li et al., JCP, 123, 084106 (2005)
+        # Assuming Lowdin orthogonalization (eq. 14)
+        # V = S^(1/2), Vinv = S^(-1/2)
+
+        utils.Timer.set_checkpoint_time('start_force')
+
+        # currently, limited to restricted KS
+        if n_spin > 1:
+            utils.stop_with_error('Force calculation only available for RKS.')
+
+        S = self.get_overlap_matrix().astype('complex128')
+
+        F = H_AO[0,:,:]
+        P = rho_AO[0,:,:]
+        ## get converged Fock and 1RDM for debug
+        #F = self.ks.get_hcore() + self.ks.get_veff()
+        #P = self.ks.make_rdm1(self.ks.mo_coeff, self.ks.mo_occ)
+
+        mf_grad = self.ks.nuc_grad_method()
+
+        # Nuclear repulsion
+        d_vn = mf_grad.grad_nuc(self.mol).astype('complex128')
+
+        # Derivative generator of 1e term
+        d_h1s = mf_grad.hcore_generator(self.mol)
+
+        # Derivative of 2e term
+        d_G2 = mf_grad.get_veff(self.mol, P).astype('complex128')
+
+        # Derivative of AO overlap
+        d_S = mf_grad.get_ovlp(self.mol).astype('complex128')
+
+        # Eigenvalues & eigenvectors of S
+        s_vals, s_vecs = np.linalg.eig(S)
+        n_eig = len(s_vals)
+
+        n_atom = self.mol.natm
+
+        aoslices = self.mol.aoslice_by_atom()
+
+        # buffer for total derivative
+        d_E = np.zeros_like(d_vn)
+
+        # Term 2 in r.h.s. of eq. 13
+        term2 = np.zeros_like(d_vn)
+
+        # Term 3 in r.h.s. of eq. 13
+        term3 = np.zeros_like(d_vn)
+
+        # prepare 1/(si^(1/2)+sj^(1/2)) matrix in eq. 14
+
+        inv_sqrt = np.zeros( (n_eig, n_eig), dtype='complex128' )
+        
+        for i in range(n_eig):
+            for j in range(n_eig):
+
+                inv_sqrt[i,j] = 1.0 / ( sqrt(s_vals[i]) + sqrt(s_vals[j]) )
+
+        # atom-wise part
+
+        for i_atom in range(n_atom):
+
+            atom_ID = i_atom + 1
+
+            ps, pe = aoslices[i_atom, 2:]
+
+            d_h1 = d_h1s(i_atom).astype('complex128') # generator for d_h1
+
+            term2[i_atom,:] += np.einsum('xij,ji->x', d_h1, P, optimize='optimal')
+
+            term2[i_atom,:] += 2.0 * np.einsum('xij,ji->x', d_G2[:,ps:pe,:], P[:,ps:pe], optimize='optimal') # x2 from bra,ket contributions, and x1/2
+            #term2[i_atom,:] += 1.0 * np.einsum('xij,ij->x', d_G2[:,ps:pe,:], P[ps:pe,:], optimize='optimal') # x2 from bra,ket contributions, and x1/2
+
+            if ortho_type == 'lowdin':
+                
+                d_V1 = np.einsum(
+                    'pi,ij,ib,xbc,cj,jq->xpq',
+                    s_vecs, inv_sqrt, s_vecs.transpose()[:,ps:pe], d_S[:,ps:pe,:], s_vecs, s_vecs.transpose(),
+                    optimize='optimal',
+                )
+                #d_V2 = np.einsum(
+                #    'pi,ij,ib,xcb,cj,jq->xpq',
+                #    s_vecs, inv_sqrt, s_vecs.transpose(), d_S[:,ps:pe,:], s_vecs[ps:pe,:], s_vecs.transpose(),
+                #    optimize='optimal',
+                #)
+                #d_V = d_V1 + d_V2
+                d_V = d_V1
+
+                # NOTE: Ptilde in JCP, 123, 084106 (2005) -> different from P?
+
+                term3[i_atom,:] -= 2.0 * np.einsum('ij,jk,xkl,li->x', F, Vinv, d_V, P, optimize='optimal')
+                term3[i_atom,:] -= 2.0 * np.einsum('ij,xjk,kl,li->x', P, d_V, Vinv, F, optimize='optimal')
+
+                #term3[i_atom,:] -= 1.0 * np.einsum('ij,jk,xkl,li->x', F, P[:,ps:pe], d_S[:,ps:pe,:], P, optimize='optimal') # for converged P
+
+            else:
+
+                utils.stop_with_error("Unknown orthogonalization method %s .")
+
+        d_E = d_vn + term2 + term3
+
+        #print(d_vn.reshape(n_atom*3))
+        #print(term2.reshape(n_atom*3))
+        #print(term3.reshape(n_atom*3))
+        #print(d_E.reshape(n_atom*3))
+
+        elap = utils.Timer.set_checkpoint_time('end_force') - utils.Timer.get_checkpoint_time('start_force')
+
+        utils.Printer.write_out(f"Force calculation: {elap:.6f} sec.\n")
+
+        return -d_E.reshape(n_atom*3).real # force

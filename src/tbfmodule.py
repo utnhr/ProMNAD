@@ -668,6 +668,12 @@ class Tbf:
 
         self.old_gs_force = self.gs_force
         self.gs_force, self.t_gs_force = self.e_part.get_force(gs_force = True, get_time = True)
+        
+        ### Debug code
+        #force = self.e_part.pyscf_instance.ks.Gradients().kernel()
+        #n_atom = len(self.atomparams)
+        #print(self.gs_force + force.reshape(n_atom*3))
+        ### End Debug code
 
         return
 

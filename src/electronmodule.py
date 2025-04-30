@@ -1432,10 +1432,16 @@ class Electronic_state:
             force = force.reshape(3*n_atom)
 
         elif self.qc_program == 'pyscf':
-            
-            print('WARNING: GROUND-STATE FORCE') ## Debug code
 
-            self.force = self.pyscf_instance.ks.Gradients()
+            if self.is_open_shell:
+                n_spin = 2
+            else:
+                n_spin = 1
+            
+            if gs_force:
+                force = self.pyscf_instance.get_force_from_DM(n_spin, self.H, self.gs_rho, self.L, 'lowdin')
+            else:
+                force = self.pyscf_instance.get_force_from_DM(n_spin, self.H, self.rho, self.L, 'lowdin')
 
         else:
 
@@ -1457,7 +1463,7 @@ class Electronic_state:
             return force, self.t_force
         else:
             return force
-    
+
 
     def update_position_dependent_quantities(self):
 
