@@ -34,7 +34,7 @@ class dftbplus_manager:
     
         script_dir = os.path.dirname(os.path.abspath(__file__))
 
-        self.template_filename = script_dir + '/input_templates/dftbplus_input_template_scc.yaml'
+        self.template_filename = script_dir + '/../dftbplus_input_templates/dftbplus_input_template_scc.yaml'
 
         for elem in elem_list:
 
